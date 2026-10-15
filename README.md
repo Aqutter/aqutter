@@ -17,8 +17,8 @@ WebView 本身由 [`aqutter_core`](https://github.com/Aqutter/aqutter_core) 提�
 
 ```bash
 # 在既有網頁專案（Nuxt / Vite / Next / 自訂）內
-pnpm add -D github:Aqutter/aqutter#0.1.0&path:/cli
-pnpm add github:Aqutter/aqutter#0.1.0&path:/client
+pnpm add -D github:Aqutter/aqutter#0.2.1&path:/cli
+pnpm add github:Aqutter/aqutter#0.2.1&path:/client
 
 pnpm exec aqutter init --org=com.example
 cp .env/.env.example .env/.env.dev

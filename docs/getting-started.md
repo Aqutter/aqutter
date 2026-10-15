@@ -13,8 +13,8 @@
 CLI 與 client 以 GitHub 子目錄安裝（尚未發佈 npm）：
 
 ```bash
-pnpm add -D "github:Aqutter/aqutter#0.1.0&path:/cli"
-pnpm add "github:Aqutter/aqutter#0.1.0&path:/client"
+pnpm add -D "github:Aqutter/aqutter#0.2.1&path:/cli"
+pnpm add "github:Aqutter/aqutter#0.2.1&path:/client"
 ```
 
 ## 2. 初始化
