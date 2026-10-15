@@ -1,7 +1,7 @@
 name: aqutter
 description: Aqutter shell — hosts a web app in a Flutter WebView with a local server, OTA bundle updates and a JS bridge.
 publish_to: 'none'
-version: 0.1.0
+version: 0.2.0
 
 environment:
   # 下限即本專案的基準 SDK（Flutter 3.47.0 / Dart 3.13.0），非各相依的最小公倍數。
@@ -17,7 +17,7 @@ dependencies:
   aqutter_core:
     git:
       url: https://github.com/Aqutter/aqutter_core.git
-      ref: 0.1.0
+      ref: 0.2.0
 
   # 內嵌本機 HTTP server（服務可寫目錄的網頁 build，支援熱更新）
   shelf: ^1.4.2

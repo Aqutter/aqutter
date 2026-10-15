@@ -129,9 +129,18 @@ class BridgeRegistry {
     _registerPicker(controller);
     _registerTcp(controller);
     _registerUi(controller);
+    _registerNativeMirror(controller);
     _registerPlugins(controller);
     _startBroadcast();
     _registerHostEvents();
+  }
+
+  /// native view 鏡像：回傳 localhost WebSocket 的埠與令牌（首次呼叫時才啟動伺服器）。
+  void _registerNativeMirror(AqutterWebViewController controller) {
+    _handle(controller, BridgeHandler.nativeMirrorEndpoint, (_) async {
+      final endpoint = await AqutterMirrorHost.instance.ensureStarted();
+      return endpoint.toJson();
+    });
   }
 
   /// plugin 是否已 attach；理由同 [_broadcastStarted]——WebView 重掛時 handler 要重掛、context 不該重發。

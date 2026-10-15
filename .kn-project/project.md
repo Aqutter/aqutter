@@ -21,6 +21,7 @@ WebView 由獨立 repo `Aqutter/aqutter_core`（以 git tag 依賴）提供。
 - **CLI 的 `dist/` 必須與 `src/`、`template/` 同步提交**（使用者直接從 GitHub 安裝，沒有編譯步驟）。
 - **設定驅動、框架中立**：CLI 不寫死任何網頁框架，框架差異只在 `cli/src/web.ts` 的轉接器；其餘指令只認 `aqutter.config.json`。
 - **env 範圍**：`AQUTTER_*` 只有殼讀；dev 連線位址 `AQUTTER_DEV_URL` 由 `aqutter dev` 依平台注入。
+- **Native view 鏡像**：原生端在 `aqutter_core`（`AqutterMirror`，以 tag 依賴），網頁端在 client（`<aqutter-native>`、`NativeMirror`）；幀格式與訊息格式兩端各存一份（`mirror_frame.dart` ↔ `client/src/nativeview/frame.ts`、`gestures.ts`），改一邊必改另一邊。`import '@aqutter/aqutter'` 必須在伺服端渲染下安全，故元素類別只在 `defineAqutterNative()` 內建立。
 - **Plugin**：同一個 repo 同時是 npm 套件與 Dart 套件；`aqutter plugin add` 把 Dart 端以 path 依賴指向 `node_modules` 內的套件，並產生 `lib/aqutter_plugins.dart`。
 
 ## 工作流程
@@ -31,7 +32,7 @@ WebView 由獨立 repo `Aqutter/aqutter_core`（以 git tag 依賴）提供。
 
 ```bash
 cd shell && flutter analyze && flutter test
-cd client && pnpm typecheck
+cd client && pnpm typecheck && pnpm test
 cd cli && pnpm typecheck && pnpm test && pnpm build
 ```
 

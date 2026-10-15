@@ -4,7 +4,7 @@ Plugin 讓第三方擴充 Aqutter：同一個 repo 同時是 **npm 套件**（�
 
 - 對網頁暴露方法（網頁 `callPlugin(id, method, payload)` → Dart handler）
 - 主動對網頁派送事件（Dart `context.emit` → 網頁 `onPluginEvent`）
-- 在 WebView 之上掛原生 Flutter UI
+- 在 WebView 之上掛原生 Flutter UI，或在之下掛被網頁鏡像的內容（[native view 鏡像](nativeview.md)）
 - 相依任何既有的 Flutter plugin（例如 `battery_plus`），原生部分由 Flutter 工具鏈照常整合
 
 ## 建立
@@ -55,6 +55,7 @@ class HapticsPlugin extends AqutterPlugin {
 | `handlers` | 暴露給網頁的方法；回傳值須可 JSON 序列化 |
 | `attach(context)` | 殼就緒後呼叫一次；以 `context.emit(event, payload)` 派送事件 |
 | `buildOverlay(context)` | 疊在 WebView 之上、啟動過場之下的 UI；需要吃觸控請自行限定範圍 |
+| `buildUnderlay(context)` | 墊在 WebView 之下、被網頁蓋住但仍在 Flutter 渲染的內容（網頁載入前就掛上）；搭配 [native view 鏡像](nativeview.md) |
 | `dispose()` | 殼結束時釋放資源 |
 
 Plugin 的 handler 會列入 `platform_info` 的 `capabilities`，網頁以 `isPluginSupported(id, method)` 查詢（沒裝該 plugin 的 App 為 `false`）。

@@ -1,4 +1,4 @@
-/// 橋接名稱常數。BridgeHandler / BridgeEvent 對映前端 `packages/aqutter/src/contract/bridge.ts`；
+/// 橋接名稱常數。BridgeHandler / BridgeEvent 對映前端 `client/src/contract/bridge.ts`；
 /// HostMethod 對映 Android `MainActivity.kt`。凡「兩端必須一致」的名稱一律集中於此，
 /// 避免魔法字串散落。
 library;
@@ -11,6 +11,9 @@ class BridgeHandler {
 
   /// 網頁層已掛載且首次繪製完成；host 據此移除啟動過場。
   static const String appReady = 'app_ready';
+
+  /// native view 鏡像的 WebSocket 連線資訊（埠與令牌）；見 `<aqutter-native>`。
+  static const String nativeMirrorEndpoint = 'native_mirror_endpoint';
 
   static const String dbExec = 'db_exec';
   static const String dbOpen = 'db_open';

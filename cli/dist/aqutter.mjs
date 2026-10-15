@@ -120,7 +120,7 @@ var init_package = __esm({
   "package.json"() {
     package_default = {
       name: "@aqutter/aqutter-cli",
-      version: "0.1.0",
+      version: "0.2.0",
       description: "Aqutter CLI\uFF1A\u628A\u65E2\u6709\u7DB2\u9801\u5C08\u6848\u63A5\u4E0A Aqutter \u6BBC\uFF0C\u63D0\u4F9B dev / build / seed / flavor / \u7C3D\u7AE0 \u7B49\u6307\u4EE4\u3002",
       type: "module",
       license: "Apache-2.0",

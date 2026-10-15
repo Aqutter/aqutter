@@ -30,7 +30,7 @@ abstract class AqutterPluginContext {
 /// 傳入實例（`aqutter plugin add` 會代為維護這份清單）。plugin 可以：
 ///   - 以 [handlers] 對網頁暴露方法（網頁以 `callPlugin(id, method, payload)` 呼叫）
 ///   - 以 [attach] 取得 [AqutterPluginContext]，主動對網頁派送事件
-///   - 以 [buildOverlay] 在 WebView 之上掛原生 Flutter UI
+///   - 以 [buildOverlay] 在 WebView 之上、以 [buildUnderlay] 在 WebView 之下掛原生 Flutter UI
 ///   - 自由相依其他 Flutter plugin（例如 battery_plus），其原生部分由 Flutter 工具鏈照常整合
 abstract class AqutterPlugin {
   /// plugin 識別字，須符合 [aqutterPluginIdPattern]，並與網頁端套件使用的 id 一致。
@@ -41,6 +41,12 @@ abstract class AqutterPlugin {
 
   /// 殼就緒後呼叫一次；[context] 在 plugin 存活期間有效。
   void attach(AqutterPluginContext context) {}
+
+  /// 墊在 WebView **之下**的原生內容；回傳 null 表示沒有。
+  ///
+  /// 用於「被網頁蓋住、但仍需在 Flutter 裡渲染」的內容——例如以 `AqutterMirror` 鏡像到網頁的地圖。
+  /// 與其他 slot 不同，它在網頁載入前就掛上，且整個殼存活期間都在。
+  Widget? buildUnderlay(BuildContext context) => null;
 
   /// 疊在 WebView 之上的原生 UI；回傳 null 表示沒有。
   ///

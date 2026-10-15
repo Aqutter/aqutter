@@ -13,3 +13,12 @@ export 'src/plugin/aqutter_plugin.dart'
         aqutterPluginEventChannel,
         aqutterPluginHandlerName,
         aqutterPluginIdPattern;
+export 'package:aqutter_core/aqutter_core.dart'
+    show
+        AqutterMirror,
+        AqutterMirrorFormat,
+        AqutterMirrorFrame,
+        AqutterMirrorHost,
+        AqutterMirrorMessage,
+        AqutterMirrorSession,
+        AqutterNativeCapture;
