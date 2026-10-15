@@ -104,3 +104,14 @@ describe('templates', () => {
     })
   }
 })
+
+describe('template packaging', () => {
+  it('stores gitignore files under a name npm does not drop', () => {
+    const root = join(import.meta.dirname, '..', 'template')
+    const names = listFiles(root).map(file => file.slice(root.length + 1))
+    expect(names.filter(name => name.endsWith('/.gitignore'))).toEqual([])
+    expect(names).toContain('app/_gitignore')
+    expect(names).toContain('plugin/_gitignore')
+    expect(names).toContain('app/android/_gitignore')
+  })
+})

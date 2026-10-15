@@ -1,6 +1,6 @@
 {
   "name": "@aqutter/aqutter-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Aqutter CLI：把既有網頁專案接上 Aqutter 殼，提供 dev / build / seed / flavor / 簽章 等指令。",
   "type": "module",
   "license": "Apache-2.0",

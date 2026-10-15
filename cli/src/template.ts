@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url'
 
 export type TemplateVariables = Record<string, string>
 
+/** 範本內 `.gitignore` 的存放檔名（npm 打包會排除真正的 `.gitignore`）。 */
+export const GITIGNORE_STORED_NAME = '_gitignore'
+
 const BINARY_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.icns', '.jar', '.so', '.dll', '.a', '.ttf', '.otf',
   '.woff', '.woff2', '.keystore', '.jks', '.zip', '.gz', '.pdf',
@@ -54,7 +57,9 @@ export const renderTree = (
   const walk = (from: string, to: string): void => {
     for (const name of readdirSync(from)) {
       const src = join(from, name)
-      const dst = join(to, substitute(name, variables))
+      // npm 打包時一律排除 `.gitignore`，範本改存為 `_gitignore`，展開時還原
+      const outName = name === GITIGNORE_STORED_NAME ? '.gitignore' : substitute(name, variables)
+      const dst = join(to, outName)
       if (statSync(src).isDirectory()) {
         walk(src, dst)
         continue

@@ -120,7 +120,7 @@ var init_package = __esm({
   "package.json"() {
     package_default = {
       name: "@aqutter/aqutter-cli",
-      version: "0.2.0",
+      version: "0.2.1",
       description: "Aqutter CLI\uFF1A\u628A\u65E2\u6709\u7DB2\u9801\u5C08\u6848\u63A5\u4E0A Aqutter \u6BBC\uFF0C\u63D0\u4F9B dev / build / seed / flavor / \u7C3D\u7AE0 \u7B49\u6307\u4EE4\u3002",
       type: "module",
       license: "Apache-2.0",
@@ -357,10 +357,11 @@ var init_shared = __esm({
 import { existsSync as existsSync3, mkdirSync as mkdirSync2, readFileSync as readFileSync3, readdirSync as readdirSync2, statSync as statSync2, writeFileSync, copyFileSync } from "node:fs";
 import { dirname as dirname2, join as join3, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
-var BINARY_EXTENSIONS, isBinary, substitute, findTemplateRoot, renderTree;
+var GITIGNORE_STORED_NAME, BINARY_EXTENSIONS, isBinary, substitute, findTemplateRoot, renderTree;
 var init_template = __esm({
   "src/template.ts"() {
     "use strict";
+    GITIGNORE_STORED_NAME = "_gitignore";
     BINARY_EXTENSIONS = /* @__PURE__ */ new Set([
       ".png",
       ".jpg",
@@ -410,7 +411,8 @@ var init_template = __esm({
       const walk2 = (from, to) => {
         for (const name of readdirSync2(from)) {
           const src = join3(from, name);
-          const dst = join3(to, substitute(name, variables));
+          const outName = name === GITIGNORE_STORED_NAME ? ".gitignore" : substitute(name, variables);
+          const dst = join3(to, outName);
           if (statSync2(src).isDirectory()) {
             walk2(src, dst);
             continue;

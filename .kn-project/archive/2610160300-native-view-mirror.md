@@ -21,3 +21,6 @@
 
 ## Impact Files
 - `client/src/nativeview/**`、`client/src/index.ts`、`client/src/contract/{bridge,table}.ts`、`client/test/**`、`shell/lib/src/bridge/**`、`shell/lib/src/plugin/aqutter_plugin.dart`、`shell/lib/src/app.dart`、`shell/lib/aqutter.dart`、`shell/pubspec.yaml`、`docs/nativeview.md`、`docs/plugins.md`
+
+## 0.2.1
+- 修正：CLI 範本內的 `.gitignore`（含各平台目錄與 plugin 範本）被 npm 打包排除，GitHub 安裝的 CLI 展開後缺少忽略規則。改以 `_gitignore` 存放並於展開時還原；App 範本補上 Flutter 產生檔（ephemeral、Generated.xcconfig、plugin registrant 等）的忽略規則。
