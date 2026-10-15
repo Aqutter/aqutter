@@ -1,0 +1,78 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 依實際用到的能力增減。未在此宣告的權限，系統不會跳授權視窗，直接視為拒絕 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Android 13（API 33）起通知才是執行期權限；更低版本沒有此權限，宣告也無害 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 殼自主更新（非上架派發）：喚起系統安裝器安裝下載好的 APK，見 lib/server/host_updater.dart -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <application
+        android:label="{{appName}}"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
+        <!-- configChanges 必含 navigation：藍牙 HID 鍵盤（掃描槍）連線／斷線時系統送 0x70
+             （keyboard|keyboardHidden|navigation），缺任一項 Activity 就會重建，
+             FlutterEngine 與 WebView 一起重建、網頁整個重載。
+             清單 = Capacitor 預設 + Flutter 預設額外的 layoutDirection|fontScale|density -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|navigation|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- 把 cache 下的 APK 以 content:// 交給系統安裝器；白名單見 res/xml/file_paths.xml -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+        <!-- Hybrid Composition++ 的 opt in。aqutter_core（承襲 inappwebview fork 自 6.2.0 beta.3.5 起的行為），
+             未指定 androidCompositionMode 時會自動選擇合成模式：能用 HCPP 就用 HCPP，
+             否則退回 TLHC。而 HCPP 需要 API 34+、Vulkan，且必須由 app 端宣告本鍵才會
+             啟用；不宣告的話自動選擇永遠退回 TLHC，等於這條路徑不存在。
+             本鍵由 Flutter 工具端讀取（computeHcppEnabled），不在 embedding jar 內，
+             因此 grep jar 找不到它是正常的。 -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableHcpp"
+            android:value="true" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

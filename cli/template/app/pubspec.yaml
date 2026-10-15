@@ -1,0 +1,35 @@
+name: {{appName}}
+description: {{displayName}} — Aqutter app.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.13.0 <4.0.0'
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Aqutter 殼。ref 釘 tag：升版時改這一行，diff 中可見。
+  # 本機開發殼時，以 `aqutter init --shell-path=<殼目錄>` 改為 path 依賴。
+  aqutter:
+    git:
+      url: https://github.com/Aqutter/aqutter.git
+      path: shell
+      ref: {{shellRef}}
+
+  # aqutter-plugins:begin（由 `aqutter plugin` 維護，請勿手改）
+  # aqutter-plugins:end
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # 首次啟動的種子網頁包（由 `aqutter seed` 產生 web-bundle.zip；建置產物不納入版控）。
+    # 以「目錄」形式宣告：單檔宣告會讓全新 clone 在資源打包階段失敗。
+    - assets/seed/

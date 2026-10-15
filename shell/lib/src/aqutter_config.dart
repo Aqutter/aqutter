@@ -1,0 +1,51 @@
+import 'package:flutter/material.dart';
+
+/// 殼的外觀設定，由 App 的 `main()` 傳給 `runAqutter`。
+///
+/// 殼在網頁尚未繪製、iOS 回彈捲動、啟動過場與錯誤畫面時會露出原生底色。這些顏色
+/// 應與網頁的 surface / onSurface / primary 色票一致，否則會成為與內容不連續的色塊。
+///
+/// 底色、前景色與強調色都自己持有而不交給 `ThemeData`：`MaterialApp` 預設的淺色
+/// ThemeData 會把文字固定成近黑——底色自己算、文字色卻跟著 theme，深色模式下兩者就會
+/// 對撞成近乎不可讀的對比度。
+class AqutterConfig {
+  const AqutterConfig({
+    this.title = 'Aqutter App',
+    this.surfaceLight = const Color(0xFFF4FBFA),
+    this.surfaceDark = const Color(0xFF0E1514),
+    this.onSurfaceLight = const Color(0xFF161D1D),
+    this.onSurfaceDark = const Color(0xFFDDE4E3),
+    this.primaryLight = const Color(0xFF006A6A),
+    this.primaryDark = const Color(0xFF80D5D4),
+  });
+
+  /// `MaterialApp.title`（工作切換器中顯示的名稱）。
+  final String title;
+
+  /// 過場與 WebView 底層的背景色。
+  final Color surfaceLight;
+  final Color surfaceDark;
+
+  /// 原生自繪畫面（過場、錯誤）的前景色。
+  final Color onSurfaceLight;
+  final Color onSurfaceDark;
+
+  /// 進度指示器等強調色。
+  final Color primaryLight;
+  final Color primaryDark;
+
+  /// 依深淺色取用底色。
+  Color surfaceOf(Brightness brightness) {
+    return brightness == Brightness.dark ? surfaceDark : surfaceLight;
+  }
+
+  /// 依深淺色取用前景色（文字）。
+  Color onSurfaceOf(Brightness brightness) {
+    return brightness == Brightness.dark ? onSurfaceDark : onSurfaceLight;
+  }
+
+  /// 依深淺色取用強調色。
+  Color primaryOf(Brightness brightness) {
+    return brightness == Brightness.dark ? primaryDark : primaryLight;
+  }
+}

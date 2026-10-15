@@ -1,0 +1,31 @@
+{
+  "name": "@aqutter/aqutter-cli",
+  "version": "0.1.0",
+  "description": "Aqutter CLI：把既有網頁專案接上 Aqutter 殼，提供 dev / build / seed / flavor / 簽章 等指令。",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "aqutter": "./dist/aqutter.mjs"
+  },
+  "files": [
+    "dist",
+    "template"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  }
+}

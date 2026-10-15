@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 白名單：只開放殼自主更新的 APK 暫存目錄（對應 host_updater.dart 的 _cacheSubdir） -->
+<paths>
+    <cache-path name="host-update" path="host-update/" />
+</paths>

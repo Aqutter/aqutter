@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 深色對應 lib/main.dart 的 _kSurfaceDark。 -->
+<resources>
+    <color name="launch_background">#0E1514</color>
+</resources>

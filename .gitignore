@@ -1,0 +1,8 @@
+node_modules/
+.dart_tool/
+build/
+pubspec.lock
+.flutter-plugins-dependencies
+.DS_Store
+*.log
+# CLI 的 dist/ 是發佈用產物，納入版控（讓使用者能直接從 GitHub 安裝）
