@@ -2,6 +2,8 @@
 
 同一份 env 檔由兩端各自原生讀取：網頁端由框架轉接器帶入，Flutter 端以 `--dart-define-from-file=<env 檔>` 於編譯期注入，Dart 以 `String.fromEnvironment` 讀取。
 
+環境（dev / uat / prod…）怎麼命名、各自用哪個 env 檔、flavor 與簽章，見 [設定檔的環境](config.md#環境environments)；用 `-e <環境名>` 選用。
+
 鍵的前綴即歸屬：`AQUTTER_*` 只有殼在讀；其餘鍵由網頁專案自己決定。範本在 `.env/.env.example`（`aqutter init` 產生）。
 
 ## 殼的鍵（Dart 編譯期）

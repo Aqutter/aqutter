@@ -10,12 +10,13 @@ const HELP = `aqutter ${pkg.version}
   dev [target]         同跑網頁 dev server 與 flutter run（target: macos|windows|linux|ios|ios-device|android|<device id>）
   seed                 產生靜態網頁並打包種子網頁包（同時交付 web_<env>_<版本>.zip）
   build <platform>     打包 App（apk|aab|ios|ipa|macos|windows|linux），含種子、簽章、交付
+  env add|list|remove  管理設定檔裡的命名環境（env 檔、flavor、簽章、網頁指令覆蓋）
   flavor add [<name>]  為 Android / iOS / macOS 新增 flavor
   android gen-jks      產生 Android 簽章用 keystore 與 key.properties
   plugin create <name> 產生 Aqutter plugin 專案
   plugin add <pkg>     把 plugin 加入目前專案
 
-通用旗標（dev / seed / build）：--env=<env 檔> --x-env=<名稱> --flavor=<名稱>；詳見各指令說明。
+通用旗標（dev / seed / build）：-e <環境名或 env 檔>（等同 --env=…）--x-env=<名稱> --flavor=<名稱>；詳見各指令說明。
 `
 
 const main = async (): Promise<void> => {
@@ -54,6 +55,11 @@ const main = async (): Promise<void> => {
     case 'build': {
       const { runBuild } = await import('./commands/build.ts')
       await runBuild(project, rest)
+      return
+    }
+    case 'env': {
+      const { runEnv } = await import('./commands/env.ts')
+      await runEnv(project, rest)
       return
     }
     case 'flavor': {

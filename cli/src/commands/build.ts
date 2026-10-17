@@ -28,7 +28,8 @@ import type { Zippable } from 'fflate'
 
 import type { Project } from '../config.ts'
 import { chooseMany, chooseOne, listEnvFiles, listFlavors, listSigningConfigs, resolveXEnv } from '../menu.ts'
-import { ENTRY_KIND, IS_WIN, StepFailure, collectEntries, createPrompter, createStep, describeMissingEnv, envNameOf, parseArgs, readAppVersion, resolveEnvFile } from '../shared.ts'
+import { ENTRY_KIND, IS_WIN, StepFailure, collectEntries, createPrompter, createStep, parseArgs, readAppVersion } from '../shared.ts'
+import { resolveEnvironment } from '../environments.ts'
 import type { WalkEntry } from '../shared.ts'
 import { archiveAndExportIpa, readSigningConfig, signMacosApp, signWindowsExe, signingSectionOf } from '../signing.ts'
 import type { SigningPlatformKey } from '../signing.ts'
@@ -492,18 +493,23 @@ export const runBuild = async (project: Project, argv: string[]): Promise<void> 
       }
     : await promptSelections(project, preset)
   const {
-    platforms, envPath, flavor, signingPath,
+    platforms, envPath,
   } = selection
 
-  const envFile = resolveEnvFile(project, envPath)
-  if (!envFile) {
-    return fail(describeMissingEnv(project, envPath))
+  // --env / -e 的值可以是設定檔的環境名，或 env 檔路徑；環境名會帶入該環境設定的 flavor 與簽章（旗標優先）
+  const resolvedEnvironment = resolveEnvironment(project, envPath)
+  if (!resolvedEnvironment.ok) {
+    return fail(resolvedEnvironment.error)
   }
+  const environment = resolvedEnvironment.value
+  const envFile = environment.envFile
+  const flavor = selection.flavor ?? environment.flavor
+  const signingPath = selection.signingPath ?? environment.signing
 
   // 交付檔名的兩個要素在打包前就先確認，別等十幾分鐘的 build 跑完才發現組不出檔名。
-  const envName = envNameOf(envFile)
+  const envName = environment.name
   if (!envName) {
-    return fail(`無法由 env 檔 \`${envFile}\` 推導環境名（檔名須為 .env.<環境> 形式，例如 ${project.config.envDir}/.env.uat）。`)
+    return fail(`無法由 env 檔 \`${envFile}\` 推導環境名（檔名須為 .env.<環境> 形式，例如 ${project.config.envDir}/.env.uat，或在 aqutter.config.json 的 environments 命名）。`)
   }
   const appVersion = readAppVersion(project)
   if (!appVersion) {
@@ -535,7 +541,7 @@ export const runBuild = async (project: Project, argv: string[]): Promise<void> 
   // 1) 產生種子網頁包（委派 seed，傳解析後的路徑而非原始輸入——seed 不必再解析一次）。
   //    多平台共用同一份 env，種子只產一次；種子失敗沒有任何平台能建，直接退出。
   try {
-    await runSeed(project, [`--env=${envFile}`])
+    await runSeed(project, [`--env=${environment.source === 'config' ? envName : envFile}`])
   }
   catch (error) {
     if (error instanceof StepFailure) {

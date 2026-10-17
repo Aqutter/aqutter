@@ -22,14 +22,44 @@ export interface ParsedArgs {
   flags: Flags
 }
 
-/** 解析參數為 { positional, flags }：`--key=value` 收進 flags，其餘為位置參數。 */
+/** 短旗標對應的長旗標名稱。目前只有 `-e`（= `--env`）。 */
+export const SHORT_FLAGS: Readonly<Record<string, string>> = { e: 'env' }
+
+/**
+ * 解析參數為 { positional, flags }：
+ * - `--key=value` 收進 flags；
+ * - 短旗標 `-e=value` 或 `-e value`（見 [SHORT_FLAGS]）等同 `--env=value`；
+ * - 其餘為位置參數（`--key value` 的空白寫法仍視為位置參數，值須以 `=` 綁定）。
+ *
+ * 短旗標的值只吃「下一個不以 `-` 開頭」的參數，所以 `-e` 後面接旗標或結尾時值為空字串，
+ * 由呼叫端回報「需要值」，不會把後面的旗標或平台名吞掉。
+ */
 export const parseArgs = (argv: string[]): ParsedArgs => {
   const positional: string[] = []
   const flags: Flags = {}
-  for (const arg of argv) {
-    const match = /^--([^=]+)=(.*)$/.exec(arg)
-    if (match) {
-      flags[match[1]] = match[2]
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index]
+    const long = /^--([^=]+)=(.*)$/.exec(arg)
+    if (long) {
+      flags[long[1]] = long[2]
+      continue
+    }
+    const short = /^-([A-Za-z])(?:=(.*))?$/.exec(arg)
+    if (short && SHORT_FLAGS[short[1]] !== undefined) {
+      const name = SHORT_FLAGS[short[1]]
+      if (short[2] !== undefined) {
+        flags[name] = short[2]
+      }
+      else {
+        const next = argv[index + 1]
+        if (next !== undefined && !next.startsWith('-')) {
+          flags[name] = next
+          index += 1
+        }
+        else {
+          flags[name] = ''
+        }
+      }
       continue
     }
     positional.push(arg)

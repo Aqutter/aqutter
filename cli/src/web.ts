@@ -2,7 +2,8 @@
 // 其餘指令（dev / seed / build）只認這個介面，不認任何特定框架。
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Project } from './config.ts'
+import type { Project, WebConfig } from './config.ts'
+import { validateWebFramework } from './config.ts'
 import { IS_WIN } from './shared.ts'
 
 export interface Invocation {
@@ -89,9 +90,9 @@ const fill = (template: string, values: Record<string, string>): string => {
   return template.replace(/\{(envFile|port|host)\}/g, (_, key: string) => values[key] ?? '')
 }
 
-const nuxtAdapter = (project: Project): WebAdapter => ({
-  outputDir: project.config.web.outputDir ?? '.output/public',
-  cleanDirs: project.config.web.cleanDirs ?? ['.nuxt', '.output'],
+const nuxtAdapter = (project: Project, web: WebConfig): WebAdapter => ({
+  outputDir: web.outputDir ?? '.output/public',
+  cleanDirs: web.cleanDirs ?? ['.nuxt', '.output'],
   // nuxi 需以等號綁值（`--dotenv=<file>`），否則值會被當成 rootDir 位置參數；
   // `--host` 的值是選填的、會吃掉緊接其後的參數，故必須放在最後。
   dev: ({ envFile, port, devHost }) => withExec(project, 'nuxt', ['dev', `--dotenv=${envFile}`, `--port=${port}`, '--host'], {
@@ -106,9 +107,9 @@ const nuxtAdapter = (project: Project): WebAdapter => ({
   ],
 })
 
-const viteAdapter = (project: Project): WebAdapter => ({
-  outputDir: project.config.web.outputDir ?? 'dist',
-  cleanDirs: project.config.web.cleanDirs ?? ['dist'],
+const viteAdapter = (project: Project, web: WebConfig): WebAdapter => ({
+  outputDir: web.outputDir ?? 'dist',
+  cleanDirs: web.cleanDirs ?? ['dist'],
   dev: ({ envFile, port, devHost }) => withExec(project, 'vite', ['--port', String(port), '--strictPort', '--host'], {
     ...envFromFile(project, envFile),
     ...(devHost ? { DEV_HOST: devHost } : {}),
@@ -119,9 +120,9 @@ const viteAdapter = (project: Project): WebAdapter => ({
   ],
 })
 
-const nextAdapter = (project: Project): WebAdapter => ({
-  outputDir: project.config.web.outputDir ?? 'out',
-  cleanDirs: project.config.web.cleanDirs ?? ['.next', 'out'],
+const nextAdapter = (project: Project, web: WebConfig): WebAdapter => ({
+  outputDir: web.outputDir ?? 'out',
+  cleanDirs: web.cleanDirs ?? ['.next', 'out'],
   dev: ({ envFile, port, devHost }) => withExec(project, 'next', ['dev', '-p', String(port), '-H', '0.0.0.0'], {
     ...envFromFile(project, envFile),
     ...(devHost ? { DEV_HOST: devHost } : {}),
@@ -133,44 +134,59 @@ const nextAdapter = (project: Project): WebAdapter => ({
   ],
 })
 
-const customAdapter = (project: Project): WebAdapter => {
-  const custom = project.config.web.custom
-  if (!custom) {
-    throw new Error('web.framework 為 custom 時必須設定 web.custom。')
+/**
+ * 以設定檔寫的指令跑開發伺服器：交給 shell 執行（所以可以寫 `pnpm dev --port {port}` 這類整串指令）。
+ * env 檔的每個鍵一律注入子行程環境（不論框架）；需要「檔案路徑」的工具（例如 Nuxt 的 `--dotenv`）
+ * 在指令裡用 `{envFile}`。`DEV_PORT` / `DEV_HOST` 照舊以環境變數交棒。
+ */
+const commandDev = (project: Project, command: string): WebAdapter['dev'] => ({ envFile, port, devHost }) => ({
+  ...shellInvocation(fill(command, { envFile, port: String(port), host: devHost ?? '' })),
+  env: {
+    ...envFromFile(project, envFile),
+    ...(devHost ? { DEV_HOST: devHost } : {}),
+    DEV_PORT: String(port),
+  },
+})
+
+/** 以設定檔寫的指令產生靜態網頁：`prepareCommand`（選填）→ `buildCommand`，同樣把 env 檔注入環境。 */
+const commandGenerate = (project: Project, prepare: string | undefined, build: string): WebAdapter['generate'] => ({ envFile }) => {
+  const env = envFromFile(project, envFile)
+  const values = { envFile, port: '', host: '' }
+  const steps: WebStep[] = []
+  if (prepare) {
+    steps.push({ label: 'prepare', ...shellInvocation(fill(prepare, values)), env })
   }
-  const outputDir = project.config.web.outputDir
-  if (!outputDir) {
-    throw new Error('web.framework 為 custom 時必須設定 web.outputDir。')
-  }
-  return {
-    outputDir,
-    cleanDirs: project.config.web.cleanDirs ?? [],
-    dev: ({ envFile, port, devHost }) => ({
-      ...shellInvocation(fill(custom.dev, { envFile, port: String(port), host: devHost ?? '' })),
-      env: {
-        ...envFromFile(project, envFile),
-        ...(devHost ? { DEV_HOST: devHost } : {}),
-        DEV_PORT: String(port),
-      },
-    }),
-    generate: ({ envFile }) => {
-      const env = envFromFile(project, envFile)
-      const values = { envFile, port: '', host: '' }
-      const steps: WebStep[] = []
-      if (custom.prepare) {
-        steps.push({ label: 'prepare', ...shellInvocation(fill(custom.prepare, values)), env })
-      }
-      steps.push({ label: 'generate', ...shellInvocation(fill(custom.generate, values)), env })
-      return steps
-    },
-  }
+  steps.push({ label: 'build', ...shellInvocation(fill(build, values)), env })
+  return steps
 }
 
-export const createWebAdapter = (project: Project): WebAdapter => {
-  switch (project.config.web.framework) {
-    case 'nuxt': return nuxtAdapter(project)
-    case 'vite': return viteAdapter(project)
-    case 'next': return nextAdapter(project)
-    case 'custom': return customAdapter(project)
+/**
+ * 建立網頁轉接器。`web` 是這次生效的網頁設定（預設最上層 `web`；有環境時傳 `resolveEnvironment` 解出的 `web`）。
+ *
+ * 先取框架預設（nuxt / vite / next；`custom` 沒有預設），再用設定檔的指令覆寫：
+ * 寫了 `devCommand` 就取代開發指令、寫了 `buildCommand`（與選填的 `prepareCommand`）就取代打包步驟，其餘仍用框架預設。
+ * 舊寫法 `custom.dev` / `custom.generate` / `custom.prepare` 等同這三個欄位。
+ */
+export const createWebAdapter = (project: Project, web: WebConfig = project.config.web): WebAdapter => {
+  validateWebFramework(web, 'web')
+  const devCommand = web.devCommand ?? web.custom?.dev
+  const buildCommand = web.buildCommand ?? web.custom?.generate
+  const prepareCommand = web.prepareCommand ?? web.custom?.prepare
+
+  const base: WebAdapter = (() => {
+    switch (web.framework) {
+      case 'nuxt': return nuxtAdapter(project, web)
+      case 'vite': return viteAdapter(project, web)
+      case 'next': return nextAdapter(project, web)
+      case 'custom': return { outputDir: web.outputDir as string, cleanDirs: web.cleanDirs ?? [], dev: commandDev(project, devCommand as string), generate: commandGenerate(project, prepareCommand, buildCommand as string) }
+    }
+  })()
+
+  return {
+    // 沒有框架預設可用時（custom，或明寫指令卻沒寫 framework），產物目錄已由 validateWebFramework 要求必填
+    outputDir: web.outputDir ?? base.outputDir,
+    cleanDirs: web.cleanDirs ?? base.cleanDirs,
+    dev: devCommand ? commandDev(project, devCommand) : base.dev,
+    generate: buildCommand ? commandGenerate(project, prepareCommand, buildCommand) : base.generate,
   }
 }

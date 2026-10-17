@@ -12,12 +12,13 @@ var __export = (target, all) => {
 // src/config.ts
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-var CONFIG_FILE, FRAMEWORKS, DEFAULT_CONFIG, ConfigError, isRecord, findProjectRoot, parseConfig, createProject, loadProject;
+var CONFIG_FILE, FRAMEWORKS, ENVIRONMENT_NAME, DEFAULT_CONFIG, ConfigError, isRecord, findProjectRoot, parseConfig, WEB_COMMAND_KEYS, validateWebCommands, validateEnvironments, validateWebFramework, effectiveWeb, createProject, loadProject;
 var init_config = __esm({
   "src/config.ts"() {
     "use strict";
     CONFIG_FILE = "aqutter.config.json";
     FRAMEWORKS = ["nuxt", "vite", "next", "custom"];
+    ENVIRONMENT_NAME = /^[a-z][a-z0-9-]*$/;
     DEFAULT_CONFIG = {
       appDir: "aqutter",
       envDir: ".env",
@@ -27,6 +28,7 @@ var init_config = __esm({
       artifactsDir: "artifacts",
       artifactName: "app",
       web: { framework: "vite" },
+      environments: {},
       shell: {},
       plugins: []
     };
@@ -59,18 +61,19 @@ var init_config = __esm({
       const merged = {
         ...DEFAULT_CONFIG,
         ...raw,
-        web: { ...DEFAULT_CONFIG.web, ...web },
+        web: { ...DEFAULT_CONFIG.web, ...web, frameworkExplicit: web.framework !== void 0 },
+        environments: isRecord(raw.environments) ? raw.environments : {},
         shell: { ...DEFAULT_CONFIG.shell, ...shell }
       };
+      if (raw.environments !== void 0 && !isRecord(raw.environments)) {
+        throw new ConfigError("environments \u5FC5\u9808\u662F\u7269\u4EF6\uFF08\u540D\u7A31 \u2192 \u8A2D\u5B9A\uFF09\u3002");
+      }
       if (!FRAMEWORKS.includes(merged.web.framework)) {
         throw new ConfigError(`web.framework \u5FC5\u9808\u662F ${FRAMEWORKS.join(" / ")}\uFF08\u76EE\u524D\uFF1A${String(merged.web.framework)}\uFF09\u3002`);
       }
-      if (merged.web.framework === "custom" && !merged.web.custom?.dev) {
-        throw new ConfigError("web.framework \u70BA custom \u6642\uFF0C\u5FC5\u9808\u63D0\u4F9B web.custom.dev \u8207 web.custom.generate\uFF0C\u4E14 web.outputDir \u9700\u6307\u5411\u975C\u614B\u7522\u7269\u76EE\u9304\u3002");
-      }
-      if (merged.web.framework === "custom" && (!merged.web.custom?.generate || !merged.web.outputDir)) {
-        throw new ConfigError("web.framework \u70BA custom \u6642\uFF0C\u5FC5\u9808\u63D0\u4F9B web.custom.generate \u8207 web.outputDir\u3002");
-      }
+      validateWebFramework(merged.web, "web");
+      validateWebCommands(merged.web, "web");
+      validateEnvironments(merged);
       if (!Array.isArray(merged.plugins)) {
         throw new ConfigError("plugins \u5FC5\u9808\u662F\u9663\u5217\u3002");
       }
@@ -83,6 +86,61 @@ var init_config = __esm({
         }
       }
       return merged;
+    };
+    WEB_COMMAND_KEYS = ["devCommand", "buildCommand", "prepareCommand"];
+    validateWebCommands = (web, where) => {
+      for (const key of WEB_COMMAND_KEYS) {
+        const value = web[key];
+        if (value !== void 0 && (typeof value !== "string" || value.trim() === "")) {
+          throw new ConfigError(`${where}.${key} \u5FC5\u9808\u662F\u975E\u7A7A\u5B57\u4E32\u3002`);
+        }
+      }
+      if (web.outputDir !== void 0 && (typeof web.outputDir !== "string" || web.outputDir === "")) {
+        throw new ConfigError(`${where}.outputDir \u5FC5\u9808\u662F\u975E\u7A7A\u5B57\u4E32\u3002`);
+      }
+      if (web.cleanDirs !== void 0 && (!Array.isArray(web.cleanDirs) || web.cleanDirs.some((dir) => typeof dir !== "string" || dir === ""))) {
+        throw new ConfigError(`${where}.cleanDirs \u5FC5\u9808\u662F\u975E\u7A7A\u5B57\u4E32\u9663\u5217\u3002`);
+      }
+      if (web.framework !== void 0 && !FRAMEWORKS.includes(web.framework)) {
+        throw new ConfigError(`${where}.framework \u5FC5\u9808\u662F ${FRAMEWORKS.join(" / ")}\uFF08\u76EE\u524D\uFF1A${String(web.framework)}\uFF09\u3002`);
+      }
+    };
+    validateEnvironments = (config) => {
+      for (const [name, environment] of Object.entries(config.environments)) {
+        if (!ENVIRONMENT_NAME.test(name)) {
+          throw new ConfigError(`environments \u7684\u540D\u7A31\u300C${name}\u300D\u4E0D\u5408\u6CD5\uFF1A\u9808\u70BA\u5C0F\u5BEB\u5B57\u6BCD\u958B\u982D\uFF0C\u5176\u5F8C\u70BA\u5C0F\u5BEB\u5B57\u6BCD\u3001\u6578\u5B57\u6216\u9023\u5B57\u865F\u3002`);
+        }
+        if (!isRecord(environment)) {
+          throw new ConfigError(`environments.${name} \u5FC5\u9808\u662F\u7269\u4EF6\u3002`);
+        }
+        for (const key of ["envFile", "flavor", "signing"]) {
+          const value = environment[key];
+          if (value !== void 0 && (typeof value !== "string" || value === "")) {
+            throw new ConfigError(`environments.${name}.${key} \u5FC5\u9808\u662F\u975E\u7A7A\u5B57\u4E32\u3002`);
+          }
+        }
+        if (environment.web !== void 0) {
+          if (!isRecord(environment.web)) {
+            throw new ConfigError(`environments.${name}.web \u5FC5\u9808\u662F\u7269\u4EF6\u3002`);
+          }
+          validateWebCommands(environment.web, `environments.${name}.web`);
+        }
+      }
+    };
+    validateWebFramework = (web, where) => {
+      const dev = web.devCommand ?? web.custom?.dev;
+      const build = web.buildCommand ?? web.custom?.generate;
+      const usesCommands = web.devCommand !== void 0 || web.buildCommand !== void 0 || web.custom !== void 0;
+      const needsAll = web.framework === "custom" || usesCommands && web.frameworkExplicit === false;
+      if (needsAll && (!dev || !build || !web.outputDir)) {
+        throw new ConfigError(
+          web.framework === "custom" ? `${where}.framework \u70BA custom \u6642\uFF0C\u5FC5\u9808\u63D0\u4F9B\u958B\u767C\u6307\u4EE4\uFF08devCommand\uFF09\u3001\u6253\u5305\u6307\u4EE4\uFF08buildCommand\uFF09\u8207 outputDir\uFF08\u975C\u614B\u7522\u7269\u76EE\u9304\uFF09\u3002` : `${where} \u7528\u4E86 devCommand / buildCommand \u537B\u6C92\u6709\u5BEB framework\uFF1A\u6C92\u6709\u6846\u67B6\u9810\u8A2D\u53EF\u4F9D\u8CF4\uFF0C\u5FC5\u9808\u540C\u6642\u63D0\u4F9B devCommand\u3001buildCommand \u8207 outputDir\uFF08\u6216\u6539\u5BEB framework \u53D6\u5F97\u9810\u8A2D\u503C\uFF09\u3002`
+        );
+      }
+    };
+    effectiveWeb = (config, environmentName) => {
+      const overrides = environmentName ? config.environments[environmentName]?.web : void 0;
+      return overrides ? { ...config.web, ...overrides, frameworkExplicit: config.web.frameworkExplicit || overrides.framework !== void 0 } : config.web;
     };
     createProject = (root, config) => {
       const appDir = resolve(root, config.appDir);
@@ -157,20 +215,38 @@ import { spawnSync } from "node:child_process";
 import { existsSync as existsSync2, lstatSync, mkdirSync, readFileSync as readFileSync2, readdirSync, statSync } from "node:fs";
 import { basename, join as join2 } from "node:path";
 import readline from "node:readline";
-var MIN_PORT, MAX_PORT, IS_WIN, parseArgs, resolvePort, ensureSeedDir, StepFailure, createStep, resolveEnvFile, describeMissingEnv, envNameOf, readAppVersion, ENTRY_KIND, walk, collectFiles, collectEntries, MASK_CHAR, PASSTHROUGH_PREFIXES, isTerminalControl, createPrompter;
+var MIN_PORT, MAX_PORT, IS_WIN, SHORT_FLAGS, parseArgs, resolvePort, ensureSeedDir, StepFailure, createStep, resolveEnvFile, envNameOf, readAppVersion, ENTRY_KIND, walk, collectFiles, collectEntries, MASK_CHAR, PASSTHROUGH_PREFIXES, isTerminalControl, createPrompter;
 var init_shared = __esm({
   "src/shared.ts"() {
     "use strict";
     MIN_PORT = 1;
     MAX_PORT = 65535;
     IS_WIN = process.platform === "win32";
+    SHORT_FLAGS = { e: "env" };
     parseArgs = (argv) => {
       const positional = [];
       const flags = {};
-      for (const arg of argv) {
-        const match = /^--([^=]+)=(.*)$/.exec(arg);
-        if (match) {
-          flags[match[1]] = match[2];
+      for (let index = 0; index < argv.length; index++) {
+        const arg = argv[index];
+        const long = /^--([^=]+)=(.*)$/.exec(arg);
+        if (long) {
+          flags[long[1]] = long[2];
+          continue;
+        }
+        const short = /^-([A-Za-z])(?:=(.*))?$/.exec(arg);
+        if (short && SHORT_FLAGS[short[1]] !== void 0) {
+          const name = SHORT_FLAGS[short[1]];
+          if (short[2] !== void 0) {
+            flags[name] = short[2];
+          } else {
+            const next = argv[index + 1];
+            if (next !== void 0 && !next.startsWith("-")) {
+              flags[name] = next;
+              index += 1;
+            } else {
+              flags[name] = "";
+            }
+          }
           continue;
         }
         positional.push(arg);
@@ -221,12 +297,6 @@ var init_shared = __esm({
     };
     resolveEnvFile = (project, envPath) => {
       return existsSync2(join2(project.root, envPath)) ? envPath : null;
-    };
-    describeMissingEnv = (project, envPath) => {
-      const dir = project.config.envDir;
-      const relocated = [`${dir}/.env.${envPath}`, `${dir}/${envPath}`].find((candidate) => existsSync2(join2(project.root, candidate)));
-      const hint = relocated ? `\uFF08\u5075\u6E2C\u5230 \`${relocated}\` \u5B58\u5728\u2014\u2014\`--env=\` \u5403\u7684\u662F\u76F8\u5C0D\u5C08\u6848\u6839\u7684\u8DEF\u5F91\uFF0C\u8ACB\u6539\u5BEB\u70BA \`--env=${relocated}\`\uFF09` : `\uFF08\`--env=\` \u5403\u7684\u662F\u76F8\u5C0D\u5C08\u6848\u6839\u7684\u8DEF\u5F91\uFF0C\u4F8B\u5982 \`--env=${dir}/.env.uat\`\uFF09`;
-      return `\u627E\u4E0D\u5230 env \u6A94 \`${envPath}\`${hint}\u3002\u8ACB\u7531 ${dir}/.env.example \u8907\u88FD\u4E00\u4EFD\u3002`;
     };
     envNameOf = (envFile) => {
       const name = basename(envFile).replace(/^\.env\.?/, "");
@@ -600,31 +670,31 @@ var init_plugins = __esm({
     DART_PACKAGE_PATTERN = /^[a-z][a-z0-9_]*$/;
     DART_CLASS_PATTERN = /^[A-Z][A-Za-z0-9_]*$/;
     parseDescriptor = (raw, source) => {
-      const fail9 = (reason) => {
+      const fail10 = (reason) => {
         throw new Error(`${source} \u4E0D\u5408\u6CD5\uFF1A${reason}`);
       };
       if (typeof raw !== "object" || raw === null) {
-        return fail9("\u5FC5\u9808\u662F JSON \u7269\u4EF6");
+        return fail10("\u5FC5\u9808\u662F JSON \u7269\u4EF6");
       }
       const value = raw;
       if (value.schema !== 1) {
-        fail9("schema \u5FC5\u9808\u70BA 1");
+        fail10("schema \u5FC5\u9808\u70BA 1");
       }
       if (typeof value.id !== "string" || !PLUGIN_ID_PATTERN.test(value.id)) {
-        fail9(`id \u5FC5\u9808\u7B26\u5408 ${PLUGIN_ID_PATTERN}`);
+        fail10(`id \u5FC5\u9808\u7B26\u5408 ${PLUGIN_ID_PATTERN}`);
       }
       const dart = value.dart;
       if (typeof dart !== "object" || dart === null) {
-        return fail9("\u7F3A\u5C11 dart \u5340\u584A");
+        return fail10("\u7F3A\u5C11 dart \u5340\u584A");
       }
       if (typeof dart.package !== "string" || !DART_PACKAGE_PATTERN.test(dart.package)) {
-        fail9("dart.package \u5FC5\u9808\u662F Dart \u5957\u4EF6\u540D\uFF08\u5C0F\u5BEB snake_case\uFF09");
+        fail10("dart.package \u5FC5\u9808\u662F Dart \u5957\u4EF6\u540D\uFF08\u5C0F\u5BEB snake_case\uFF09");
       }
       if (typeof dart.class !== "string" || !DART_CLASS_PATTERN.test(dart.class)) {
-        fail9("dart.class \u5FC5\u9808\u662F Dart \u985E\u5225\u540D");
+        fail10("dart.class \u5FC5\u9808\u662F Dart \u985E\u5225\u540D");
       }
       if (dart.import !== void 0 && typeof dart.import !== "string") {
-        fail9("dart.import \u5FC5\u9808\u662F\u5B57\u4E32");
+        fail10("dart.import \u5FC5\u9808\u662F\u5B57\u4E32");
       }
       return {
         schema: 1,
@@ -866,9 +936,68 @@ var init_plugin = __esm({
   }
 });
 
-// src/menu.ts
-import { existsSync as existsSync7, readFileSync as readFileSync7, readdirSync as readdirSync3 } from "node:fs";
+// src/environments.ts
+import { existsSync as existsSync7 } from "node:fs";
 import { join as join7 } from "node:path";
+var normalize, defaultEnvFileOf, envFileOf, fromConfig, listConfigured, resolveEnvironment;
+var init_environments = __esm({
+  "src/environments.ts"() {
+    "use strict";
+    init_config();
+    init_shared();
+    normalize = (path) => path.replace(/^\.\//, "").replace(/\\/g, "/");
+    defaultEnvFileOf = (project, name) => `${project.config.envDir}/.env.${name}`;
+    envFileOf = (project, name, environment) => environment.envFile ?? defaultEnvFileOf(project, name);
+    fromConfig = (project, name, environment, envFile) => ({
+      name,
+      envFile,
+      flavor: environment.flavor ?? null,
+      signing: environment.signing ?? null,
+      web: effectiveWeb(project.config, name),
+      source: "config"
+    });
+    listConfigured = (project) => {
+      const names = Object.keys(project.config.environments);
+      return names.length > 0 ? `\u5DF2\u8A2D\u5B9A\u7684\u74B0\u5883\uFF1A${names.join("\u3001")}\u3002` : "\u8A2D\u5B9A\u6A94\u9084\u6C92\u6709 environments\uFF1B\u53EF\u7528 `aqutter env add <\u540D\u7A31>` \u65B0\u589E\u3002";
+    };
+    resolveEnvironment = (project, value) => {
+      if (value === "") {
+        return { ok: false, error: "`--env` / `-e` \u9700\u8981\u503C\uFF08\u74B0\u5883\u540D\uFF0C\u6216\u76F8\u5C0D\u5C08\u6848\u6839\u7684 env \u6A94\u8DEF\u5F91\uFF09\u3002" };
+      }
+      const environments = project.config.environments;
+      const configured = Object.hasOwn(environments, value) ? environments[value] : void 0;
+      if (configured) {
+        const envFile2 = envFileOf(project, value, configured);
+        if (!existsSync7(join7(project.root, envFile2))) {
+          return {
+            ok: false,
+            error: `\u74B0\u5883\u300C${value}\u300D\u7684 env \u6A94 \`${envFile2}\` \u4E0D\u5B58\u5728\u3002\u8ACB\u7531 ${project.config.envDir}/.env.example \u8907\u88FD\u4E00\u4EFD\uFF0C\u6216\u4FEE\u6B63 aqutter.config.json \u7684 environments.${value}.envFile\u3002`
+          };
+        }
+        return { ok: true, value: fromConfig(project, value, configured, envFile2) };
+      }
+      const envFile = resolveEnvFile(project, value);
+      if (envFile) {
+        const match = Object.entries(environments).find(([name, environment]) => normalize(envFileOf(project, name, environment)) === normalize(envFile));
+        if (match) {
+          return { ok: true, value: fromConfig(project, match[0], match[1], envFile) };
+        }
+        return {
+          ok: true,
+          value: { name: envNameOf(envFile), envFile, flavor: null, signing: null, web: project.config.web, source: "path" }
+        };
+      }
+      const dir = project.config.envDir;
+      const conventional = ENVIRONMENT_NAME.test(value) && existsSync7(join7(project.root, `${dir}/.env.${value}`)) ? `${dir}/.env.${value}` : null;
+      const hint = conventional ? `\u5075\u6E2C\u5230 \`${conventional}\` \u5B58\u5728\uFF0C\u4F46\u300C${value}\u300D\u4E0D\u5728\u8A2D\u5B9A\u6A94\u88E1\uFF1A\u7528 \`aqutter env add ${value}\` \u767B\u8A18\u5B83\uFF0C\u6216\u6539\u7528 -e ${conventional}\u3002` : `\u4E5F\u53EF\u4EE5\u7D66\u76F8\u5C0D\u5C08\u6848\u6839\u7684 env \u6A94\u8DEF\u5F91\uFF08\u4F8B\u5982 ${dir}/.env.uat\uFF09\u3002`;
+      return { ok: false, error: `\u627E\u4E0D\u5230\u74B0\u5883\u6216 env \u6A94\u300C${value}\u300D\u3002${listConfigured(project)}${hint}` };
+    };
+  }
+});
+
+// src/menu.ts
+import { existsSync as existsSync8, readFileSync as readFileSync7, readdirSync as readdirSync3 } from "node:fs";
+import { join as join8 } from "node:path";
 var ENV_PREFIX, SIGNING_FILE, EXAMPLE_MARK, isExample, SIGNING_PLATFORMS, envPathOf, signingPathOf, listDir, listEnvFiles, readIfExists, listFlavors, listSigningConfigs, resolveXEnv, printOptions, chooseOne, chooseMany;
 var init_menu = __esm({
   "src/menu.ts"() {
@@ -880,14 +1009,14 @@ var init_menu = __esm({
     SIGNING_PLATFORMS = ["ios", "macos", "windows"];
     envPathOf = (project, name) => `${project.config.envDir}/${ENV_PREFIX}${name}`;
     signingPathOf = (name) => `signing/signing.${name}.json`;
-    listDir = (dir) => existsSync7(dir) ? readdirSync3(dir) : [];
+    listDir = (dir) => existsSync8(dir) ? readdirSync3(dir) : [];
     listEnvFiles = (project) => {
-      return listDir(join7(project.root, project.config.envDir)).filter((name) => name.startsWith(ENV_PREFIX) && !isExample(name)).sort().map((name) => ({
+      return listDir(join8(project.root, project.config.envDir)).filter((name) => name.startsWith(ENV_PREFIX) && !isExample(name)).sort().map((name) => ({
         path: `${project.config.envDir}/${name}`,
         name: name.slice(ENV_PREFIX.length)
       }));
     };
-    readIfExists = (path) => existsSync7(path) ? readFileSync7(path, "utf8") : "";
+    readIfExists = (path) => existsSync8(path) ? readFileSync7(path, "utf8") : "";
     listFlavors = (project) => {
       const found = /* @__PURE__ */ new Map();
       const add2 = (name, platform) => {
@@ -895,12 +1024,12 @@ var init_menu = __esm({
         platforms.add(platform);
         found.set(name, platforms);
       };
-      const gradle = readIfExists(join7(project.appDir, "android", "app", "build.gradle.kts"));
+      const gradle = readIfExists(join8(project.appDir, "android", "app", "build.gradle.kts"));
       for (const match of gradle.matchAll(/create\("([a-z][a-z0-9]*)"\)/g)) {
         add2(match[1], "android");
       }
       for (const platform of ["ios", "macos"]) {
-        const pbxproj = readIfExists(join7(project.appDir, platform, "Runner.xcodeproj", "project.pbxproj"));
+        const pbxproj = readIfExists(join8(project.appDir, platform, "Runner.xcodeproj", "project.pbxproj"));
         for (const match of pbxproj.matchAll(/name = "Release-([a-z][a-z0-9]*)";/g)) {
           add2(match[1], platform);
         }
@@ -911,11 +1040,11 @@ var init_menu = __esm({
       }));
     };
     listSigningConfigs = (project) => {
-      const dir = join7(project.appDir, "signing");
+      const dir = join8(project.appDir, "signing");
       return listDir(dir).filter((name) => SIGNING_FILE.test(name) && !isExample(name)).sort().map((name) => {
         let platforms = [];
         try {
-          platforms = Object.keys(JSON.parse(readFileSync7(join7(dir, name), "utf8"))).filter((key) => SIGNING_PLATFORMS.includes(key));
+          platforms = Object.keys(JSON.parse(readFileSync7(join8(dir, name), "utf8"))).filter((key) => SIGNING_PLATFORMS.includes(key));
         } catch {
         }
         return {
@@ -930,8 +1059,12 @@ var init_menu = __esm({
       withSigning
     }) => {
       const xEnv = flags["x-env"] ?? null;
-      const envPath = flags.env ?? (xEnv ? envPathOf(project, xEnv) : null);
+      const configured = xEnv !== null && Object.hasOwn(project.config.environments, xEnv);
+      const envPath = flags.env ?? (xEnv ? configured ? xEnv : envPathOf(project, xEnv) : null);
       let flavor = flags.flavor ?? null;
+      if (configured) {
+        return { envPath, flavor, signingPath: flags.signing ?? null };
+      }
       if (flavor === null && xEnv) {
         if (listFlavors(project).some((entry) => entry.name === xEnv)) {
           flavor = xEnv;
@@ -942,7 +1075,7 @@ var init_menu = __esm({
       let signingPath = flags.signing ?? null;
       if (withSigning && signingPath === null && xEnv) {
         const candidate = signingPathOf(xEnv);
-        if (existsSync7(join7(project.appDir, candidate))) {
+        if (existsSync8(join8(project.appDir, candidate))) {
           signingPath = candidate;
         } else {
           console.log(`[${tag}] --x-env=${xEnv}\uFF1A\u627E\u4E0D\u5230 ${candidate}\uFF0C\u4E0D\u5E36 --signing\u3002`);
@@ -995,12 +1128,13 @@ ${title}`);
 });
 
 // src/web.ts
-import { existsSync as existsSync8, readFileSync as readFileSync8 } from "node:fs";
-import { join as join8 } from "node:path";
-var parseEnvFile, execPrefix, withExec, envFromFile, shellInvocation, fill, nuxtAdapter, viteAdapter, nextAdapter, customAdapter, createWebAdapter;
+import { existsSync as existsSync9, readFileSync as readFileSync8 } from "node:fs";
+import { join as join9 } from "node:path";
+var parseEnvFile, execPrefix, withExec, envFromFile, shellInvocation, fill, nuxtAdapter, viteAdapter, nextAdapter, commandDev, commandGenerate, createWebAdapter;
 var init_web = __esm({
   "src/web.ts"() {
     "use strict";
+    init_config();
     init_shared();
     parseEnvFile = (path) => {
       const result = {};
@@ -1025,10 +1159,10 @@ var init_web = __esm({
       return result;
     };
     execPrefix = (project) => {
-      if (existsSync8(join8(project.root, "pnpm-lock.yaml"))) {
+      if (existsSync9(join9(project.root, "pnpm-lock.yaml"))) {
         return { command: "pnpm", args: ["exec"] };
       }
-      if (existsSync8(join8(project.root, "yarn.lock"))) {
+      if (existsSync9(join9(project.root, "yarn.lock"))) {
         return { command: "yarn", args: [] };
       }
       return { command: "npx", args: ["--no-install"] };
@@ -1037,16 +1171,16 @@ var init_web = __esm({
       const prefix = execPrefix(project);
       return { command: prefix.command, args: [...prefix.args, bin, ...args], env };
     };
-    envFromFile = (project, envFile) => parseEnvFile(join8(project.root, envFile));
+    envFromFile = (project, envFile) => parseEnvFile(join9(project.root, envFile));
     shellInvocation = (command) => {
       return IS_WIN ? { command: "cmd", args: ["/c", command] } : { command: "sh", args: ["-c", command] };
     };
     fill = (template, values) => {
       return template.replace(/\{(envFile|port|host)\}/g, (_, key) => values[key] ?? "");
     };
-    nuxtAdapter = (project) => ({
-      outputDir: project.config.web.outputDir ?? ".output/public",
-      cleanDirs: project.config.web.cleanDirs ?? [".nuxt", ".output"],
+    nuxtAdapter = (project, web) => ({
+      outputDir: web.outputDir ?? ".output/public",
+      cleanDirs: web.cleanDirs ?? [".nuxt", ".output"],
       // nuxi 需以等號綁值（`--dotenv=<file>`），否則值會被當成 rootDir 位置參數；
       // `--host` 的值是選填的、會吃掉緊接其後的參數，故必須放在最後。
       dev: ({ envFile, port, devHost }) => withExec(project, "nuxt", ["dev", `--dotenv=${envFile}`, `--port=${port}`, "--host"], {
@@ -1060,9 +1194,9 @@ var init_web = __esm({
         { label: "nuxt generate", ...withExec(project, "nuxt", ["generate", `--dotenv=${envFile}`]) }
       ]
     });
-    viteAdapter = (project) => ({
-      outputDir: project.config.web.outputDir ?? "dist",
-      cleanDirs: project.config.web.cleanDirs ?? ["dist"],
+    viteAdapter = (project, web) => ({
+      outputDir: web.outputDir ?? "dist",
+      cleanDirs: web.cleanDirs ?? ["dist"],
       dev: ({ envFile, port, devHost }) => withExec(project, "vite", ["--port", String(port), "--strictPort", "--host"], {
         ...envFromFile(project, envFile),
         ...devHost ? { DEV_HOST: devHost } : {},
@@ -1072,9 +1206,9 @@ var init_web = __esm({
         { label: "vite build", ...withExec(project, "vite", ["build"], envFromFile(project, envFile)) }
       ]
     });
-    nextAdapter = (project) => ({
-      outputDir: project.config.web.outputDir ?? "out",
-      cleanDirs: project.config.web.cleanDirs ?? [".next", "out"],
+    nextAdapter = (project, web) => ({
+      outputDir: web.outputDir ?? "out",
+      cleanDirs: web.cleanDirs ?? [".next", "out"],
       dev: ({ envFile, port, devHost }) => withExec(project, "next", ["dev", "-p", String(port), "-H", "0.0.0.0"], {
         ...envFromFile(project, envFile),
         ...devHost ? { DEV_HOST: devHost } : {},
@@ -1085,49 +1219,48 @@ var init_web = __esm({
         { label: "next build", ...withExec(project, "next", ["build"], envFromFile(project, envFile)) }
       ]
     });
-    customAdapter = (project) => {
-      const custom = project.config.web.custom;
-      if (!custom) {
-        throw new Error("web.framework \u70BA custom \u6642\u5FC5\u9808\u8A2D\u5B9A web.custom\u3002");
+    commandDev = (project, command) => ({ envFile, port, devHost }) => ({
+      ...shellInvocation(fill(command, { envFile, port: String(port), host: devHost ?? "" })),
+      env: {
+        ...envFromFile(project, envFile),
+        ...devHost ? { DEV_HOST: devHost } : {},
+        DEV_PORT: String(port)
       }
-      const outputDir = project.config.web.outputDir;
-      if (!outputDir) {
-        throw new Error("web.framework \u70BA custom \u6642\u5FC5\u9808\u8A2D\u5B9A web.outputDir\u3002");
+    });
+    commandGenerate = (project, prepare, build) => ({ envFile }) => {
+      const env = envFromFile(project, envFile);
+      const values = { envFile, port: "", host: "" };
+      const steps = [];
+      if (prepare) {
+        steps.push({ label: "prepare", ...shellInvocation(fill(prepare, values)), env });
       }
-      return {
-        outputDir,
-        cleanDirs: project.config.web.cleanDirs ?? [],
-        dev: ({ envFile, port, devHost }) => ({
-          ...shellInvocation(fill(custom.dev, { envFile, port: String(port), host: devHost ?? "" })),
-          env: {
-            ...envFromFile(project, envFile),
-            ...devHost ? { DEV_HOST: devHost } : {},
-            DEV_PORT: String(port)
-          }
-        }),
-        generate: ({ envFile }) => {
-          const env = envFromFile(project, envFile);
-          const values = { envFile, port: "", host: "" };
-          const steps = [];
-          if (custom.prepare) {
-            steps.push({ label: "prepare", ...shellInvocation(fill(custom.prepare, values)), env });
-          }
-          steps.push({ label: "generate", ...shellInvocation(fill(custom.generate, values)), env });
-          return steps;
-        }
-      };
+      steps.push({ label: "build", ...shellInvocation(fill(build, values)), env });
+      return steps;
     };
-    createWebAdapter = (project) => {
-      switch (project.config.web.framework) {
-        case "nuxt":
-          return nuxtAdapter(project);
-        case "vite":
-          return viteAdapter(project);
-        case "next":
-          return nextAdapter(project);
-        case "custom":
-          return customAdapter(project);
-      }
+    createWebAdapter = (project, web = project.config.web) => {
+      validateWebFramework(web, "web");
+      const devCommand = web.devCommand ?? web.custom?.dev;
+      const buildCommand = web.buildCommand ?? web.custom?.generate;
+      const prepareCommand = web.prepareCommand ?? web.custom?.prepare;
+      const base = (() => {
+        switch (web.framework) {
+          case "nuxt":
+            return nuxtAdapter(project, web);
+          case "vite":
+            return viteAdapter(project, web);
+          case "next":
+            return nextAdapter(project, web);
+          case "custom":
+            return { outputDir: web.outputDir, cleanDirs: web.cleanDirs ?? [], dev: commandDev(project, devCommand), generate: commandGenerate(project, prepareCommand, buildCommand) };
+        }
+      })();
+      return {
+        // 沒有框架預設可用時（custom，或明寫指令卻沒寫 framework），產物目錄已由 validateWebFramework 要求必填
+        outputDir: web.outputDir ?? base.outputDir,
+        cleanDirs: web.cleanDirs ?? base.cleanDirs,
+        dev: devCommand ? commandDev(project, devCommand) : base.dev,
+        generate: buildCommand ? commandGenerate(project, prepareCommand, buildCommand) : base.generate
+      };
     };
   }
 });
@@ -1138,14 +1271,15 @@ __export(dev_exports, {
   runDev: () => runDev
 });
 import { spawn, spawnSync as spawnSync3 } from "node:child_process";
-import { existsSync as existsSync9 } from "node:fs";
+import { existsSync as existsSync10 } from "node:fs";
 import { networkInterfaces } from "node:os";
-import { join as join9 } from "node:path";
+import { join as join10 } from "node:path";
 var TAG3, fail3, sleep, isIos, isAndroid, DESKTOP_PLATFORMS, isDesktop, deviceKind, findAdb, lanIp, DESKTOP_TARGETS, runDev;
 var init_dev = __esm({
   "src/commands/dev.ts"() {
     "use strict";
     init_shared();
+    init_environments();
     init_menu();
     init_web();
     TAG3 = "flutter:dev";
@@ -1172,10 +1306,10 @@ var init_dev = __esm({
     };
     findAdb = () => {
       const candidates = [
-        join9(process.env.HOME ?? "", "Library/Android/sdk/platform-tools/adb"),
-        join9(process.env.HOME ?? "", "Android/Sdk/platform-tools/adb")
+        join10(process.env.HOME ?? "", "Library/Android/sdk/platform-tools/adb"),
+        join10(process.env.HOME ?? "", "Android/Sdk/platform-tools/adb")
       ];
-      return candidates.find((path) => existsSync9(path)) ?? "adb";
+      return candidates.find((path) => existsSync10(path)) ?? "adb";
     };
     lanIp = () => {
       for (const infos of Object.values(networkInterfaces())) {
@@ -1470,7 +1604,7 @@ var init_dev = __esm({
         tag: TAG3,
         withSigning: false
       });
-      const { envPath, flavor } = target === "pick" ? await promptEnvAndFlavor(preset) : {
+      const { envPath, flavor: selectedFlavor } = target === "pick" ? await promptEnvAndFlavor(preset) : {
         envPath: preset.envPath ?? config.defaultDevEnv,
         flavor: preset.flavor
         // Flutter flavor（對應 iOS scheme + Android productFlavor）
@@ -1480,12 +1614,15 @@ var init_dev = __esm({
         return fail3(`--port \u9700\u70BA 1-65535 \u7684\u6574\u6578\uFF0C\u6536\u5230\u300C${flags.port}\u300D\u3002`);
       }
       if (positional.length > 1) {
-        console.warn(`[${TAG3}] \u5FFD\u7565\u591A\u9918\u4F4D\u7F6E\u53C3\u6578\uFF1A${positional.slice(1).join(" ")}\uFF08\u74B0\u5883\u8ACB\u7528 --env=<env \u6A94\u8DEF\u5F91>\uFF09`);
+        console.warn(`[${TAG3}] \u5FFD\u7565\u591A\u9918\u4F4D\u7F6E\u53C3\u6578\uFF1A${positional.slice(1).join(" ")}\uFF08\u74B0\u5883\u8ACB\u7528 -e <\u74B0\u5883\u540D\u6216 env \u6A94\u8DEF\u5F91>\uFF09`);
       }
-      const envFile = resolveEnvFile(project, envPath);
-      if (!envFile) {
-        return fail3(describeMissingEnv(project, envPath));
+      const resolvedEnvironment = resolveEnvironment(project, envPath);
+      if (!resolvedEnvironment.ok) {
+        return fail3(resolvedEnvironment.error);
       }
+      const environment = resolvedEnvironment.value;
+      const envFile = environment.envFile;
+      const flavor = selectedFlavor ?? environment.flavor;
       const resolved = await resolveTarget(target);
       closePrompter();
       const { devUrl, devHost, adb } = setupConnectivity({
@@ -1535,7 +1672,7 @@ var init_dev = __esm({
       };
       process.on("SIGINT", () => shutdown(0));
       process.on("SIGTERM", () => shutdown(0));
-      const web = createWebAdapter(project);
+      const web = createWebAdapter(project, environment.web);
       const devServer = web.dev({
         envFile,
         port,
@@ -1554,7 +1691,7 @@ var init_dev = __esm({
         "-d",
         resolved.deviceId,
         "--dart-define-from-file",
-        join9(project.root, envFile),
+        join10(project.root, envFile),
         "--dart-define",
         `AQUTTER_DEV_URL=${devUrl}`
       ];
@@ -2282,7 +2419,7 @@ var init_esm = __esm({
 
 // src/syncSeed.ts
 import { readFileSync as readFileSync9, writeFileSync as writeFileSync5 } from "node:fs";
-import { join as join10, relative as relative4 } from "node:path";
+import { join as join11, relative as relative4 } from "node:path";
 var VERSION_ENTRY, FONT_EXTENSIONS, assertNoFonts, buildVersion, packSeed;
 var init_syncSeed = __esm({
   "src/syncSeed.ts"() {
@@ -2313,7 +2450,7 @@ var init_syncSeed = __esm({
       ].join("");
     };
     packSeed = (project, sourceRelative) => {
-      const sourceDir = join10(project.root, sourceRelative);
+      const sourceDir = join11(project.root, sourceRelative);
       const files = collectFiles(sourceDir);
       if (files.length === 0) {
         throw new Error(`[syncSeed] \u627E\u4E0D\u5230\u7522\u7269\uFF0C\u8ACB\u5148\u7522\u751F\u975C\u614B\u7DB2\u9801\uFF08${sourceDir} \u70BA\u7A7A\uFF09`);
@@ -2344,12 +2481,13 @@ __export(seed_exports, {
 });
 import { spawnSync as spawnSync4 } from "node:child_process";
 import { copyFileSync as copyFileSync2, mkdirSync as mkdirSync4, readFileSync as readFileSync10, rmSync } from "node:fs";
-import { join as join11, relative as relative5 } from "node:path";
+import { join as join12, relative as relative5 } from "node:path";
 var TAG4, WEB_ARTIFACT_NAME, fail4, runSeed;
 var init_seed = __esm({
   "src/commands/seed.ts"() {
     "use strict";
     init_shared();
+    init_environments();
     init_syncSeed();
     init_web();
     TAG4 = "flutter:seed";
@@ -2361,21 +2499,23 @@ var init_seed = __esm({
     runSeed = async (project, argv) => {
       const { flags } = parseArgs(argv);
       const envPath = flags.env ?? project.config.defaultDevEnv;
-      const envFile = resolveEnvFile(project, envPath);
-      if (!envFile) {
-        return fail4(describeMissingEnv(project, envPath));
+      const resolvedEnvironment = resolveEnvironment(project, envPath);
+      if (!resolvedEnvironment.ok) {
+        return fail4(resolvedEnvironment.error);
       }
-      const envName = envNameOf(envFile);
+      const environment = resolvedEnvironment.value;
+      const envFile = environment.envFile;
+      const envName = environment.name;
       if (!envName) {
-        return fail4(`\u7121\u6CD5\u7531 env \u6A94 \`${envFile}\` \u63A8\u5C0E\u74B0\u5883\u540D\uFF08\u6A94\u540D\u9808\u70BA .env.<\u74B0\u5883> \u5F62\u5F0F\uFF0C\u4F8B\u5982 ${project.config.envDir}/.env.uat\uFF09\u3002`);
+        return fail4(`\u7121\u6CD5\u7531 env \u6A94 \`${envFile}\` \u63A8\u5C0E\u74B0\u5883\u540D\uFF08\u6A94\u540D\u9808\u70BA .env.<\u74B0\u5883> \u5F62\u5F0F\uFF0C\u4F8B\u5982 ${project.config.envDir}/.env.uat\uFF0C\u6216\u5728 aqutter.config.json \u7684 environments \u547D\u540D\uFF09\u3002`);
       }
       console.log(`[${TAG4}] env=${envFile}`);
-      const web = createWebAdapter(project);
+      const web = createWebAdapter(project, environment.web);
       if (web.cleanDirs.length > 0) {
         console.log(`[${TAG4}] clean: ${web.cleanDirs.join(" / ")}\uFF08\u907F\u514D\u6CBF\u7528\u524D\u4E00\u4EFD env \u7684\u8A2D\u5B9A\u503C\uFF09`);
       }
       for (const dir of web.cleanDirs) {
-        rmSync(join11(project.root, dir), {
+        rmSync(join12(project.root, dir), {
           recursive: true,
           force: true
         });
@@ -2399,7 +2539,7 @@ var init_seed = __esm({
       packSeed(project, web.outputDir);
       const { version } = JSON.parse(readFileSync10(project.seedVersion, "utf8"));
       mkdirSync4(project.artifactsDir, { recursive: true });
-      const artifact = join11(project.artifactsDir, `${WEB_ARTIFACT_NAME}_${envName}_${version}.zip`);
+      const artifact = join12(project.artifactsDir, `${WEB_ARTIFACT_NAME}_${envName}_${version}.zip`);
       copyFileSync2(project.seedBundle, artifact);
       console.log(`[${TAG4}] \u5B8C\u6210\uFF08env=${envFile}\uFF09\u2192 ${relative5(project.root, artifact)}`);
     };
@@ -2407,8 +2547,8 @@ var init_seed = __esm({
 });
 
 // src/signing.ts
-import { existsSync as existsSync10, mkdirSync as mkdirSync5, readFileSync as readFileSync11, readdirSync as readdirSync4, writeFileSync as writeFileSync6 } from "node:fs";
-import { join as join12 } from "node:path";
+import { existsSync as existsSync11, mkdirSync as mkdirSync5, readFileSync as readFileSync11, readdirSync as readdirSync4, writeFileSync as writeFileSync6 } from "node:fs";
+import { join as join13 } from "node:path";
 function signingSectionOf(config, signingPath, platformKey) {
   const section = config[platformKey];
   if (!section || typeof section !== "object") {
@@ -2441,17 +2581,17 @@ var init_signing = __esm({
     };
     DEFAULT_TIMESTAMP_URL = "http://timestamp.digicert.com";
     iosPaths = (project) => {
-      const buildDir = join12(project.appDir, "build", "ios");
+      const buildDir = join13(project.appDir, "build", "ios");
       return {
         buildDir,
-        archive: join12(buildDir, "archive", "Runner.xcarchive"),
-        exportDir: join12(buildDir, "ipa"),
-        exportOptions: join12(buildDir, "ExportOptions.plist")
+        archive: join13(buildDir, "archive", "Runner.xcarchive"),
+        exportDir: join13(buildDir, "ipa"),
+        exportOptions: join13(buildDir, "ExportOptions.plist")
       };
     };
     readSigningConfig = (project, signingPath) => {
-      const file = join12(project.appDir, signingPath);
-      if (!existsSync10(file)) {
+      const file = join13(project.appDir, signingPath);
+      if (!existsSync11(file)) {
         return fail5(`\u627E\u4E0D\u5230\u7C3D\u7AE0\u8A2D\u5B9A\u6A94 \`${signingPath}\`\uFF08\`--signing=\` \u5403\u7684\u662F\u76F8\u5C0D ${project.config.appDir}/ \u7684\u8DEF\u5F91\uFF0C\u7BC4\u672C\u898B ${project.config.appDir}/signing/signing.example.json\uFF09\u3002`);
       }
       try {
@@ -2500,7 +2640,7 @@ var init_signing = __esm({
       const configuration = flavor ? `Release-${flavor}` : "Release";
       step("xcodebuild archive", "xcodebuild", [
         "-workspace",
-        join12(project.appDir, "ios", "Runner.xcworkspace"),
+        join13(project.appDir, "ios", "Runner.xcworkspace"),
         "-scheme",
         scheme,
         "-configuration",
@@ -2515,7 +2655,7 @@ var init_signing = __esm({
       ], project.appDir);
       let exportOptions = paths.exportOptions;
       if (exportOptionsPath) {
-        exportOptions = join12(project.appDir, exportOptionsPath);
+        exportOptions = join13(project.appDir, exportOptionsPath);
       } else {
         mkdirSync5(paths.buildDir, { recursive: true });
         writeFileSync6(exportOptions, renderExportOptions(ios));
@@ -2539,7 +2679,7 @@ var init_signing = __esm({
         "runtime",
         "--timestamp",
         "--entitlements",
-        join12(project.appDir, "macos", "Runner", "Release.entitlements"),
+        join13(project.appDir, "macos", "Runner", "Release.entitlements"),
         "--sign",
         macos.identity,
         appPath
@@ -2563,7 +2703,7 @@ var init_signing = __esm({
         if (!password) {
           fail5("\u7C3D\u7AE0\u8A2D\u5B9A\u4F7F\u7528 pfx\uFF0C\u4F46 process env \u6C92\u6709 WIN_PFX_PASSWORD\u3002");
         }
-        certificateArgs.push("/f", join12(project.appDir, windows.pfx), "/p", password);
+        certificateArgs.push("/f", join13(project.appDir, windows.pfx), "/p", password);
       } else {
         certificateArgs.push("/sha1", windows.thumbprint);
       }
@@ -2578,7 +2718,7 @@ var init_signing = __esm({
           "/tr",
           windows.timestampUrl ?? DEFAULT_TIMESTAMP_URL,
           ...certificateArgs,
-          join12(releaseDir, name)
+          join13(releaseDir, name)
         ], project.appDir, secrets);
       }
     };
@@ -2597,8 +2737,8 @@ __export(build_exports, {
   locateProduct: () => locateProduct,
   runBuild: () => runBuild
 });
-import { copyFileSync as copyFileSync3, existsSync as existsSync11, mkdirSync as mkdirSync6, readFileSync as readFileSync12, readdirSync as readdirSync5, readlinkSync, writeFileSync as writeFileSync7 } from "node:fs";
-import { basename as basename3, join as join13, relative as relative6 } from "node:path";
+import { copyFileSync as copyFileSync3, existsSync as existsSync12, mkdirSync as mkdirSync6, readFileSync as readFileSync12, readdirSync as readdirSync5, readlinkSync, writeFileSync as writeFileSync7 } from "node:fs";
+import { basename as basename3, join as join14, relative as relative6 } from "node:path";
 var TAG6, FLUTTER_TARGET, fail6, BuildError, DESKTOP_ARCH, findSingle, locateProduct, artifactStem, ZIP_OS_UNIX, UNIX_MODE_SHIFT, UNIX_TYPE_FILE, UNIX_TYPE_SYMLINK, UNIX_PERMISSION_MASK, SYMLINK_PERMISSION, unixAttrs, zipEntryOf, zipDirectory, publishArtifact, step2, SIGNING_SECTION, HOST_PLATFORMS, PLATFORM_LABEL, buildOne, promptSelections, runBuild;
 var init_build = __esm({
   "src/commands/build.ts"() {
@@ -2606,6 +2746,7 @@ var init_build = __esm({
     init_esm();
     init_menu();
     init_shared();
+    init_environments();
     init_signing();
     init_seed();
     TAG6 = "build";
@@ -2630,68 +2771,68 @@ var init_build = __esm({
     };
     DESKTOP_ARCH = process.arch === "arm64" ? "arm64" : "x64";
     findSingle = (dir, extension) => {
-      if (!existsSync11(dir)) {
+      if (!existsSync12(dir)) {
         return null;
       }
       const matches = readdirSync5(dir).filter((entry) => entry.endsWith(extension));
-      return matches.length === 1 ? join13(dir, matches[0]) : null;
+      return matches.length === 1 ? join14(dir, matches[0]) : null;
     };
     locateProduct = (project, target, flavorName) => {
-      const buildDir = join13(project.appDir, "build");
+      const buildDir = join14(project.appDir, "build");
       switch (target) {
         case "apk": {
-          const file = join13(buildDir, "app", "outputs", "flutter-apk", flavorName ? `app-${flavorName}-release.apk` : "app-release.apk");
+          const file = join14(buildDir, "app", "outputs", "flutter-apk", flavorName ? `app-${flavorName}-release.apk` : "app-release.apk");
           return {
             kind: "file",
-            path: existsSync11(file) ? file : null,
+            path: existsSync12(file) ? file : null,
             expected: file
           };
         }
         case "aab": {
-          const file = flavorName ? join13(buildDir, "app", "outputs", "bundle", `${flavorName}Release`, `app-${flavorName}-release.aab`) : join13(buildDir, "app", "outputs", "bundle", "release", "app-release.aab");
+          const file = flavorName ? join14(buildDir, "app", "outputs", "bundle", `${flavorName}Release`, `app-${flavorName}-release.aab`) : join14(buildDir, "app", "outputs", "bundle", "release", "app-release.aab");
           return {
             kind: "file",
-            path: existsSync11(file) ? file : null,
+            path: existsSync12(file) ? file : null,
             expected: file
           };
         }
         case "ipa": {
-          const dir = join13(buildDir, "ios", "ipa");
+          const dir = join14(buildDir, "ios", "ipa");
           return {
             kind: "file",
             path: findSingle(dir, ".ipa"),
-            expected: join13(dir, "*.ipa")
+            expected: join14(dir, "*.ipa")
           };
         }
         case "ios": {
-          const dir = join13(buildDir, "ios", "iphoneos", "Runner.app");
+          const dir = join14(buildDir, "ios", "iphoneos", "Runner.app");
           return {
             kind: "dir",
-            path: existsSync11(dir) ? dir : null,
+            path: existsSync12(dir) ? dir : null,
             expected: dir
           };
         }
         case "macos": {
-          const dir = join13(buildDir, "macos", "Build", "Products", flavorName ? `Release-${flavorName}` : "Release");
+          const dir = join14(buildDir, "macos", "Build", "Products", flavorName ? `Release-${flavorName}` : "Release");
           return {
             kind: "dir",
             path: findSingle(dir, ".app"),
-            expected: join13(dir, "*.app")
+            expected: join14(dir, "*.app")
           };
         }
         case "windows": {
-          const dir = join13(buildDir, "windows", DESKTOP_ARCH, ...flavorName ? [flavorName] : [], "runner", "Release");
+          const dir = join14(buildDir, "windows", DESKTOP_ARCH, ...flavorName ? [flavorName] : [], "runner", "Release");
           return {
             kind: "dir",
-            path: existsSync11(dir) ? dir : null,
+            path: existsSync12(dir) ? dir : null,
             expected: dir
           };
         }
         case "linux": {
-          const dir = join13(buildDir, "linux", DESKTOP_ARCH, ...flavorName ? [flavorName] : [], "release", "bundle");
+          const dir = join14(buildDir, "linux", DESKTOP_ARCH, ...flavorName ? [flavorName] : [], "release", "bundle");
           return {
             kind: "dir",
-            path: existsSync11(dir) ? dir : null,
+            path: existsSync12(dir) ? dir : null,
             expected: dir
           };
         }
@@ -2754,11 +2895,11 @@ var init_build = __esm({
       mkdirSync6(project.artifactsDir, { recursive: true });
       const stem = artifactStem(project.config.artifactName, envName, flavorName, version);
       if (product.kind === "file") {
-        const destination2 = join13(project.artifactsDir, `${stem}.${target}`);
+        const destination2 = join14(project.artifactsDir, `${stem}.${target}`);
         copyFileSync3(product.path, destination2);
         return destination2;
       }
-      const destination = join13(project.artifactsDir, `${stem}_${target}.zip`);
+      const destination = join14(project.artifactsDir, `${stem}_${target}.zip`);
       zipDirectory(product.path, destination);
       return destination;
     };
@@ -2802,14 +2943,14 @@ var init_build = __esm({
       }
       const signedIpa = signing !== null && platform === "ipa";
       const buildTarget = signedIpa ? "ios" : FLUTTER_TARGET[platform];
-      const buildArgs = ["build", buildTarget, "--release", `--dart-define-from-file=${join13(project.root, envFile)}`];
+      const buildArgs = ["build", buildTarget, "--release", `--dart-define-from-file=${join14(project.root, envFile)}`];
       if (flavor) {
         buildArgs.push("--flavor", flavor);
       }
       if (signedIpa) {
         buildArgs.push("--no-codesign");
       } else if (exportOptions) {
-        buildArgs.push(`--export-options-plist=${join13(project.appDir, exportOptions)}`);
+        buildArgs.push(`--export-options-plist=${join14(project.appDir, exportOptions)}`);
       }
       step2(`flutter build ${buildTarget}`, "flutter", buildArgs, project.appDir);
       if (signedIpa) {
@@ -2945,17 +3086,19 @@ var init_build = __esm({
       } : await promptSelections(project, preset);
       const {
         platforms,
-        envPath,
-        flavor,
-        signingPath
+        envPath
       } = selection;
-      const envFile = resolveEnvFile(project, envPath);
-      if (!envFile) {
-        return fail6(describeMissingEnv(project, envPath));
+      const resolvedEnvironment = resolveEnvironment(project, envPath);
+      if (!resolvedEnvironment.ok) {
+        return fail6(resolvedEnvironment.error);
       }
-      const envName = envNameOf(envFile);
+      const environment = resolvedEnvironment.value;
+      const envFile = environment.envFile;
+      const flavor = selection.flavor ?? environment.flavor;
+      const signingPath = selection.signingPath ?? environment.signing;
+      const envName = environment.name;
       if (!envName) {
-        return fail6(`\u7121\u6CD5\u7531 env \u6A94 \`${envFile}\` \u63A8\u5C0E\u74B0\u5883\u540D\uFF08\u6A94\u540D\u9808\u70BA .env.<\u74B0\u5883> \u5F62\u5F0F\uFF0C\u4F8B\u5982 ${project.config.envDir}/.env.uat\uFF09\u3002`);
+        return fail6(`\u7121\u6CD5\u7531 env \u6A94 \`${envFile}\` \u63A8\u5C0E\u74B0\u5883\u540D\uFF08\u6A94\u540D\u9808\u70BA .env.<\u74B0\u5883> \u5F62\u5F0F\uFF0C\u4F8B\u5982 ${project.config.envDir}/.env.uat\uFF0C\u6216\u5728 aqutter.config.json \u7684 environments \u547D\u540D\uFF09\u3002`);
       }
       const appVersion = readAppVersion(project);
       if (!appVersion) {
@@ -2976,7 +3119,7 @@ var init_build = __esm({
         }
       }
       try {
-        await runSeed(project, [`--env=${envFile}`]);
+        await runSeed(project, [`--env=${environment.source === "config" ? envName : envFile}`]);
       } catch (error) {
         if (error instanceof StepFailure) {
           process.exit(1);
@@ -3030,6 +3173,193 @@ var init_build = __esm({
   }
 });
 
+// src/commands/env.ts
+var env_exports = {};
+__export(env_exports, {
+  addEnvironment: () => addEnvironment,
+  listEnvironments: () => listEnvironments,
+  removeEnvironment: () => removeEnvironment,
+  runEnv: () => runEnv
+});
+import { copyFileSync as copyFileSync4, existsSync as existsSync13, mkdirSync as mkdirSync7, readFileSync as readFileSync13, writeFileSync as writeFileSync8 } from "node:fs";
+import { dirname as dirname3, join as join15 } from "node:path";
+var TAG7, readRawConfig, writeRawConfig, isEmptyObject, addEnvironment, removeEnvironment, describeWeb, listEnvironments, fail7, USAGE, runEnv;
+var init_env = __esm({
+  "src/commands/env.ts"() {
+    "use strict";
+    init_config();
+    init_environments();
+    init_menu();
+    init_shared();
+    TAG7 = "env";
+    readRawConfig = (project) => {
+      return JSON.parse(readFileSync13(join15(project.root, CONFIG_FILE), "utf8"));
+    };
+    writeRawConfig = (project, raw) => {
+      writeFileSync8(join15(project.root, CONFIG_FILE), `${JSON.stringify(raw, null, 2)}
+`);
+    };
+    isEmptyObject = (value) => Object.keys(value).length === 0;
+    addEnvironment = (project, options) => {
+      const { name } = options;
+      if (!ENVIRONMENT_NAME.test(name)) {
+        throw new ConfigError(`\u74B0\u5883\u540D\u300C${name}\u300D\u4E0D\u5408\u6CD5\uFF1A\u9808\u70BA\u5C0F\u5BEB\u5B57\u6BCD\u958B\u982D\uFF0C\u5176\u5F8C\u70BA\u5C0F\u5BEB\u5B57\u6BCD\u3001\u6578\u5B57\u6216\u9023\u5B57\u865F\uFF08\u4F8B\u5982 uat\u3001staging-2\uFF09\u3002`);
+      }
+      if (Object.hasOwn(project.config.environments, name)) {
+        throw new ConfigError(`\u74B0\u5883\u300C${name}\u300D\u5DF2\u5B58\u5728\u65BC ${CONFIG_FILE}\u3002\u8981\u4FEE\u6539\u8ACB\u76F4\u63A5\u7DE8\u8F2F\u8A2D\u5B9A\u6A94\uFF1B\u4E0D\u6703\u8986\u5BEB\u3002`);
+      }
+      const envFile = options.envFile ?? defaultEnvFileOf(project, name);
+      const target = join15(project.root, envFile);
+      const createdEnvFile = !existsSync13(target);
+      if (createdEnvFile) {
+        let source;
+        if (options.from !== void 0) {
+          const resolved = resolveEnvironment(project, options.from);
+          if (!resolved.ok) {
+            throw new ConfigError(`--from \u89E3\u6790\u5931\u6557\uFF1A${resolved.error}`);
+          }
+          source = join15(project.root, resolved.value.envFile);
+        } else {
+          source = join15(project.root, project.config.envDir, ".env.example");
+        }
+        mkdirSync7(dirname3(target), { recursive: true });
+        if (existsSync13(source)) {
+          copyFileSync4(source, target);
+        } else if (options.from !== void 0) {
+          throw new ConfigError(`--from \u7684\u4F86\u6E90 \`${source}\` \u4E0D\u5B58\u5728\u3002`);
+        } else {
+          writeFileSync8(target, `# ${name} \u74B0\u5883\u7684\u8A2D\u5B9A\u3002\u7531 aqutter env add \u5EFA\u7ACB\uFF1B\u9375\u7684\u8AAA\u660E\u898B docs/environment.md\u3002
+`);
+        }
+      }
+      const raw = readRawConfig(project);
+      const environments = typeof raw.environments === "object" && raw.environments !== null ? raw.environments : {};
+      const entry = {};
+      if (envFile !== defaultEnvFileOf(project, name)) {
+        entry.envFile = envFile;
+      }
+      if (options.flavor) {
+        entry.flavor = options.flavor;
+      }
+      if (options.signing) {
+        entry.signing = options.signing;
+      }
+      if (options.web && !isEmptyObject(options.web)) {
+        entry.web = options.web;
+      }
+      environments[name] = entry;
+      raw.environments = environments;
+      writeRawConfig(project, raw);
+      project.config.environments[name] = entry;
+      return {
+        envFile,
+        createdEnvFile,
+        missingFlavor: Boolean(options.flavor) && !listFlavors(project).some((flavor) => flavor.name === options.flavor)
+      };
+    };
+    removeEnvironment = (project, name) => {
+      if (!Object.hasOwn(project.config.environments, name)) {
+        throw new ConfigError(`\u8A2D\u5B9A\u6A94\u6C92\u6709\u74B0\u5883\u300C${name}\u300D\u3002\u5DF2\u8A2D\u5B9A\u7684\u74B0\u5883\uFF1A${Object.keys(project.config.environments).join("\u3001") || "\uFF08\u7121\uFF09"}\u3002`);
+      }
+      const envFile = project.config.environments[name].envFile ?? defaultEnvFileOf(project, name);
+      const raw = readRawConfig(project);
+      const environments = raw.environments ?? {};
+      delete environments[name];
+      if (isEmptyObject(environments)) {
+        delete raw.environments;
+      } else {
+        raw.environments = environments;
+      }
+      writeRawConfig(project, raw);
+      delete project.config.environments[name];
+      return envFile;
+    };
+    describeWeb = (web) => {
+      if (!web) {
+        return "-";
+      }
+      const keys = Object.keys(web);
+      return keys.length > 0 ? keys.join(",") : "-";
+    };
+    listEnvironments = (project) => {
+      const lines = [];
+      for (const [name, environment] of Object.entries(project.config.environments)) {
+        const envFile = environment.envFile ?? defaultEnvFileOf(project, name);
+        lines.push(
+          `${name}  env=${envFile}${existsSync13(join15(project.root, envFile)) ? "" : "\uFF08\u6A94\u6848\u4E0D\u5B58\u5728\uFF09"}  flavor=${environment.flavor ?? "-"}  signing=${environment.signing ?? "-"}  web\u8986\u84CB=${describeWeb(environment.web)}`
+        );
+      }
+      return lines;
+    };
+    fail7 = (message) => {
+      console.error(`[${TAG7}] ${message}`);
+      process.exit(1);
+    };
+    USAGE = "\u7528\u6CD5\uFF1Aaqutter env add <\u540D\u7A31> [--flavor=<\u540D>] [--signing=<\u8DEF\u5F91>] [--from=<\u74B0\u5883\u540D\u6216 env \u6A94>] [--dev-command=<\u6307\u4EE4>] [--build-command=<\u6307\u4EE4>] | aqutter env list | aqutter env remove <\u540D\u7A31>";
+    runEnv = async (project, argv) => {
+      const { positional, flags } = parseArgs(argv);
+      const [subcommand, name] = positional;
+      try {
+        switch (subcommand) {
+          case "add": {
+            if (!name) {
+              return fail7(USAGE);
+            }
+            const web = {};
+            if (flags["dev-command"] !== void 0) {
+              web.devCommand = flags["dev-command"];
+            }
+            if (flags["build-command"] !== void 0) {
+              web.buildCommand = flags["build-command"];
+            }
+            if (flags["prepare-command"] !== void 0) {
+              web.prepareCommand = flags["prepare-command"];
+            }
+            if (flags["output-dir"] !== void 0) {
+              web.outputDir = flags["output-dir"];
+            }
+            const result = addEnvironment(project, {
+              name,
+              flavor: flags.flavor,
+              signing: flags.signing,
+              envFile: flags["env-file"],
+              from: flags.from,
+              web
+            });
+            console.log(`[${TAG7}] \u5DF2\u65B0\u589E\u74B0\u5883\u300C${name}\u300D\uFF08${CONFIG_FILE}\uFF09\u3002`);
+            console.log(`[${TAG7}] env \u6A94\uFF1A${result.envFile}${result.createdEnvFile ? "\uFF08\u5DF2\u5EFA\u7ACB\uFF0C\u8ACB\u586B\u5165\u9019\u500B\u74B0\u5883\u7684\u503C\uFF09" : "\uFF08\u5DF2\u5B58\u5728\uFF0C\u6CBF\u7528\uFF09"}`);
+            if (result.missingFlavor) {
+              console.log(`[${TAG7}] flavor\u300C${flags.flavor}\u300D\u9084\u6C92\u5EFA\u7ACB\uFF1A\u57F7\u884C \`aqutter flavor add ${flags.flavor}\`\u3002`);
+            }
+            console.log(`[${TAG7}] \u4F7F\u7528\uFF1Aaqutter dev -e ${name} <target> \uFF0F aqutter build -e ${name} <platform>`);
+            return;
+          }
+          case "list": {
+            const lines = listEnvironments(project);
+            console.log(lines.length > 0 ? lines.join("\n") : `[${TAG7}] \u8A2D\u5B9A\u6A94\u9084\u6C92\u6709 environments\u3002\u7528 \`aqutter env add <\u540D\u7A31>\` \u65B0\u589E\u3002`);
+            return;
+          }
+          case "remove": {
+            if (!name) {
+              return fail7(USAGE);
+            }
+            const envFile = removeEnvironment(project, name);
+            console.log(`[${TAG7}] \u5DF2\u5F9E ${CONFIG_FILE} \u79FB\u9664\u74B0\u5883\u300C${name}\u300D\uFF1Benv \u6A94 ${envFile}\u3001flavor \u8207\u7C3D\u7AE0\u6A94\u90FD\u4FDD\u7559\u3002`);
+            return;
+          }
+          default:
+            return fail7(USAGE);
+        }
+      } catch (error) {
+        if (error instanceof ConfigError) {
+          return fail7(error.message);
+        }
+        throw error;
+      }
+    };
+  }
+});
+
 // src/commands/flavorAdd.ts
 var flavorAdd_exports = {};
 __export(flavorAdd_exports, {
@@ -3054,22 +3384,22 @@ __export(flavorAdd_exports, {
   wireDisplayName: () => wireDisplayName
 });
 import { randomBytes } from "node:crypto";
-import { existsSync as existsSync12, readFileSync as readFileSync13, writeFileSync as writeFileSync8 } from "node:fs";
-import { join as join14, relative as relative7 } from "node:path";
-var TAG7, FlavorAddError, fail7, FLAVOR_NAME_PATTERN, XCODE_MODES, GRADLE_DIMENSION, ANDROID_LABEL_RESOURCE, PBX_ID_BYTES, PBX_INDENT, BUILD_SETTING_INDENT, PLIST_INDENT, GRADLE_FILE_LABEL, kotlinEscape, pbxEscape, readAndroidApplicationId, readAndroidLabel, wireAndroidLabel, renderGradleFlavor, addGradleFlavor, newPbxId, PBX_BARE_NAME, pbxName, listBuildConfigurations, readBuildSetting, setBuildSetting, runnerConfigurationIds, readXcodeIdentity, readPlistDisplayName, wireDisplayName, addXcodeConfigurations, renderXcodeScheme, PLATFORMS, createPaths, askFlavorName, runFlavorAdd;
+import { existsSync as existsSync14, readFileSync as readFileSync14, writeFileSync as writeFileSync9 } from "node:fs";
+import { join as join16, relative as relative7 } from "node:path";
+var TAG8, FlavorAddError, fail8, FLAVOR_NAME_PATTERN, XCODE_MODES, GRADLE_DIMENSION, ANDROID_LABEL_RESOURCE, PBX_ID_BYTES, PBX_INDENT, BUILD_SETTING_INDENT, PLIST_INDENT, GRADLE_FILE_LABEL, kotlinEscape, pbxEscape, readAndroidApplicationId, readAndroidLabel, wireAndroidLabel, renderGradleFlavor, addGradleFlavor, newPbxId, PBX_BARE_NAME, pbxName, listBuildConfigurations, readBuildSetting, setBuildSetting, runnerConfigurationIds, readXcodeIdentity, readPlistDisplayName, wireDisplayName, addXcodeConfigurations, renderXcodeScheme, PLATFORMS, createPaths, askFlavorName, runFlavorAdd;
 var init_flavorAdd = __esm({
   "src/commands/flavorAdd.ts"() {
     "use strict";
     init_shared();
-    TAG7 = "flavor add";
+    TAG8 = "flavor add";
     FlavorAddError = class extends Error {
       constructor(message) {
         super(message);
         this.name = "FlavorAddError";
       }
     };
-    fail7 = (message) => {
-      console.error(`[${TAG7}] ${message}`);
+    fail8 = (message) => {
+      console.error(`[${TAG8}] ${message}`);
       process.exit(1);
     };
     FLAVOR_NAME_PATTERN = /^[a-z][a-z0-9]*$/;
@@ -3346,12 +3676,12 @@ ${PLIST_INDENT}<string>$(APP_DISPLAY_NAME)</string>`;
     };
     PLATFORMS = ["android", "ios", "macos"];
     createPaths = (project) => ({
-      androidGradle: join14(project.appDir, "android", "app", "build.gradle.kts"),
-      androidManifest: join14(project.appDir, "android", "app", "src", "main", "AndroidManifest.xml"),
-      xcodeProject: (platform) => join14(project.appDir, platform, "Runner.xcodeproj", "project.pbxproj"),
-      xcodeSchemeDir: (platform) => join14(project.appDir, platform, "Runner.xcodeproj", "xcshareddata", "xcschemes"),
-      infoPlist: (platform) => join14(project.appDir, platform, "Runner", "Info.plist"),
-      appInfoXcconfig: (platform) => join14(project.appDir, platform, "Runner", "Configs", "AppInfo.xcconfig")
+      androidGradle: join16(project.appDir, "android", "app", "build.gradle.kts"),
+      androidManifest: join16(project.appDir, "android", "app", "src", "main", "AndroidManifest.xml"),
+      xcodeProject: (platform) => join16(project.appDir, platform, "Runner.xcodeproj", "project.pbxproj"),
+      xcodeSchemeDir: (platform) => join16(project.appDir, platform, "Runner.xcodeproj", "xcshareddata", "xcschemes"),
+      infoPlist: (platform) => join16(project.appDir, platform, "Runner", "Info.plist"),
+      appInfoXcconfig: (platform) => join16(project.appDir, platform, "Runner", "Configs", "AppInfo.xcconfig")
     });
     askFlavorName = async (initial, askWithDefault) => {
       let name = initial ?? "";
@@ -3371,36 +3701,36 @@ ${PLIST_INDENT}<string>$(APP_DISPLAY_NAME)</string>`;
       const appDirName = project.config.appDir;
       const rel = (path) => relative7(project.root, path);
       const readText = (path) => {
-        if (!existsSync12(path)) {
+        if (!existsSync14(path)) {
           throw new FlavorAddError(`\u627E\u4E0D\u5230 ${rel(path)}\u3002`);
         }
-        return readFileSync13(path, "utf8");
+        return readFileSync14(path, "utf8");
       };
       const readIdentity = (platform) => {
         const appInfo = paths.appInfoXcconfig(platform);
         return readXcodeIdentity(
           readText(paths.xcodeProject(platform)),
-          existsSync12(appInfo) ? readFileSync13(appInfo, "utf8") : null
+          existsSync14(appInfo) ? readFileSync14(appInfo, "utf8") : null
         );
       };
       const applyAndroid = (flavor) => {
         const gradleLabel = rel(paths.androidGradle);
         const wired = wireAndroidLabel(readText(paths.androidGradle), readText(paths.androidManifest), gradleLabel);
         const gradle = addGradleFlavor(wired.gradle, flavor, gradleLabel);
-        writeFileSync8(paths.androidGradle, gradle);
+        writeFileSync9(paths.androidGradle, gradle);
         if (wired.changed) {
-          writeFileSync8(paths.androidManifest, wired.manifest);
+          writeFileSync9(paths.androidManifest, wired.manifest);
         }
         return [gradleLabel, ...wired.changed ? [rel(paths.androidManifest)] : []];
       };
       const writeXcodeScheme = (platform, flavor) => {
         const dir = paths.xcodeSchemeDir(platform);
-        const template = join14(dir, "Runner.xcscheme");
-        const target = join14(dir, `${flavor.name}.xcscheme`);
-        if (existsSync12(target)) {
+        const template = join16(dir, "Runner.xcscheme");
+        const target = join16(dir, `${flavor.name}.xcscheme`);
+        if (existsSync14(target)) {
           throw new FlavorAddError(`\u5DF2\u6709 scheme ${rel(target)}\uFF0C\u672A\u8B8A\u66F4\u4EFB\u4F55\u6A94\u6848\u3002`);
         }
-        writeFileSync8(target, renderXcodeScheme(readText(template), flavor.name));
+        writeFileSync9(target, renderXcodeScheme(readText(template), flavor.name));
         return rel(target);
       };
       const applyXcode = (platform, flavor, fallbackDisplayName) => {
@@ -3410,14 +3740,14 @@ ${PLIST_INDENT}<string>$(APP_DISPLAY_NAME)</string>`;
         if (listBuildConfigurations(original).some((block) => block.name === `Release-${flavor.name}`)) {
           throw new FlavorAddError(`${platform} \u5DF2\u6709 configuration "Release-${flavor.name}"\uFF0C\u672A\u8B8A\u66F4\u4EFB\u4F55\u6A94\u6848\u3002`);
         }
-        if (existsSync12(join14(paths.xcodeSchemeDir(platform), `${flavor.name}.xcscheme`))) {
+        if (existsSync14(join16(paths.xcodeSchemeDir(platform), `${flavor.name}.xcscheme`))) {
           throw new FlavorAddError(`${platform} \u5DF2\u6709 scheme ${flavor.name}.xcscheme\uFF0C\u672A\u8B8A\u66F4\u4EFB\u4F55\u6A94\u6848\u3002`);
         }
         const wired = wireDisplayName(original, readText(plistPath), fallbackDisplayName);
         const pbxproj = addXcodeConfigurations(wired.pbxproj, flavor);
-        writeFileSync8(projectPath, pbxproj);
+        writeFileSync9(projectPath, pbxproj);
         if (wired.changed) {
-          writeFileSync8(plistPath, wired.plist);
+          writeFileSync9(plistPath, wired.plist);
         }
         const schemePath = writeXcodeScheme(platform, flavor);
         return [rel(projectPath), ...wired.changed ? [rel(plistPath)] : [], schemePath];
@@ -3427,14 +3757,14 @@ ${PLIST_INDENT}<string>$(APP_DISPLAY_NAME)</string>`;
         askYesNo,
         close: closePrompter
       } = createPrompter({
-        onClose: () => fail7("\u8F38\u5165\u5DF2\u7D50\u675F\uFF0C\u672A\u8B8A\u66F4\u4EFB\u4F55\u6A94\u6848\u3002")
+        onClose: () => fail8("\u8F38\u5165\u5DF2\u7D50\u675F\uFF0C\u672A\u8B8A\u66F4\u4EFB\u4F55\u6A94\u6848\u3002")
       });
       try {
         const { positional } = parseArgs(argv);
         const available = {
-          android: existsSync12(paths.androidGradle),
-          ios: existsSync12(paths.xcodeProject("ios")),
-          macos: existsSync12(paths.xcodeProject("macos"))
+          android: existsSync14(paths.androidGradle),
+          ios: existsSync14(paths.xcodeProject("ios")),
+          macos: existsSync14(paths.xcodeProject("macos"))
         };
         if (!available.android && !available.ios && !available.macos) {
           throw new FlavorAddError(`${appDirName}/ \u5167\u6C92\u6709 android/\u3001ios/ \u6216 macos/ \u539F\u751F\u5C08\u6848\uFF0C\u7121\u4E8B\u53EF\u505A\u3002`);
@@ -3493,7 +3823,7 @@ ${PLIST_INDENT}<string>$(APP_DISPLAY_NAME)</string>`;
         closePrompter();
       } catch (error) {
         if (error instanceof FlavorAddError) {
-          return fail7(error.message);
+          return fail8(error.message);
         }
         throw error;
       }
@@ -3516,16 +3846,16 @@ __export(genJks_exports, {
   runGenJks: () => runGenJks
 });
 import { spawnSync as spawnSync5 } from "node:child_process";
-import { existsSync as existsSync13, unlinkSync, writeFileSync as writeFileSync9 } from "node:fs";
-import { join as join15, relative as relative8 } from "node:path";
-var TAG8, fail8, STORE_FILE_PREFIX_FROM_APP_MODULE, JKS_EXTENSION, DEFAULT_JKS_NAME, DEFAULT_ALIAS, DEFAULT_VALIDITY_YEARS, DEFAULT_LOCALITY, DEFAULT_COUNTRY, DAYS_PER_YEAR, MIN_PASSWORD_LENGTH, PASSWORD_ENV_KEY, KEY_ALGORITHM, KEY_SIZE, STORE_TYPE, KEYTOOL_BIN, keytoolCandidates, locateKeytool, isValidPassword, parseValidityYears, normalizeJksName, escapeDnValue, buildDistinguishedName, buildKeyProperties, buildKeytoolArgs, runGenJks;
+import { existsSync as existsSync15, unlinkSync, writeFileSync as writeFileSync10 } from "node:fs";
+import { join as join17, relative as relative8 } from "node:path";
+var TAG9, fail9, STORE_FILE_PREFIX_FROM_APP_MODULE, JKS_EXTENSION, DEFAULT_JKS_NAME, DEFAULT_ALIAS, DEFAULT_VALIDITY_YEARS, DEFAULT_LOCALITY, DEFAULT_COUNTRY, DAYS_PER_YEAR, MIN_PASSWORD_LENGTH, PASSWORD_ENV_KEY, KEY_ALGORITHM, KEY_SIZE, STORE_TYPE, KEYTOOL_BIN, keytoolCandidates, locateKeytool, isValidPassword, parseValidityYears, normalizeJksName, escapeDnValue, buildDistinguishedName, buildKeyProperties, buildKeytoolArgs, runGenJks;
 var init_genJks = __esm({
   "src/commands/genJks.ts"() {
     "use strict";
     init_shared();
-    TAG8 = "android:gen-jks";
-    fail8 = (message) => {
-      console.error(`[${TAG8}] ${message}`);
+    TAG9 = "android:gen-jks";
+    fail9 = (message) => {
+      console.error(`[${TAG9}] ${message}`);
       process.exit(1);
     };
     STORE_FILE_PREFIX_FROM_APP_MODULE = "../";
@@ -3545,7 +3875,7 @@ var init_genJks = __esm({
     keytoolCandidates = (javaHome, keytoolBin = KEYTOOL_BIN) => {
       const candidates = [keytoolBin];
       if (javaHome) {
-        candidates.push(join15(javaHome, "bin", keytoolBin));
+        candidates.push(join17(javaHome, "bin", keytoolBin));
       }
       return candidates;
     };
@@ -3609,8 +3939,8 @@ var init_genJks = __esm({
     ];
     runGenJks = async (project, argv) => {
       void argv;
-      const androidDir = join15(project.appDir, "android");
-      const keyPropertiesFile = join15(androidDir, "key.properties");
+      const androidDir = join17(project.appDir, "android");
+      const keyPropertiesFile = join17(androidDir, "key.properties");
       const gitignoreLabel = `${project.config.appDir}/android/.gitignore`;
       const {
         askWithDefault,
@@ -3619,7 +3949,7 @@ var init_genJks = __esm({
         askYesNo,
         close: closePrompter
       } = createPrompter({
-        onClose: () => fail8("\u8F38\u5165\u5DF2\u7D50\u675F\uFF0C\u672A\u8B8A\u66F4\u4EFB\u4F55\u6A94\u6848\u3002")
+        onClose: () => fail9("\u8F38\u5165\u5DF2\u7D50\u675F\uFF0C\u672A\u8B8A\u66F4\u4EFB\u4F55\u6A94\u6848\u3002")
       });
       const askPassword = async () => {
         for (; ; ) {
@@ -3660,12 +3990,12 @@ var init_genJks = __esm({
         });
       };
       const ensureCanWrite = async (filePath, label) => {
-        if (!existsSync13(filePath)) {
+        if (!existsSync15(filePath)) {
           return;
         }
         const overwrite = await askYesNo(`${label} \u5DF2\u5B58\u5728\uFF08${relative8(project.root, filePath)}\uFF09\uFF0C\u662F\u5426\u8986\u5BEB\uFF1F`);
         if (!overwrite) {
-          fail8("\u5DF2\u53D6\u6D88\uFF0C\u672A\u8B8A\u66F4\u4EFB\u4F55\u6A94\u6848\u3002");
+          fail9("\u5DF2\u53D6\u6D88\uFF0C\u672A\u8B8A\u66F4\u4EFB\u4F55\u6A94\u6848\u3002");
         }
         unlinkSync(filePath);
       };
@@ -3678,12 +4008,12 @@ var init_genJks = __esm({
           }
         });
         if (result.status !== 0) {
-          fail8(`keytool \u57F7\u884C\u5931\u6557\uFF08exit ${result.status ?? "signal"}\uFF09\u3002`);
+          fail9(`keytool \u57F7\u884C\u5931\u6557\uFF08exit ${result.status ?? "signal"}\uFF09\u3002`);
         }
       };
       const keytool = locateKeytool();
       if (keytool === null) {
-        return fail8("\u627E\u4E0D\u5230 keytool\u3002\u8ACB\u5B89\u88DD JDK \u4E26\u78BA\u4FDD keytool \u5728 PATH \u4E0A\uFF0C\u6216\u8A2D\u5B9A JAVA_HOME\u3002");
+        return fail9("\u627E\u4E0D\u5230 keytool\u3002\u8ACB\u5B89\u88DD JDK \u4E26\u78BA\u4FDD keytool \u5728 PATH \u4E0A\uFF0C\u6216\u8A2D\u5B9A JAVA_HOME\u3002");
       }
       console.log("=== \u7522\u751F Android release keystore ===");
       console.log(`\u7522\u51FA\u76EE\u9304\uFF1A${relative8(project.root, androidDir)}
@@ -3693,7 +4023,7 @@ var init_genJks = __esm({
       const password = await askPassword();
       const validityYears = await askValidityYears();
       const distinguishedName = await askDistinguishedName();
-      const jksPath = join15(androidDir, jksName);
+      const jksPath = join17(androidDir, jksName);
       await ensureCanWrite(jksPath, "keystore");
       await ensureCanWrite(keyPropertiesFile, "key.properties");
       console.log(`
@@ -3706,7 +4036,7 @@ var init_genJks = __esm({
         distinguishedName,
         password
       });
-      writeFileSync9(keyPropertiesFile, buildKeyProperties({ jksName, alias, password }), "utf8");
+      writeFileSync10(keyPropertiesFile, buildKeyProperties({ jksName, alias, password }), "utf8");
       console.log("\n\u5B8C\u6210\uFF1A");
       console.log(`  keystore       \u2192 ${relative8(project.root, jksPath)}`);
       console.log(`  key.properties \u2192 ${relative8(project.root, keyPropertiesFile)}`);
@@ -3728,12 +4058,13 @@ var HELP = `aqutter ${package_default.version}
   dev [target]         \u540C\u8DD1\u7DB2\u9801 dev server \u8207 flutter run\uFF08target: macos|windows|linux|ios|ios-device|android|<device id>\uFF09
   seed                 \u7522\u751F\u975C\u614B\u7DB2\u9801\u4E26\u6253\u5305\u7A2E\u5B50\u7DB2\u9801\u5305\uFF08\u540C\u6642\u4EA4\u4ED8 web_<env>_<\u7248\u672C>.zip\uFF09
   build <platform>     \u6253\u5305 App\uFF08apk|aab|ios|ipa|macos|windows|linux\uFF09\uFF0C\u542B\u7A2E\u5B50\u3001\u7C3D\u7AE0\u3001\u4EA4\u4ED8
+  env add|list|remove  \u7BA1\u7406\u8A2D\u5B9A\u6A94\u88E1\u7684\u547D\u540D\u74B0\u5883\uFF08env \u6A94\u3001flavor\u3001\u7C3D\u7AE0\u3001\u7DB2\u9801\u6307\u4EE4\u8986\u84CB\uFF09
   flavor add [<name>]  \u70BA Android / iOS / macOS \u65B0\u589E flavor
   android gen-jks      \u7522\u751F Android \u7C3D\u7AE0\u7528 keystore \u8207 key.properties
   plugin create <name> \u7522\u751F Aqutter plugin \u5C08\u6848
   plugin add <pkg>     \u628A plugin \u52A0\u5165\u76EE\u524D\u5C08\u6848
 
-\u901A\u7528\u65D7\u6A19\uFF08dev / seed / build\uFF09\uFF1A--env=<env \u6A94> --x-env=<\u540D\u7A31> --flavor=<\u540D\u7A31>\uFF1B\u8A73\u898B\u5404\u6307\u4EE4\u8AAA\u660E\u3002
+\u901A\u7528\u65D7\u6A19\uFF08dev / seed / build\uFF09\uFF1A-e <\u74B0\u5883\u540D\u6216 env \u6A94>\uFF08\u7B49\u540C --env=\u2026\uFF09--x-env=<\u540D\u7A31> --flavor=<\u540D\u7A31>\uFF1B\u8A73\u898B\u5404\u6307\u4EE4\u8AAA\u660E\u3002
 `;
 var main = async () => {
   const [command, ...rest] = process.argv.slice(2);
@@ -3770,6 +4101,11 @@ var main = async () => {
     case "build": {
       const { runBuild: runBuild2 } = await Promise.resolve().then(() => (init_build(), build_exports));
       await runBuild2(project, rest);
+      return;
+    }
+    case "env": {
+      const { runEnv: runEnv2 } = await Promise.resolve().then(() => (init_env(), env_exports));
+      await runEnv2(project, rest);
       return;
     }
     case "flavor": {

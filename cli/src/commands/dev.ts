@@ -26,7 +26,8 @@ import { networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 
 import type { Project } from '../config.ts'
-import { IS_WIN, createPrompter, describeMissingEnv, ensureSeedDir, parseArgs, resolveEnvFile, resolvePort } from '../shared.ts'
+import { IS_WIN, createPrompter, ensureSeedDir, parseArgs, resolvePort } from '../shared.ts'
+import { resolveEnvironment } from '../environments.ts'
 import type { Prompter } from '../shared.ts'
 import { chooseOne, listEnvFiles, listFlavors, resolveXEnv } from '../menu.ts'
 import { createWebAdapter } from '../web.ts'
@@ -456,7 +457,7 @@ export const runDev = async (project: Project, argv: string[]): Promise<void> =>
     tag: TAG,
     withSigning: false,
   })
-  const { envPath, flavor } = target === 'pick'
+  const { envPath, flavor: selectedFlavor } = target === 'pick'
     ? await promptEnvAndFlavor(preset)
     : {
         envPath: preset.envPath ?? config.defaultDevEnv,
@@ -469,13 +470,17 @@ export const runDev = async (project: Project, argv: string[]): Promise<void> =>
   }
 
   if (positional.length > 1) {
-    console.warn(`[${TAG}] 忽略多餘位置參數：${positional.slice(1).join(' ')}（環境請用 --env=<env 檔路徑>）`)
+    console.warn(`[${TAG}] 忽略多餘位置參數：${positional.slice(1).join(' ')}（環境請用 -e <環境名或 env 檔路徑>）`)
   }
 
-  const envFile = resolveEnvFile(project, envPath)
-  if (!envFile) {
-    return fail(describeMissingEnv(project, envPath))
+  // --env / -e 的值可以是設定檔的環境名，或 env 檔路徑；環境名會帶入該環境設定的 flavor 與網頁指令（旗標優先）
+  const resolvedEnvironment = resolveEnvironment(project, envPath)
+  if (!resolvedEnvironment.ok) {
+    return fail(resolvedEnvironment.error)
   }
+  const environment = resolvedEnvironment.value
+  const envFile = environment.envFile
+  const flavor = selectedFlavor ?? environment.flavor
 
   const resolved = await resolveTarget(target)
   closePrompter()
@@ -552,7 +557,7 @@ export const runDev = async (project: Project, argv: string[]): Promise<void> =>
   // 指令細節（參數順序、env 如何帶入）由框架轉接器負責，見 web.ts；DEV_PORT / DEV_HOST 以 env 交棒，
   // 因為專案設定讀不到本指令的 CLI 參數——CSP 的 connect-src 與 HMR clientPort 都要組出同一個埠，
   // 漏掉會讓非預設埠的 HMR websocket 被 CSP 靜默擋掉。
-  const web = createWebAdapter(project)
+  const web = createWebAdapter(project, environment.web)
   const devServer = web.dev({
     envFile,
     port,

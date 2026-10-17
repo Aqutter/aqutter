@@ -126,9 +126,14 @@ export const resolveXEnv = (project: Project, flags: Flags, {
   tag, withSigning,
 }: { tag: string, withSigning: boolean }): XEnvResult => {
   const xEnv = flags['x-env'] ?? null
-  const envPath = flags.env ?? (xEnv ? envPathOf(project, xEnv) : null)
+  // 名稱在設定檔的 environments 裡：以設定檔為準（env 檔、flavor、簽章都由 resolveEnvironment 帶入），不再走檔名慣例
+  const configured = xEnv !== null && Object.hasOwn(project.config.environments, xEnv)
+  const envPath = flags.env ?? (xEnv ? (configured ? xEnv : envPathOf(project, xEnv)) : null)
 
   let flavor = flags.flavor ?? null
+  if (configured) {
+    return { envPath, flavor, signingPath: flags.signing ?? null }
+  }
   if (flavor === null && xEnv) {
     if (listFlavors(project).some(entry => entry.name === xEnv)) {
       flavor = xEnv
