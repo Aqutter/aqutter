@@ -43,7 +43,7 @@ export interface AqutterNativeOptions {
    */
   measure?: () => AqutterNativeViewportInfo | null
   /** 每畫完一幀呼叫；`latencyMs` 為（網頁收到時間 − 原生送出時間），兩邊時鐘同機所以可信。 */
-  onFrame?: (info: { width: number, height: number, bytes: number, latencyMs: number }) => void
+  onFrame?: (info: { width: number, height: number, bytes: number, latencyMs: number, drawMs: number }) => void
 }
 
 const DEFAULT_RECONNECT_MS = 800
@@ -249,6 +249,7 @@ export class AqutterNative {
       }
       this.lastSeq = frame.seq
       const token = ++this.drawToken
+      const drawStart = performance.now()
       const { canvas } = this.options
       if (frame.format === AqutterNativeFormat.Rgba) {
         if (canvas.width !== frame.width || canvas.height !== frame.height) {
@@ -272,7 +273,7 @@ export class AqutterNative {
         this.context.drawImage(bitmap, 0, 0, frame.width, frame.height)
         bitmap.close()
       }
-      this.options.onFrame?.({ width: frame.width, height: frame.height, bytes: buffer.byteLength, latencyMs: Date.now() - frame.sentAt })
+      this.options.onFrame?.({ width: frame.width, height: frame.height, bytes: buffer.byteLength, latencyMs: Date.now() - frame.sentAt, drawMs: performance.now() - drawStart })
     }
     finally {
       this.sendRaw({ type: 'ack', seq: frame.seq })
