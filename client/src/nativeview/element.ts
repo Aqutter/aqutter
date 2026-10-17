@@ -1,6 +1,8 @@
 import { BridgeHandler } from '../contract/bridge'
 import { callFlutter } from '../index'
 import { GestureRecognizer } from './gestures'
+import { toPointerMessage } from './pointer'
+import type { AqutterNativePointerPhase } from './pointer'
 import { AqutterNative } from './native'
 import type { AqutterNativeFit, AqutterNativeMessage } from './native'
 
@@ -8,6 +10,10 @@ import type { AqutterNativeFit, AqutterNativeMessage } from './native'
 export const AQUTTER_NATIVE_TAG = 'aqutter-native'
 
 const FITS: readonly AqutterNativeFit[] = ['fill', 'contain', 'cover']
+
+/** `input` 屬性：回傳什麼輸入給原生端。`gestures` 語意手勢（預設）；`pointers` 原始指標事件；`both` 兩者。 */
+type InputMode = 'gestures' | 'pointers' | 'both'
+const INPUT_MODES: readonly InputMode[] = ['gestures', 'pointers', 'both']
 
 const TEMPLATE = `
 <style>
@@ -44,7 +50,7 @@ const createElementClass = (): CustomElementConstructor => {
    * 手勢訊息格式見 `AqutterNativeGesture`；元素只送出，不改變自身內容。
    */
   class AqutterNativeElement extends HTMLElement {
-    static readonly observedAttributes = ['session', 'fit']
+    static readonly observedAttributes = ['session', 'fit', 'input']
 
     private canvas: HTMLCanvasElement | null = null
     private mirror: AqutterNative | null = null
@@ -77,6 +83,9 @@ const createElementClass = (): CustomElementConstructor => {
     attributeChangedCallback(name: string): void {
       if (name === 'fit') {
         this.applyFit()
+      }
+      else if (name === 'input') {
+        // 每次事件才讀屬性，不必重連
       }
       else if (this.isConnected) {
         this.restart()
@@ -163,13 +172,54 @@ const createElementClass = (): CustomElementConstructor => {
         const rect = canvas.getBoundingClientRect()
         return { x: event.clientX - rect.left, y: event.clientY - rect.top }
       }
+      const mode = (): InputMode => {
+        const value = this.getAttribute('input') as InputMode | null
+        return value && INPUT_MODES.includes(value) ? value : 'gestures'
+      }
+      const wantsGestures = (): boolean => mode() !== 'pointers'
+      const wantsPointers = (): boolean => mode() !== 'gestures'
+      /** 正在按下的指標；只轉送按著的移動，滑鼠游標的懸停不送。 */
+      const pressed = new Set<number>()
+      const sendPointer = (phase: AqutterNativePointerPhase, event: PointerEvent): void => {
+        const rect = canvas.getBoundingClientRect()
+        this.send(toPointerMessage(phase, event, rect, { width: canvas.clientWidth, height: canvas.clientHeight }))
+      }
       canvas.addEventListener('pointerdown', (event) => {
         canvas.setPointerCapture(event.pointerId)
-        this.recognizer?.pointerDown(event.pointerId, local(event), event.timeStamp)
+        pressed.add(event.pointerId)
+        if (wantsPointers()) {
+          sendPointer('down', event)
+        }
+        if (wantsGestures()) {
+          this.recognizer?.pointerDown(event.pointerId, local(event), event.timeStamp)
+        }
       })
-      canvas.addEventListener('pointermove', event => this.recognizer?.pointerMove(event.pointerId, local(event)))
-      canvas.addEventListener('pointerup', event => this.recognizer?.pointerUp(event.pointerId, local(event), event.timeStamp))
-      canvas.addEventListener('pointercancel', () => this.recognizer?.cancel())
+      canvas.addEventListener('pointermove', (event) => {
+        if (wantsPointers() && pressed.has(event.pointerId)) {
+          sendPointer('move', event)
+        }
+        if (wantsGestures()) {
+          this.recognizer?.pointerMove(event.pointerId, local(event))
+        }
+      })
+      canvas.addEventListener('pointerup', (event) => {
+        if (wantsPointers() && pressed.delete(event.pointerId)) {
+          sendPointer('up', event)
+        }
+        pressed.delete(event.pointerId)
+        if (wantsGestures()) {
+          this.recognizer?.pointerUp(event.pointerId, local(event), event.timeStamp)
+        }
+      })
+      canvas.addEventListener('pointercancel', (event) => {
+        if (wantsPointers() && pressed.delete(event.pointerId)) {
+          sendPointer('cancel', event)
+        }
+        pressed.delete(event.pointerId)
+        if (wantsGestures()) {
+          this.recognizer?.cancel()
+        }
+      })
     }
 }
 

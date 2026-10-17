@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame, GestureRecognizer, peekAqutterNativeSeq } from '../src/nativeview'
+import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame, GestureRecognizer, peekAqutterNativeSeq, toPointerMessage } from '../src/nativeview'
 import type { AqutterNativeGesture, Scheduler } from '../src/nativeview'
 
 const makeFrame = (width: number, height: number, format: number, payload: number[], sentAt = 1700000000000, seq = 1): { header: ArrayBuffer, payload: ArrayBuffer } => {
@@ -172,5 +172,22 @@ describe('GestureRecognizer', () => {
     recognizer.pointerMove(1, { x: 50, y: 0 })
     recognizer.cancel()
     expect(events.at(-1)).toMatchObject({ type: 'pan', phase: 'end' })
+  })
+})
+
+describe('toPointerMessage', () => {
+  it('normalizes the position against the element and keeps the hardware timestamp', () => {
+    const message = toPointerMessage(
+      'move',
+      { pointerId: 3, clientX: 150, clientY: 70, timeStamp: 1234.5, pointerType: 'touch' },
+      { left: 50, top: 20 },
+      { width: 200, height: 100 },
+    )
+    expect(message).toEqual({ type: 'pointer', phase: 'move', id: 3, x: 0.5, y: 0.5, t: 1234.5, pointerType: 'touch' })
+  })
+
+  it('does not divide by zero for a collapsed element', () => {
+    const message = toPointerMessage('down', { pointerId: 1, clientX: 5, clientY: 5, timeStamp: 1, pointerType: 'mouse' }, { left: 0, top: 0 }, { width: 0, height: 0 })
+    expect(message).toMatchObject({ x: 0, y: 0 })
   })
 })

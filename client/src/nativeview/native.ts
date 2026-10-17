@@ -1,6 +1,7 @@
 import { AqutterNativeFormat, decodeAqutterNativeFrame, peekAqutterNativeSeq } from './frame'
 import type { AqutterNativeFrame } from './frame'
 import type { AqutterNativeGesture } from './gestures'
+import type { AqutterNativePointer } from './pointer'
 
 /** 原生端的連線資訊（來自 bridge handler `native_endpoint`）。 */
 export interface AqutterNativeEndpoint {
@@ -8,8 +9,8 @@ export interface AqutterNativeEndpoint {
   token: string
 }
 
-/** 網頁 → 原生的訊息：手勢，或自訂指令。 */
-export type AqutterNativeMessage = AqutterNativeGesture | { type: 'command', name: string, args?: unknown }
+/** 網頁 → 原生的訊息：語意手勢、原始指標事件，或自訂指令。 */
+export type AqutterNativeMessage = AqutterNativeGesture | AqutterNativePointer | { type: 'command', name: string, args?: unknown }
 
 /** 協定內部訊息：確認收幀、回報顯示尺寸。由本類別自動送出，不屬於 [AqutterNativeMessage]。 */
 type ControlMessage =

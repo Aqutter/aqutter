@@ -4,5 +4,7 @@ export { decodeAqutterNativeFrame, peekAqutterNativeSeq, AQUTTER_NATIVE_HEADER_L
 export type { AqutterNativeFrame, AqutterNativeFrameHeader } from './frame'
 export { DEFAULT_GESTURE_OPTIONS, GestureRecognizer } from './gestures'
 export type { GestureOptions, GesturePhase, AqutterNativeGesture, Scheduler } from './gestures'
+export { toPointerMessage } from './pointer'
+export type { AqutterNativePointer, AqutterNativePointerPhase, PointerLike } from './pointer'
 export { AqutterNative } from './native'
 export type { AqutterNativeEndpoint, AqutterNativeFit, AqutterNativeMessage, AqutterNativeOptions, AqutterNativeViewportInfo } from './native'

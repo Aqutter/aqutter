@@ -27,6 +27,16 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 
 元素自動辨識手勢並回傳（座標為 0..1 正規化值）：`tap`、`doubleTap`（第二下會先送 `tap` 再送 `doubleTap`，連點每下都有 `tap`）、`longPress`、`pan`（`phase` start / update / end）、`pinch`（`phase`、`scale`）。完整欄位與規則見原生端文件與 `GestureRecognizer` 的註解。
 
+元素的 `input` 屬性決定回傳什麼：
+
+| `input` | 回傳 | 誰判斷手勢 |
+|---|---|---|
+| `gestures`（預設） | 判斷好的語意手勢 | 網頁 |
+| `pointers` | 原始指標事件（down／move／up／cancel，附硬體時間戳） | Flutter：原生端開 `injectPointers: true`，被鏡像的 widget 直接用標準 `GestureDetector`／地圖手勢 |
+| `both` | 兩者都送 | 兩邊都判斷，通常用不到 |
+
+被鏡像的是地圖之類的原生 view 時，它需要的是真實的指標事件而不是 tap／pan 的語意結果，應使用 `pointers`。
+
 不想註冊元素、要自己畫時，可直接用 `AqutterNative`：
 
 ```ts
