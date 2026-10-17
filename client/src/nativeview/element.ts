@@ -50,6 +50,8 @@ const createElementClass = (): CustomElementConstructor => {
     private mirror: AqutterNative | null = null
     private recognizer: GestureRecognizer | null = null
     private resizeObserver: ResizeObserver | null = null
+    private intersectionObserver: IntersectionObserver | null = null
+    private inView = true
 
     connectedCallback(): void {
       if (!this.shadowRoot) {
@@ -65,6 +67,9 @@ const createElementClass = (): CustomElementConstructor => {
     disconnectedCallback(): void {
       this.resizeObserver?.disconnect()
       this.resizeObserver = null
+      this.intersectionObserver?.disconnect()
+      this.intersectionObserver = null
+      document.removeEventListener('visibilitychange', this.onVisibilityChange)
       this.mirror?.stop()
       this.mirror = null
     }
@@ -119,6 +124,30 @@ const createElementClass = (): CustomElementConstructor => {
       this.resizeObserver?.disconnect()
       this.resizeObserver = new ResizeObserver(() => this.mirror?.reportSize())
       this.resizeObserver.observe(this)
+      this.observeVisibility()
+    }
+
+    /** 元素在視窗內（含 display 不為 none）且分頁可見，才算「看得到」；其餘時間請原生端暫停。 */
+    private observeVisibility(): void {
+      this.intersectionObserver?.disconnect()
+      document.removeEventListener('visibilitychange', this.onVisibilityChange)
+      document.addEventListener('visibilitychange', this.onVisibilityChange)
+      if (typeof IntersectionObserver === 'undefined') {
+        this.syncVisible()
+        return
+      }
+      this.intersectionObserver = new IntersectionObserver((entries) => {
+        const latest = entries.at(-1)
+        this.inView = latest?.isIntersecting ?? true
+        this.syncVisible()
+      })
+      this.intersectionObserver.observe(this)
+    }
+
+    private readonly onVisibilityChange = (): void => this.syncVisible()
+
+    private syncVisible(): void {
+      this.mirror?.setVisible(this.inView && document.visibilityState !== 'hidden')
     }
 
     private bindPointers(): void {

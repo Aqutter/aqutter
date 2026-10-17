@@ -15,6 +15,7 @@ export type AqutterNativeMessage = AqutterNativeGesture | { type: 'command', nam
 type ControlMessage =
   | { type: 'ack', seq: number }
   | { type: 'resize', width: number, height: number, dpr: number }
+  | { type: 'visibility', visible: boolean }
 
 /** 顯示尺寸（CSS 像素）與裝置像素比。 */
 export interface AqutterNativeViewportInfo {
@@ -78,6 +79,8 @@ export class AqutterNative {
   /** 每次開始繪製遞增；非同步解碼（PNG）完成後若已有更新的繪製就放棄。 */
   private drawToken = 0
   private lastReported = ''
+  private visible = true
+  private lastVisibleSent: boolean | null = null
 
   constructor(private readonly options: AqutterNativeOptions) {
     const context = options.canvas.getContext('2d')
@@ -130,6 +133,24 @@ export class AqutterNative {
     }
   }
 
+  /**
+   * 設定元素目前是否看得到（在畫面內、分頁可見）。看不到時原生端暫停擷取與送幀，看得到時立刻補一幀。
+   * 狀態沒變不重送；連線時會補送目前狀態。
+   */
+  setVisible(visible: boolean): void {
+    this.visible = visible
+    this.flushVisible()
+  }
+
+  private flushVisible(): void {
+    if (this.lastVisibleSent === this.visible) {
+      return
+    }
+    if (this.sendRaw({ type: 'visibility', visible: this.visible })) {
+      this.lastVisibleSent = this.visible
+    }
+  }
+
   private sendRaw(message: AqutterNativeMessage | ControlMessage): boolean {
     if (!this.connected) {
       return false
@@ -168,8 +189,10 @@ export class AqutterNative {
       // 新連線：序號與尺寸回報都重來（原生端的工作階段可能重建過）
       this.lastSeq = -1
       this.lastReported = ''
+      this.lastVisibleSent = null
       this.options.onStatus?.(true)
       this.reportSize()
+      this.flushVisible()
     }
     socket.onclose = () => {
       if (this.socket === socket) {
