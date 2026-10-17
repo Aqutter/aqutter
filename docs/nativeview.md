@@ -21,7 +21,7 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 | 事件 / 方法 | 說明 |
 |---|---|
 | `aqutter-status` | `detail.connected` |
-| `aqutter-frame` | `detail.width` / `height` / `latencyMs` |
+| `aqutter-frame` | `detail.width` / `height` / `bytes` / `latencyMs` |
 | `send(message)` | 送訊息給原生端；未連線回 `false` |
 | `sendCommand(name, args?)` | 送 `command` 訊息 |
 
@@ -55,6 +55,10 @@ AqutterNative(
 ```
 
 PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains: 'GMSMapView'`）。以 Google Maps 為例：把 `GoogleMap` 當 `child`、停用它自己的手勢，在 `onMessage` 用 `GoogleMapController` 套用 `pan` / `pinch`。範例 plugin：[aqutter-plugin-mirror-demo](https://github.com/Aqutter/aqutter-plugin-mirror-demo)。
+
+## 效能
+
+網頁端會自動：只畫最新一幀、每幀回 `ack`（原生端據此流量控制）、元素大小改變時回報 `resize`（原生端只擷取需要的像素）、RGBA 不複製像素。原生端沒重繪就不送幀。機制與協定欄位見 [aqutter_core 的 doc/nativeview.md](https://github.com/Aqutter/aqutter_core/blob/main/doc/nativeview.md)。`aqutter-frame` 事件的 `detail` 帶 `bytes`，可用來觀察實際頻寬。
 
 ## 網頁的 CSP
 

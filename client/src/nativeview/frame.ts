@@ -1,11 +1,11 @@
 /**
  * 鏡像幀的二進位格式（Dart → 網頁）。與 `aqutter_core` 的 `encodeAqutterNativeFrame` 成對。
  *
- * little-endian：`[w u32 | h u32 | fmt u32 | sentAt f64 (epoch ms)][payload]`。
+ * little-endian：`[w u32 | h u32 | fmt u32 | seq u32 | sentAt f64 (epoch ms)][payload]`。
  */
 
 /** 標頭長度（bytes）。 */
-export const AQUTTER_NATIVE_HEADER_LENGTH = 20
+export const AQUTTER_NATIVE_HEADER_LENGTH = 24
 
 /** 幀的像素格式。 */
 export enum AqutterNativeFormat {
@@ -20,6 +20,8 @@ export interface AqutterNativeFrameHeader {
   width: number
   height: number
   format: AqutterNativeFormat
+  /** 每個工作階段遞增的序號；用來丟棄亂序的舊幀、回覆確認。 */
+  seq: number
   /** 原生端送出時的 epoch 毫秒；用於估算延遲。 */
   sentAt: number
 }
@@ -38,7 +40,8 @@ export const decodeAqutterNativeFrame = (buffer: ArrayBuffer): AqutterNativeFram
   const width = view.getUint32(0, true)
   const height = view.getUint32(4, true)
   const format = view.getUint32(8, true)
-  const sentAt = view.getFloat64(12, true)
+  const seq = view.getUint32(12, true)
+  const sentAt = view.getFloat64(16, true)
   if (format !== AqutterNativeFormat.Png && format !== AqutterNativeFormat.Rgba) {
     throw new Error(`[aqutterNative] unknown frame format: ${format}`)
   }
@@ -46,5 +49,5 @@ export const decodeAqutterNativeFrame = (buffer: ArrayBuffer): AqutterNativeFram
   if (format === AqutterNativeFormat.Rgba && payload.length !== width * height * 4) {
     throw new Error(`[aqutterNative] RGBA payload ${payload.length} bytes does not match ${width}x${height}`)
   }
-  return { width, height, format, sentAt, payload }
+  return { width, height, format, seq, sentAt, payload }
 }

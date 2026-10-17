@@ -40,7 +40,7 @@ const createElementClass = (): CustomElementConstructor => {
    * | `fit` | `fill`（預設）/ `contain` / `cover`，對應 `object-fit` |
    *
    * 事件（`CustomEvent`，不冒泡）：`aqutter-status`（`detail.connected`）、`aqutter-frame`
-   * （`detail.width/height/latencyMs`）。方法：{@link send}、{@link sendCommand}。
+   * （`detail.width/height/bytes/latencyMs`）。方法：{@link send}、{@link sendCommand}。
    * 手勢訊息格式見 `AqutterNativeGesture`；元素只送出，不改變自身內容。
    */
   class AqutterNativeElement extends HTMLElement {
@@ -49,6 +49,7 @@ const createElementClass = (): CustomElementConstructor => {
     private canvas: HTMLCanvasElement | null = null
     private mirror: AqutterNative | null = null
     private recognizer: GestureRecognizer | null = null
+    private resizeObserver: ResizeObserver | null = null
 
     connectedCallback(): void {
       if (!this.shadowRoot) {
@@ -62,6 +63,8 @@ const createElementClass = (): CustomElementConstructor => {
     }
 
     disconnectedCallback(): void {
+      this.resizeObserver?.disconnect()
+      this.resizeObserver = null
       this.mirror?.stop()
       this.mirror = null
     }
@@ -107,10 +110,15 @@ const createElementClass = (): CustomElementConstructor => {
         session,
         canvas: this.canvas,
         resolveEndpoint: () => callFlutter(BridgeHandler.NativeEndpoint),
+      measure: () => ({ width: this.clientWidth, height: this.clientHeight, devicePixelRatio: window.devicePixelRatio || 1 }),
         onStatus: connected => this.dispatchEvent(new CustomEvent('aqutter-status', { detail: { connected } })),
         onFrame: info => this.dispatchEvent(new CustomEvent('aqutter-frame', { detail: info })),
       })
       this.mirror.start()
+      // 元素大小改變時回報給原生端，讓它只擷取需要的像素
+      this.resizeObserver?.disconnect()
+      this.resizeObserver = new ResizeObserver(() => this.mirror?.reportSize())
+      this.resizeObserver.observe(this)
     }
 
     private bindPointers(): void {

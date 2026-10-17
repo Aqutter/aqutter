@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { decodeAqutterNativeFrame, GestureRecognizer, AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat } from '../src/nativeview'
 import type { AqutterNativeGesture, Scheduler } from '../src/nativeview'
 
-const makeFrame = (width: number, height: number, format: number, payload: number[], sentAt = 1700000000000): ArrayBuffer => {
+const makeFrame = (width: number, height: number, format: number, payload: number[], sentAt = 1700000000000, seq = 1): ArrayBuffer => {
   const buffer = new ArrayBuffer(AQUTTER_NATIVE_HEADER_LENGTH + payload.length)
   const view = new DataView(buffer)
   view.setUint32(0, width, true)
   view.setUint32(4, height, true)
   view.setUint32(8, format, true)
-  view.setFloat64(12, sentAt, true)
+  view.setUint32(12, seq, true)
+  view.setFloat64(16, sentAt, true)
   new Uint8Array(buffer, AQUTTER_NATIVE_HEADER_LENGTH).set(payload)
   return buffer
 }
@@ -17,7 +18,7 @@ const makeFrame = (width: number, height: number, format: number, payload: numbe
 describe('decodeAqutterNativeFrame', () => {
   it('decodes the header and exposes the payload without copying', () => {
     const frame = decodeAqutterNativeFrame(makeFrame(1, 1, AqutterNativeFormat.Rgba, [9, 8, 7, 255]))
-    expect(frame).toMatchObject({ width: 1, height: 1, format: AqutterNativeFormat.Rgba, sentAt: 1700000000000 })
+    expect(frame).toMatchObject({ width: 1, height: 1, format: AqutterNativeFormat.Rgba, seq: 1, sentAt: 1700000000000 })
     expect([...frame.payload]).toEqual([9, 8, 7, 255])
   })
 
