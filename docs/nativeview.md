@@ -15,7 +15,7 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 
 | 屬性 | 說明 |
 |---|---|
-| `session` | 與原生端 `AqutterMirror(sessionId: …)` 一致（必填） |
+| `session` | 與原生端 `AqutterNative(sessionId: …)` 一致（必填） |
 | `fit` | `fill`（預設）/ `contain` / `cover` |
 
 | 事件 / 方法 | 說明 |
@@ -47,7 +47,7 @@ mirror.start()
 
 ```dart
 // plugin 的 buildUnderlay：墊在 WebView 之下、被網頁蓋住但仍在 Flutter 渲染
-AqutterMirror(
+AqutterNative(
   sessionId: 'map',
   onMessage: (message) { /* 套用手勢 */ },
   child: MyWidget(),

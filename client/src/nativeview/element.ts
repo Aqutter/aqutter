@@ -21,7 +21,7 @@ const TEMPLATE = `
 export interface AqutterNativeElement extends HTMLElement {
   /** 送訊息給原生端；尚未連線時丟棄並回傳 false。 */
   send: (message: NativeMirrorMessage) => boolean
-  /** 送自訂指令（原生端 `AqutterMirrorMessage.type == 'command'`）。 */
+  /** 送自訂指令（原生端 `AqutterNativeMessage.type == 'command'`）。 */
   sendCommand: (name: string, args?: unknown) => boolean
   readonly connected: boolean
 }
@@ -36,7 +36,7 @@ const createElementClass = (): CustomElementConstructor => {
    *
    * | 屬性 | 說明 |
    * |---|---|
-   * | `session` | 與原生端 `AqutterMirror.sessionId` 一致（必填） |
+   * | `session` | 與原生端 `AqutterNative.sessionId` 一致（必填） |
    * | `fit` | `fill`（預設）/ `contain` / `cover`，對應 `object-fit` |
    *
    * 事件（`CustomEvent`，不冒泡）：`aqutter-status`（`detail.connected`）、`aqutter-frame`
@@ -80,7 +80,7 @@ const createElementClass = (): CustomElementConstructor => {
       return this.mirror?.send(message) ?? false
     }
 
-    /** 送自訂指令（原生端 `AqutterMirrorMessage.type == 'command'`）。 */
+    /** 送自訂指令（原生端 `AqutterNativeMessage.type == 'command'`）。 */
     sendCommand(name: string, args?: unknown): boolean {
       return this.send({ type: 'command', name, args })
     }

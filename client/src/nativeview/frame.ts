@@ -1,5 +1,5 @@
 /**
- * 鏡像幀的二進位格式（Dart → 網頁）。與 `aqutter_core` 的 `encodeAqutterMirrorFrame` 成對。
+ * 鏡像幀的二進位格式（Dart → 網頁）。與 `aqutter_core` 的 `encodeAqutterNativeFrame` 成對。
  *
  * little-endian：`[w u32 | h u32 | fmt u32 | sentAt f64 (epoch ms)][payload]`。
  */

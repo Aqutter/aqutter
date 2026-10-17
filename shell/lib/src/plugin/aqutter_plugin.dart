@@ -44,7 +44,7 @@ abstract class AqutterPlugin {
 
   /// 墊在 WebView **之下**的原生內容；回傳 null 表示沒有。
   ///
-  /// 用於「被網頁蓋住、但仍需在 Flutter 裡渲染」的內容——例如以 `AqutterMirror` 鏡像到網頁的地圖。
+  /// 用於「被網頁蓋住、但仍需在 Flutter 裡渲染」的內容——例如以 `AqutterNative` 鏡像到網頁的地圖。
   /// 與其他 slot 不同，它在網頁載入前就掛上，且整個殼存活期間都在。
   Widget? buildUnderlay(BuildContext context) => null;
 

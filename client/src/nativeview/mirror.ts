@@ -14,7 +14,7 @@ export type NativeMirrorMessage = NativeMirrorGesture | { type: 'command', name:
 export type MirrorFit = 'fill' | 'contain' | 'cover'
 
 export interface NativeMirrorOptions {
-  /** 與原生端 `AqutterMirror.sessionId` 一致。 */
+  /** 與原生端 `AqutterNative.sessionId` 一致。 */
   session: string
   canvas: HTMLCanvasElement
   /** 取得連線資訊；通常是 `() => callFlutter(BridgeHandler.NativeMirrorEndpoint)`。 */
