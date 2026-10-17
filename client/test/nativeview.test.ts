@@ -1,34 +1,34 @@
 import { describe, expect, it } from 'vitest'
 
-import { decodeMirrorFrame, GestureRecognizer, MIRROR_HEADER_LENGTH, MirrorFormat } from '../src/nativeview'
-import type { NativeMirrorGesture, Scheduler } from '../src/nativeview'
+import { decodeAqutterNativeFrame, GestureRecognizer, AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat } from '../src/nativeview'
+import type { AqutterNativeGesture, Scheduler } from '../src/nativeview'
 
 const makeFrame = (width: number, height: number, format: number, payload: number[], sentAt = 1700000000000): ArrayBuffer => {
-  const buffer = new ArrayBuffer(MIRROR_HEADER_LENGTH + payload.length)
+  const buffer = new ArrayBuffer(AQUTTER_NATIVE_HEADER_LENGTH + payload.length)
   const view = new DataView(buffer)
   view.setUint32(0, width, true)
   view.setUint32(4, height, true)
   view.setUint32(8, format, true)
   view.setFloat64(12, sentAt, true)
-  new Uint8Array(buffer, MIRROR_HEADER_LENGTH).set(payload)
+  new Uint8Array(buffer, AQUTTER_NATIVE_HEADER_LENGTH).set(payload)
   return buffer
 }
 
-describe('decodeMirrorFrame', () => {
+describe('decodeAqutterNativeFrame', () => {
   it('decodes the header and exposes the payload without copying', () => {
-    const frame = decodeMirrorFrame(makeFrame(1, 1, MirrorFormat.Rgba, [9, 8, 7, 255]))
-    expect(frame).toMatchObject({ width: 1, height: 1, format: MirrorFormat.Rgba, sentAt: 1700000000000 })
+    const frame = decodeAqutterNativeFrame(makeFrame(1, 1, AqutterNativeFormat.Rgba, [9, 8, 7, 255]))
+    expect(frame).toMatchObject({ width: 1, height: 1, format: AqutterNativeFormat.Rgba, sentAt: 1700000000000 })
     expect([...frame.payload]).toEqual([9, 8, 7, 255])
   })
 
   it('accepts png payloads of any length', () => {
-    expect(decodeMirrorFrame(makeFrame(10, 10, MirrorFormat.Png, [1, 2, 3])).format).toBe(MirrorFormat.Png)
+    expect(decodeAqutterNativeFrame(makeFrame(10, 10, AqutterNativeFormat.Png, [1, 2, 3])).format).toBe(AqutterNativeFormat.Png)
   })
 
   it('rejects short frames, unknown formats and mismatched RGBA length', () => {
-    expect(() => decodeMirrorFrame(new ArrayBuffer(4))).toThrow(/too short/)
-    expect(() => decodeMirrorFrame(makeFrame(1, 1, 7, [0]))).toThrow(/unknown frame format/)
-    expect(() => decodeMirrorFrame(makeFrame(2, 2, MirrorFormat.Rgba, [0, 0, 0, 0]))).toThrow(/does not match/)
+    expect(() => decodeAqutterNativeFrame(new ArrayBuffer(4))).toThrow(/too short/)
+    expect(() => decodeAqutterNativeFrame(makeFrame(1, 1, 7, [0]))).toThrow(/unknown frame format/)
+    expect(() => decodeAqutterNativeFrame(makeFrame(2, 2, AqutterNativeFormat.Rgba, [0, 0, 0, 0]))).toThrow(/does not match/)
   })
 })
 
@@ -58,7 +58,7 @@ const fakeScheduler = (): Scheduler & { advance: (ms: number) => void } => {
 
 const setup = () => {
   const scheduler = fakeScheduler()
-  const events: NativeMirrorGesture[] = []
+  const events: AqutterNativeGesture[] = []
   const recognizer = new GestureRecognizer(g => events.push(g), () => ({ width: 200, height: 100 }), undefined, scheduler)
   return { scheduler, events, recognizer }
 }

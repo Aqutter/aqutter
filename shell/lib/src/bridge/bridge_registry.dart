@@ -129,15 +129,15 @@ class BridgeRegistry {
     _registerPicker(controller);
     _registerTcp(controller);
     _registerUi(controller);
-    _registerNativeMirror(controller);
+    _registerNative(controller);
     _registerPlugins(controller);
     _startBroadcast();
     _registerHostEvents();
   }
 
   /// native view 鏡像：回傳 localhost WebSocket 的埠與令牌（首次呼叫時才啟動伺服器）。
-  void _registerNativeMirror(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.nativeMirrorEndpoint, (_) async {
+  void _registerNative(AqutterWebViewController controller) {
+    _handle(controller, BridgeHandler.nativeEndpoint, (_) async {
       final endpoint = await AqutterNativeHost.instance.ensureStarted();
       return endpoint.toJson();
     });

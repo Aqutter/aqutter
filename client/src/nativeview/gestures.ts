@@ -11,7 +11,7 @@
 
 export type GesturePhase = 'start' | 'update' | 'end'
 
-export type NativeMirrorGesture =
+export type AqutterNativeGesture =
   | { type: 'tap' | 'doubleTap' | 'longPress', x: number, y: number }
   | { type: 'pan', phase: GesturePhase, x: number, y: number, dx: number, dy: number }
   | { type: 'pinch', phase: GesturePhase, scale: number, x: number, y: number }
@@ -65,7 +65,7 @@ export class GestureRecognizer {
   private pinching = false
 
   constructor(
-    private readonly emit: (gesture: NativeMirrorGesture) => void,
+    private readonly emit: (gesture: AqutterNativeGesture) => void,
     /** 元素目前的 CSS 尺寸；每次事件重新讀取，因為元素可能被縮放。 */
     private readonly size: () => { width: number, height: number },
     private readonly options: GestureOptions = DEFAULT_GESTURE_OPTIONS,

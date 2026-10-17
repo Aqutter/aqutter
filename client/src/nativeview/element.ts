@@ -1,13 +1,13 @@
 import { BridgeHandler } from '../contract/bridge'
 import { callFlutter } from '../index'
 import { GestureRecognizer } from './gestures'
-import { NativeMirror } from './mirror'
-import type { MirrorFit, NativeMirrorMessage } from './mirror'
+import { AqutterNative } from './native'
+import type { AqutterNativeFit, AqutterNativeMessage } from './native'
 
 /** 預設的自訂元素標籤。 */
 export const AQUTTER_NATIVE_TAG = 'aqutter-native'
 
-const FITS: readonly MirrorFit[] = ['fill', 'contain', 'cover']
+const FITS: readonly AqutterNativeFit[] = ['fill', 'contain', 'cover']
 
 const TEMPLATE = `
 <style>
@@ -20,7 +20,7 @@ const TEMPLATE = `
 /** `<aqutter-native>` 元素對外的介面。 */
 export interface AqutterNativeElement extends HTMLElement {
   /** 送訊息給原生端；尚未連線時丟棄並回傳 false。 */
-  send: (message: NativeMirrorMessage) => boolean
+  send: (message: AqutterNativeMessage) => boolean
   /** 送自訂指令（原生端 `AqutterNativeMessage.type == 'command'`）。 */
   sendCommand: (name: string, args?: unknown) => boolean
   readonly connected: boolean
@@ -41,13 +41,13 @@ const createElementClass = (): CustomElementConstructor => {
    *
    * 事件（`CustomEvent`，不冒泡）：`aqutter-status`（`detail.connected`）、`aqutter-frame`
    * （`detail.width/height/latencyMs`）。方法：{@link send}、{@link sendCommand}。
-   * 手勢訊息格式見 `NativeMirrorGesture`；元素只送出，不改變自身內容。
+   * 手勢訊息格式見 `AqutterNativeGesture`；元素只送出，不改變自身內容。
    */
   class AqutterNativeElement extends HTMLElement {
     static readonly observedAttributes = ['session', 'fit']
 
     private canvas: HTMLCanvasElement | null = null
-    private mirror: NativeMirror | null = null
+    private mirror: AqutterNative | null = null
     private recognizer: GestureRecognizer | null = null
 
     connectedCallback(): void {
@@ -76,7 +76,7 @@ const createElementClass = (): CustomElementConstructor => {
     }
 
     /** 送訊息給原生端；尚未連線時丟棄並回傳 false。 */
-    send(message: NativeMirrorMessage): boolean {
+    send(message: AqutterNativeMessage): boolean {
       return this.mirror?.send(message) ?? false
     }
 
@@ -90,7 +90,7 @@ const createElementClass = (): CustomElementConstructor => {
     }
 
     private applyFit(): void {
-      const fit = this.getAttribute('fit') as MirrorFit | null
+      const fit = this.getAttribute('fit') as AqutterNativeFit | null
       if (this.canvas) {
         this.canvas.style.objectFit = fit && FITS.includes(fit) ? fit : 'fill'
       }
@@ -103,10 +103,10 @@ const createElementClass = (): CustomElementConstructor => {
       if (!session || !this.canvas) {
         return
       }
-      this.mirror = new NativeMirror({
+      this.mirror = new AqutterNative({
         session,
         canvas: this.canvas,
-        resolveEndpoint: () => callFlutter(BridgeHandler.NativeMirrorEndpoint),
+        resolveEndpoint: () => callFlutter(BridgeHandler.NativeEndpoint),
         onStatus: connected => this.dispatchEvent(new CustomEvent('aqutter-status', { detail: { connected } })),
         onFrame: info => this.dispatchEvent(new CustomEvent('aqutter-frame', { detail: info })),
       })

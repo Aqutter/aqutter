@@ -27,16 +27,16 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 
 元素自動辨識手勢並回傳（座標為 0..1 正規化值）：`tap`、`doubleTap`、`longPress`、`pan`（`phase` start / update / end）、`pinch`（`phase`、`scale`）。完整欄位與規則見原生端文件與 `GestureRecognizer` 的註解。
 
-不想註冊元素、要自己畫時，可直接用 `NativeMirror`：
+不想註冊元素、要自己畫時，可直接用 `AqutterNative`：
 
 ```ts
-import { NativeMirror, callFlutter } from '@aqutter/aqutter'
+import { AqutterNative, callFlutter } from '@aqutter/aqutter'
 import { BridgeHandler } from '@aqutter/aqutter/contract'
 
-const mirror = new NativeMirror({
+const mirror = new AqutterNative({
   session: 'map',
   canvas,
-  resolveEndpoint: () => callFlutter(BridgeHandler.NativeMirrorEndpoint),
+  resolveEndpoint: () => callFlutter(BridgeHandler.NativeEndpoint),
 })
 mirror.start()
 ```

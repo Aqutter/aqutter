@@ -1,24 +1,24 @@
-import { decodeMirrorFrame, MirrorFormat } from './frame'
-import type { NativeMirrorGesture } from './gestures'
+import { decodeAqutterNativeFrame, AqutterNativeFormat } from './frame'
+import type { AqutterNativeGesture } from './gestures'
 
-/** 原生端的連線資訊（來自 bridge handler `native_mirror_endpoint`）。 */
-export interface MirrorEndpoint {
+/** 原生端的連線資訊（來自 bridge handler `native_endpoint`）。 */
+export interface AqutterNativeEndpoint {
   port: number
   token: string
 }
 
 /** 網頁 → 原生的訊息：手勢，或自訂指令。 */
-export type NativeMirrorMessage = NativeMirrorGesture | { type: 'command', name: string, args?: unknown }
+export type AqutterNativeMessage = AqutterNativeGesture | { type: 'command', name: string, args?: unknown }
 
 /** 顯示模式，對應 CSS `object-fit`。 */
-export type MirrorFit = 'fill' | 'contain' | 'cover'
+export type AqutterNativeFit = 'fill' | 'contain' | 'cover'
 
-export interface NativeMirrorOptions {
+export interface AqutterNativeOptions {
   /** 與原生端 `AqutterNative.sessionId` 一致。 */
   session: string
   canvas: HTMLCanvasElement
-  /** 取得連線資訊；通常是 `() => callFlutter(BridgeHandler.NativeMirrorEndpoint)`。 */
-  resolveEndpoint: () => Promise<MirrorEndpoint>
+  /** 取得連線資訊；通常是 `() => callFlutter(BridgeHandler.NativeEndpoint)`。 */
+  resolveEndpoint: () => Promise<AqutterNativeEndpoint>
   /** 斷線後重連的間隔（毫秒）。 */
   reconnectMs?: number
   /** 連線狀態改變時呼叫。 */
@@ -34,7 +34,7 @@ const DEFAULT_RECONNECT_MS = 800
  *
  * 斷線會自動重連（原生端重啟、WebView 重掛後仍能接回）。[stop] 之後不再重連。
  */
-export class NativeMirror {
+export class AqutterNative {
   private socket: WebSocket | null = null
   private stopped = true
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -42,16 +42,16 @@ export class NativeMirror {
   private readonly offscreen: HTMLCanvasElement
   private readonly offscreenContext: CanvasRenderingContext2D
 
-  constructor(private readonly options: NativeMirrorOptions) {
+  constructor(private readonly options: AqutterNativeOptions) {
     const context = options.canvas.getContext('2d')
     if (!context) {
-      throw new Error('[nativeMirror] 2d canvas context is not available')
+      throw new Error('[aqutterNative] 2d canvas context is not available')
     }
     this.context = context
     this.offscreen = document.createElement('canvas')
     const offscreenContext = this.offscreen.getContext('2d')
     if (!offscreenContext) {
-      throw new Error('[nativeMirror] 2d canvas context is not available')
+      throw new Error('[aqutterNative] 2d canvas context is not available')
     }
     this.offscreenContext = offscreenContext
   }
@@ -79,7 +79,7 @@ export class NativeMirror {
   }
 
   /** 送訊息給原生端；尚未連線時丟棄並回傳 false。 */
-  send(message: NativeMirrorMessage): boolean {
+  send(message: AqutterNativeMessage): boolean {
     if (!this.connected) {
       return false
     }
@@ -98,7 +98,7 @@ export class NativeMirror {
   }
 
   private async connect(): Promise<void> {
-    let endpoint: MirrorEndpoint
+    let endpoint: AqutterNativeEndpoint
     try {
       endpoint = await this.options.resolveEndpoint()
     }
@@ -109,7 +109,7 @@ export class NativeMirror {
     if (this.stopped) {
       return
     }
-    const url = `ws://127.0.0.1:${endpoint.port}/mirror/${encodeURIComponent(this.options.session)}?token=${encodeURIComponent(endpoint.token)}`
+    const url = `ws://127.0.0.1:${endpoint.port}/native/${encodeURIComponent(this.options.session)}?token=${encodeURIComponent(endpoint.token)}`
     const socket = new WebSocket(url)
     socket.binaryType = 'arraybuffer'
     this.socket = socket
@@ -129,13 +129,13 @@ export class NativeMirror {
   }
 
   private async draw(buffer: ArrayBuffer): Promise<void> {
-    const frame = decodeMirrorFrame(buffer)
+    const frame = decodeAqutterNativeFrame(buffer)
     const { canvas } = this.options
     if (canvas.width !== frame.width || canvas.height !== frame.height) {
       canvas.width = frame.width
       canvas.height = frame.height
     }
-    if (frame.format === MirrorFormat.Rgba) {
+    if (frame.format === AqutterNativeFormat.Rgba) {
       // 複製一份 payload：ImageData 需要自己擁有的 Uint8ClampedArray
       const pixels = new Uint8ClampedArray(frame.payload)
       this.context.putImageData(new ImageData(pixels, frame.width, frame.height), 0, 0)

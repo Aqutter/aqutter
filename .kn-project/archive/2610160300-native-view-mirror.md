@@ -5,7 +5,7 @@
 - Milestone: N/A / Base Branch: main
 
 ## Summary
-`aqutter` 0.2.0：加入 native view 鏡像的網頁端（`<aqutter-native>` 自訂元素、`NativeMirror`、手勢辨識與幀解碼）、bridge handler `native_mirror_endpoint`，以及 plugin 的 underlay slot（`buildUnderlay`）；shell 改依賴 `aqutter_core` 0.2.0 並重新匯出鏡像 API。範例 plugin 另立 repo（haptics、battery、mirror-demo）。
+`aqutter` 0.2.0：加入 native view 鏡像的網頁端（`<aqutter-native>` 自訂元素、`AqutterNative`、手勢辨識與幀解碼）、bridge handler `native_endpoint`，以及 plugin 的 underlay slot（`buildUnderlay`）；shell 改依賴 `aqutter_core` 0.2.0 並重新匯出鏡像 API。範例 plugin 另立 repo（haptics、battery、mirror-demo）。
 直接推送 `main`，未使用 issue、PR、milestone 或版本分支。
 
 ## Cross-Repo Scope

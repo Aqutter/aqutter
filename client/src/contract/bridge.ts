@@ -20,7 +20,7 @@ export enum BridgeHandler {
   /** 網頁層已掛載且首次繪製完成；原生層據此移除啟動過場。 */
   AppReady = 'app_ready',
   /** native view 鏡像的 WebSocket 連線資訊（埠與令牌）。 */
-  NativeMirrorEndpoint = 'native_mirror_endpoint',
+  NativeEndpoint = 'native_endpoint',
 
   /** 執行單句 SQL（含 bind 參數）。 */
   DbExec = 'db_exec',
@@ -170,7 +170,7 @@ export enum BridgeEvent {
  * 「這個平台做不做得到」請改查 {@link isBridgeSupported}。
  */
 /** native view 鏡像連線資訊。 */
-export interface NativeMirrorEndpoint {
+export interface NativeEndpoint {
   port: number
   /** 本次啟動的隨機令牌；連線時以 query `token` 帶上。 */
   token: string
