@@ -30,8 +30,8 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 不想註冊元素、要自己畫時，可直接用 `NativeMirror`：
 
 ```ts
-import { NativeMirror } from '@aqutter/aqutter'
-import { BridgeHandler, callFlutter } from '@aqutter/aqutter'
+import { NativeMirror, callFlutter } from '@aqutter/aqutter'
+import { BridgeHandler } from '@aqutter/aqutter/contract'
 
 const mirror = new NativeMirror({
   session: 'map',
