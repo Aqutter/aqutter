@@ -204,7 +204,12 @@ const createElementClass = (): CustomElementConstructor => {
         this.send(toPointerMessage(phase, event, rect, { width: canvas.clientWidth, height: canvas.clientHeight }))
       }
       canvas.addEventListener('pointerdown', (event) => {
-        canvas.setPointerCapture(event.pointerId)
+        try {
+          canvas.setPointerCapture(event.pointerId)
+        }
+        catch {
+          // 指標已不在（例如事件是程式合成的）：不捕捉也能繼續辨識
+        }
         pressed.add(event.pointerId)
         if (wantsPointers()) {
           sendPointer('down', event)
