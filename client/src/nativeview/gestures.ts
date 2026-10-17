@@ -3,8 +3,12 @@
  *
  * 辨識規則：
  * - 單指按下後移動超過 {@link GestureOptions.slop} → `pan`（start / update / end）
- * - 單指在 slop 內放開 → `tap`；{@link GestureOptions.doubleTapMs} 內於近處再點一次 → 再送 `tap` 之後接著 `doubleTap`
- *   （每一下都有 `tap`、不延遲等待；`doubleTap` 是額外通知，連續快點每下仍會計數）
+ * - 單指在 slop 內放開 → `tap`；{@link GestureOptions.doubleTapMs} 內於近處再點一次 → `doubleTap`。
+ *   {@link GestureOptions.doubleTap} 決定兩者的關係：
+ *   - `exclusive`（預設）：互斥。雙擊只送 `doubleTap`，不會同時送 `tap`；代價是單擊要等雙擊視窗過了才能確定，
+ *     晚約 {@link GestureOptions.doubleTapMs} 毫秒送出。
+ *   - `both`：不延遲。每一下立刻送 `tap`，第二下之後再送 `doubleTap`（雙擊會同時有兩次 `tap` 與一次 `doubleTap`）。
+ *   - `off`：不辨識雙擊，每一下立刻送 `tap`。
  * - 單指按住超過 {@link GestureOptions.longPressMs} 沒移動 → `longPress`（放開後不再送 `tap`）
  * - 第二指按下 → 結束 pan、開始 `pinch`（`scale` 為自 pinch 開始的累計倍率，`x`/`y` 為兩指中心）
  */
@@ -16,9 +20,13 @@ export type AqutterNativeGesture =
   | { type: 'pan', phase: GesturePhase, x: number, y: number, dx: number, dy: number }
   | { type: 'pinch', phase: GesturePhase, scale: number, x: number, y: number }
 
+/** 單擊與雙擊的關係，見檔頭說明。 */
+export type DoubleTapMode = 'exclusive' | 'both' | 'off'
+
 export interface GestureOptions {
   /** 判定為移動的像素門檻。 */
   slop: number
+  doubleTap: DoubleTapMode
   longPressMs: number
   doubleTapMs: number
   /** 第一下放開到第二下按下的最短間隔（毫秒）；更短視為觸控誤報（兩次獨立的點擊），不算雙擊。 */
@@ -29,6 +37,7 @@ export interface GestureOptions {
 
 export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
   slop: 8,
+  doubleTap: 'exclusive',
   longPressMs: 500,
   doubleTapMs: 130,
   doubleTapMinMs: 40,
@@ -62,6 +71,10 @@ export class GestureRecognizer {
   private panning = false
   private longPressed = false
   private longPressTimer: unknown = null
+  /** 互斥模式下，放開後等待雙擊視窗的第一下；視窗過了或確定不是雙擊時才送出 `tap`。 */
+  private pendingTap: { at: number, point: Point, timer: unknown } | null = null
+  /** 目前這一下按下，是否符合「接在 pendingTap 之後的第二下」的條件（間隔與距離）。 */
+  private secondPress = false
   private lastTap: { at: number, point: Point } | null = null
   /** 這一次按下的時刻；雙擊間隔從「第一下放開」算到「第二下按下」（與系統手勢一致），不含按住的時間。 */
   private downAt = 0
@@ -111,10 +124,12 @@ export class GestureRecognizer {
       this.panning = false
       this.longPressed = false
       this.downAt = time ?? this.scheduler.now()
+      this.checkSecondPress(point)
       this.longPressTimer = this.scheduler.setTimeout(() => {
         this.longPressTimer = null
         if (!this.panning && this.origin) {
           this.longPressed = true
+          this.flushPendingTap()
           const n = this.normalize(this.origin)
           this.emit({ type: 'longPress', x: n.x, y: n.y })
         }
@@ -123,6 +138,7 @@ export class GestureRecognizer {
     }
     if (this.pointers.size === 2) {
       this.clearLongPress()
+      this.flushPendingTap()
       this.endPan()
       this.pinching = true
       this.pinchStartDistance = Math.max(this.pinchDistance(), 1)
@@ -149,6 +165,7 @@ export class GestureRecognizer {
         return
       }
       this.clearLongPress()
+      this.flushPendingTap()
       this.panning = true
       const n = this.normalize(point)
       this.emit({ type: 'pan', phase: 'start', x: n.x, y: n.y, dx: 0, dy: 0 })
@@ -192,6 +209,7 @@ export class GestureRecognizer {
   /** 系統取消（例如指標被攔截）：收尾進行中的手勢，不送 tap。 */
   cancel(): void {
     this.clearLongPress()
+    this.flushPendingTap()
     if (this.panning) {
       this.endPan()
     }
@@ -215,16 +233,65 @@ export class GestureRecognizer {
 
   private finishTap(point: Point, now: number): void {
     const n = this.normalize(point)
+    const mode = this.options.doubleTap
+    if (mode === 'off') {
+      this.emit({ type: 'tap', x: n.x, y: n.y })
+      return
+    }
+    if (mode === 'exclusive') {
+      if (this.pendingTap && this.secondPress) {
+        // 第二下是雙擊：只送 doubleTap，第一下被它取代（不會有 tap）
+        this.pendingTap = null
+        this.secondPress = false
+        this.emit({ type: 'doubleTap', x: n.x, y: n.y })
+        return
+      }
+      this.flushPendingTap()
+      // 等雙擊視窗：期間若接著一次符合條件的按下，這一下就變成雙擊的第一下
+      const timer = this.scheduler.setTimeout(() => this.flushPendingTap(), this.options.doubleTapMs)
+      this.pendingTap = { at: now, point, timer }
+      return
+    }
+    // both：每一下立刻送 tap；第二下之後再送 doubleTap
     const previous = this.lastTap
     const gap = previous ? this.downAt - previous.at : Infinity
+    this.emit({ type: 'tap', x: n.x, y: n.y })
     if (previous && gap >= this.options.doubleTapMinMs && gap <= this.options.doubleTapMs && distance(previous.point, point) <= this.options.doubleTapDistance) {
-      // 第二下仍先送 tap（連續點擊要每下都算），再送 doubleTap 讓需要的人額外處理
       this.lastTap = null
-      this.emit({ type: 'tap', x: n.x, y: n.y })
       this.emit({ type: 'doubleTap', x: n.x, y: n.y })
       return
     }
     this.lastTap = { at: now, point }
+  }
+
+  /** 互斥模式：這一下按下是否接在等待中的第一下之後、且間隔與距離都符合雙擊；不符合就把等待中的單擊送出。 */
+  private checkSecondPress(point: Point): void {
+    const pending = this.pendingTap
+    if (!pending) {
+      this.secondPress = false
+      return
+    }
+    const gap = this.downAt - pending.at
+    const near = distance(pending.point, point) <= this.options.doubleTapDistance
+    if (gap >= this.options.doubleTapMinMs && gap <= this.options.doubleTapMs && near) {
+      // 先別送單擊：等這一下放開，若確實是一次點擊就是雙擊；視窗計時器停掉，避免在這一下按住期間過期
+      this.scheduler.clearTimeout(pending.timer)
+      this.secondPress = true
+      return
+    }
+    this.flushPendingTap()
+  }
+
+  /** 送出等待中的單擊（互斥模式）；沒有等待中的就什麼都不做。 */
+  private flushPendingTap(): void {
+    const pending = this.pendingTap
+    this.secondPress = false
+    if (!pending) {
+      return
+    }
+    this.scheduler.clearTimeout(pending.timer)
+    this.pendingTap = null
+    const n = this.normalize(pending.point)
     this.emit({ type: 'tap', x: n.x, y: n.y })
   }
 }

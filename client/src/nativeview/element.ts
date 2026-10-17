@@ -1,7 +1,7 @@
 import { BridgeHandler } from '../contract/bridge'
 import { callFlutter } from '../index'
 import { DEFAULT_GESTURE_OPTIONS, GestureRecognizer } from './gestures'
-import type { GestureOptions } from './gestures'
+import type { DoubleTapMode, GestureOptions } from './gestures'
 import { toPointerMessage } from './pointer'
 import type { AqutterNativePointerPhase } from './pointer'
 import { AqutterNative } from './native'
@@ -51,7 +51,7 @@ const createElementClass = (): CustomElementConstructor => {
    * 手勢訊息格式見 `AqutterNativeGesture`；元素只送出，不改變自身內容。
    */
   class AqutterNativeElement extends HTMLElement {
-    static readonly observedAttributes = ['session', 'fit', 'input', 'double-tap-ms', 'double-tap-min-ms', 'double-tap-distance', 'long-press-ms']
+    static readonly observedAttributes = ['session', 'fit', 'input', 'double-tap', 'double-tap-ms', 'double-tap-min-ms', 'double-tap-distance', 'long-press-ms']
 
     private canvas: HTMLCanvasElement | null = null
     private mirror: AqutterNative | null = null
@@ -85,7 +85,7 @@ const createElementClass = (): CustomElementConstructor => {
       if (name === 'fit') {
         this.applyFit()
       }
-      else if (name === 'input' || name === 'double-tap-ms' || name === 'double-tap-min-ms' || name === 'double-tap-distance' || name === 'long-press-ms') {
+      else if (name === 'input' || name === 'double-tap' || name === 'double-tap-ms' || name === 'double-tap-min-ms' || name === 'double-tap-distance' || name === 'long-press-ms') {
         // 輸入相關屬性在每次事件（或下一次按下）才讀，不必重連
       }
       else if (this.isConnected) {
@@ -169,9 +169,14 @@ const createElementClass = (): CustomElementConstructor => {
         const value = Number(this.getAttribute(attribute))
         return this.hasAttribute(attribute) && Number.isFinite(value) && value > 0 ? value : fallback
       }
+      const doubleTapMode = (): DoubleTapMode => {
+        const value = this.getAttribute('double-tap')
+        return value === 'both' || value === 'off' || value === 'exclusive' ? value : DEFAULT_GESTURE_OPTIONS.doubleTap
+      }
       // 門檻以屬性覆寫：double-tap-ms、double-tap-distance、long-press-ms（每次讀取，改屬性立即生效）
       const options: GestureOptions = {
         ...DEFAULT_GESTURE_OPTIONS,
+        get doubleTap(): DoubleTapMode { return doubleTapMode() },
         get doubleTapMs() { return number('double-tap-ms', DEFAULT_GESTURE_OPTIONS.doubleTapMs) },
         get doubleTapMinMs() { return number('double-tap-min-ms', DEFAULT_GESTURE_OPTIONS.doubleTapMinMs) },
         get doubleTapDistance() { return number('double-tap-distance', DEFAULT_GESTURE_OPTIONS.doubleTapDistance) },

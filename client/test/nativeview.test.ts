@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame, GestureRecognizer, peekAqutterNativeSeq, toPointerMessage } from '../src/nativeview'
-import type { AqutterNativeGesture, Scheduler } from '../src/nativeview'
+import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame, DEFAULT_GESTURE_OPTIONS, GestureRecognizer, peekAqutterNativeSeq, toPointerMessage } from '../src/nativeview'
+import type { AqutterNativeGesture, GestureOptions, Scheduler } from '../src/nativeview'
 
 const makeFrame = (width: number, height: number, format: number, payload: number[], sentAt = 1700000000000, seq = 1): { header: ArrayBuffer, payload: ArrayBuffer } => {
   const header = new ArrayBuffer(AQUTTER_NATIVE_HEADER_LENGTH)
@@ -68,92 +68,144 @@ const fakeScheduler = (): Scheduler & { advance: (ms: number) => void } => {
   }
 }
 
-const setup = () => {
+const setup = (options: Partial<GestureOptions> = {}) => {
   const scheduler = fakeScheduler()
   const events: AqutterNativeGesture[] = []
-  const recognizer = new GestureRecognizer(g => events.push(g), () => ({ width: 200, height: 100 }), undefined, scheduler)
+  const recognizer = new GestureRecognizer(g => events.push(g), () => ({ width: 200, height: 100 }), { ...DEFAULT_GESTURE_OPTIONS, ...options }, scheduler)
   return { scheduler, events, recognizer }
 }
 
 describe('GestureRecognizer', () => {
-  it('emits a normalized tap', () => {
-    const { events, recognizer } = setup()
-    recognizer.pointerDown(1, { x: 100, y: 50 })
-    recognizer.pointerUp(1, { x: 100, y: 50 })
-    expect(events).toEqual([{ type: 'tap', x: 0.5, y: 0.5 }])
-  })
+  const press = (r: GestureRecognizer, scheduler: ReturnType<typeof fakeScheduler>, at: { x: number, y: number } = { x: 20, y: 20 }, holdMs = 50): void => {
+    r.pointerDown(1, at)
+    scheduler.advance(holdMs)
+    r.pointerUp(1, at)
+  }
+  const types = (events: AqutterNativeGesture[]): string[] => events.map(e => e.type)
 
-  it('turns a second nearby tap into a doubleTap', () => {
-    const { events, scheduler, recognizer } = setup()
-    recognizer.pointerDown(1, { x: 20, y: 20 })
-    recognizer.pointerUp(1, { x: 20, y: 20 })
-    scheduler.advance(100)
-    recognizer.pointerDown(1, { x: 22, y: 21 })
-    recognizer.pointerUp(1, { x: 22, y: 21 })
-    expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'doubleTap'])
-  })
+  describe('tap and doubleTap are exclusive by default', () => {
+    it('sends a normalized tap, after the double-tap window has passed', () => {
+      const { events, scheduler, recognizer } = setup()
+      recognizer.pointerDown(1, { x: 100, y: 50 })
+      recognizer.pointerUp(1, { x: 100, y: 50 })
+      expect(events).toEqual([]) // 還在等雙擊視窗
+      scheduler.advance(DEFAULT_GESTURE_OPTIONS.doubleTapMs)
+      expect(events).toEqual([{ type: 'tap', x: 0.5, y: 0.5 }])
+    })
 
-  it('measures the double-tap gap from the first release to the second press, not release to release', () => {
-    const { events, scheduler, recognizer } = setup()
-    recognizer.pointerDown(1, { x: 20, y: 20 })
-    recognizer.pointerUp(1, { x: 20, y: 20 })
-    scheduler.advance(120) // 放開到再按下 120ms，在門檻內
-    recognizer.pointerDown(1, { x: 20, y: 20 })
-    scheduler.advance(150) // 手指按住 150ms：放開到放開共 270ms，舊算法會漏判
-    recognizer.pointerUp(1, { x: 20, y: 20 })
-    expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'doubleTap'])
-  })
+    it('a double tap sends only doubleTap, never tap', () => {
+      const { events, scheduler, recognizer } = setup()
+      press(recognizer, scheduler)
+      scheduler.advance(80)
+      press(recognizer, scheduler, { x: 22, y: 21 })
+      scheduler.advance(500)
+      expect(types(events)).toEqual(['doubleTap'])
+    })
 
-  it('uses the event timestamps, so a delayed handler does not change the double-tap decision', () => {
-    const { events, scheduler, recognizer } = setup()
-    // 兩下實際相隔 120ms（事件時間戳），但主執行緒忙，第二下的 handler 晚了 500ms 才執行
-    recognizer.pointerDown(1, { x: 20, y: 20 }, 1000)
-    recognizer.pointerUp(1, { x: 20, y: 20 }, 1050)
-    scheduler.advance(700)
-    recognizer.pointerDown(1, { x: 20, y: 20 }, 1170)
-    recognizer.pointerUp(1, { x: 20, y: 20 }, 1220)
-    expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'doubleTap'])
-  })
-
-  it('treats casual repeated counting taps (about 220 ms apart) as separate taps, not a double tap', () => {
-    const { events, scheduler, recognizer } = setup()
-    for (let i = 0; i < 4; i++) {
+    it('measures the gap from the first release to the second press, not release to release', () => {
+      const { events, scheduler, recognizer } = setup()
+      press(recognizer, scheduler)
+      scheduler.advance(100) // 放開到再按下 100ms，在門檻內
       recognizer.pointerDown(1, { x: 20, y: 20 })
-      scheduler.advance(60)
+      scheduler.advance(150) // 手指按住 150ms：放開到放開共 250ms，舊算法會漏判
       recognizer.pointerUp(1, { x: 20, y: 20 })
-      scheduler.advance(220)
-    }
-    expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'tap', 'tap'])
+      scheduler.advance(500)
+      expect(types(events)).toEqual(['doubleTap'])
+    })
+
+    it('uses the event timestamps, so a delayed handler does not change the decision', () => {
+      const { events, scheduler, recognizer } = setup()
+      // 兩下實際相隔 100ms（事件時間戳），但主執行緒忙，第二下的 handler 晚了很久才執行
+      recognizer.pointerDown(1, { x: 20, y: 20 }, 1000)
+      recognizer.pointerUp(1, { x: 20, y: 20 }, 1050)
+      // 處理第二下前，視窗計時器可能已先到期：這種情況寧可當兩次單擊，不能漏掉
+      recognizer.pointerDown(1, { x: 20, y: 20 }, 1150)
+      recognizer.pointerUp(1, { x: 20, y: 20 }, 1200)
+      scheduler.advance(500)
+      expect(types(events)).toEqual(['doubleTap'])
+    })
+
+    it('counting taps about 220 ms apart are four separate taps', () => {
+      const { events, scheduler, recognizer } = setup()
+      for (let i = 0; i < 4; i++) {
+        press(recognizer, scheduler, undefined, 60)
+        scheduler.advance(220)
+      }
+      expect(types(events)).toEqual(['tap', 'tap', 'tap', 'tap'])
+    })
+
+    it('a second tap that is too late, too early (a bounce) or too far away is a separate tap', () => {
+      const late = setup()
+      press(late.recognizer, late.scheduler)
+      late.scheduler.advance(150)
+      press(late.recognizer, late.scheduler)
+      late.scheduler.advance(500)
+      expect(types(late.events)).toEqual(['tap', 'tap'])
+
+      const bounce = setup()
+      press(bounce.recognizer, bounce.scheduler)
+      bounce.scheduler.advance(20)
+      press(bounce.recognizer, bounce.scheduler)
+      bounce.scheduler.advance(500)
+      expect(types(bounce.events)).toEqual(['tap', 'tap'])
+
+      const far = setup()
+      press(far.recognizer, far.scheduler, { x: 20, y: 20 })
+      far.scheduler.advance(80)
+      press(far.recognizer, far.scheduler, { x: 150, y: 80 })
+      far.scheduler.advance(500)
+      expect(types(far.events)).toEqual(['tap', 'tap'])
+    })
+
+    it('a triple tap is a doubleTap followed by a tap', () => {
+      const { events, scheduler, recognizer } = setup()
+      press(recognizer, scheduler)
+      scheduler.advance(80)
+      press(recognizer, scheduler)
+      scheduler.advance(80)
+      press(recognizer, scheduler)
+      scheduler.advance(500)
+      expect(types(events)).toEqual(['doubleTap', 'tap'])
+    })
+
+    it('if the second press turns into a drag, the waiting tap is sent first and the drag proceeds', () => {
+      const { events, scheduler, recognizer } = setup()
+      press(recognizer, scheduler)
+      scheduler.advance(80)
+      recognizer.pointerDown(1, { x: 20, y: 20 })
+      recognizer.pointerMove(1, { x: 60, y: 20 })
+      recognizer.pointerUp(1, { x: 60, y: 20 })
+      expect(types(events)).toEqual(['tap', 'pan', 'pan'])
+    })
+
+    it('if the second press becomes a long press, the waiting tap is sent first', () => {
+      const { events, scheduler, recognizer } = setup()
+      press(recognizer, scheduler)
+      scheduler.advance(80)
+      recognizer.pointerDown(1, { x: 20, y: 20 })
+      scheduler.advance(DEFAULT_GESTURE_OPTIONS.longPressMs)
+      recognizer.pointerUp(1, { x: 20, y: 20 })
+      expect(types(events)).toEqual(['tap', 'longPress'])
+    })
   })
 
-  it('needs a quick second tap: 150 ms apart is two taps, and a bounce under 40 ms is not a double tap either', () => {
-    const slow = setup()
-    slow.recognizer.pointerDown(1, { x: 20, y: 20 })
-    slow.recognizer.pointerUp(1, { x: 20, y: 20 })
-    slow.scheduler.advance(150)
-    slow.recognizer.pointerDown(1, { x: 20, y: 20 })
-    slow.recognizer.pointerUp(1, { x: 20, y: 20 })
-    expect(slow.events.map(e => e.type)).toEqual(['tap', 'tap'])
+  describe('double-tap modes', () => {
+    it('both: every tap is immediate and the second also sends doubleTap', () => {
+      const { events, scheduler, recognizer } = setup({ doubleTap: 'both' })
+      press(recognizer, scheduler)
+      expect(types(events)).toEqual(['tap']) // 不延遲
+      scheduler.advance(80)
+      press(recognizer, scheduler)
+      expect(types(events)).toEqual(['tap', 'tap', 'doubleTap'])
+    })
 
-    const bounce = setup()
-    bounce.recognizer.pointerDown(1, { x: 20, y: 20 })
-    bounce.recognizer.pointerUp(1, { x: 20, y: 20 })
-    bounce.scheduler.advance(20)
-    bounce.recognizer.pointerDown(1, { x: 20, y: 20 })
-    bounce.recognizer.pointerUp(1, { x: 20, y: 20 })
-    expect(bounce.events.map(e => e.type)).toEqual(['tap', 'tap'])
-  })
-
-  it('does not double-tap when the second tap is late or far away', () => {
-    const { events, scheduler, recognizer } = setup()
-    recognizer.pointerDown(1, { x: 20, y: 20 })
-    recognizer.pointerUp(1, { x: 20, y: 20 })
-    scheduler.advance(400)
-    recognizer.pointerDown(1, { x: 20, y: 20 })
-    recognizer.pointerUp(1, { x: 20, y: 20 })
-    recognizer.pointerDown(1, { x: 150, y: 80 })
-    recognizer.pointerUp(1, { x: 150, y: 80 })
-    expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'tap'])
+    it('off: taps are immediate and doubleTap is never sent', () => {
+      const { events, scheduler, recognizer } = setup({ doubleTap: 'off' })
+      press(recognizer, scheduler)
+      scheduler.advance(80)
+      press(recognizer, scheduler)
+      expect(types(events)).toEqual(['tap', 'tap'])
+    })
   })
 
   it('emits pan start / update / end with normalized deltas', () => {

@@ -25,7 +25,7 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 | `send(message)` | 送訊息給原生端；未連線回 `false` |
 | `sendCommand(name, args?)` | 送 `command` 訊息 |
 
-元素自動辨識手勢並回傳（座標為 0..1 正規化值）：`tap`、`doubleTap`（第二下會先送 `tap` 再送 `doubleTap`，連點每下都有 `tap`）、`longPress`、`pan`（`phase` start / update / end）、`pinch`（`phase`、`scale`）。完整欄位與規則見原生端文件與 `GestureRecognizer` 的註解。
+元素自動辨識手勢並回傳（座標為 0..1 正規化值）：`tap`、`doubleTap`、`longPress`、`pan`（`phase` start / update / end）、`pinch`（`phase`、`scale`）。完整欄位與規則見原生端文件與 `GestureRecognizer` 的註解。
 
 元素的 `input` 屬性決定回傳什麼：
 
@@ -35,9 +35,17 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 | `pointers` | 原始指標事件（down／move／up／cancel，附硬體時間戳） | Flutter：原生端開 `injectPointers: true`，被鏡像的 widget 直接用標準 `GestureDetector`／地圖手勢 |
 | `both` | 兩者都送 | 兩邊都判斷，通常用不到 |
 
-語意手勢的門檻可用元素屬性覆寫：`double-tap-ms`（第一下放開到第二下按下的上限，預設 130）、`double-tap-min-ms`（下限，預設 40，更短視為觸控誤報而不是雙擊）、`double-tap-distance`（兩下的最大距離，CSS 像素，預設 16）、`long-press-ms`（預設 500）。
+單擊與雙擊的關係由 `double-tap` 屬性決定：
 
-快速連點計數（放開到再按下約 150 到 250 ms）與刻意雙擊（約 80 到 150 ms）的間隔有重疊，單看時間分不乾淨：連點被誤判成雙擊就調小 `double-tap-ms`，真的雙擊點不中就調大。不需要雙擊時直接不處理 `doubleTap` 即可（第二下仍會先送 `tap`）。
+| `double-tap` | 行為 | 代價 |
+|---|---|---|
+| `exclusive`（預設） | 互斥：雙擊只送 `doubleTap`，不會同時送 `tap` | 單擊要等雙擊視窗（`double-tap-ms`，預設 130 ms）過了才確定，晚這麼久送出 |
+| `both` | 每一下立刻送 `tap`，第二下之後再送 `doubleTap`（雙擊會同時有兩次 `tap` 與一次 `doubleTap`） | 無延遲，但雙擊與單擊都會觸發 |
+| `off` | 不辨識雙擊，每一下立刻送 `tap` | 無延遲，沒有 `doubleTap` |
+
+其他門檻可用屬性覆寫：`double-tap-ms`（第一下放開到第二下按下的上限，預設 130）、`double-tap-min-ms`（下限，預設 40，更短視為觸控誤報而不是雙擊）、`double-tap-distance`（兩下的最大距離，CSS 像素，預設 16）、`long-press-ms`（預設 500）。
+
+快速連點計數（放開到再按下約 150 到 250 ms）與刻意雙擊（約 80 到 150 ms）的間隔有重疊，單看時間分不乾淨：連點被誤判成雙擊就調小 `double-tap-ms`，真的雙擊點不中就調大。同一個區域同時要「連點計數」與「雙擊」時，兩者本質上會互相干擾，建議改用不同的操作（例如長按）。
 
 被鏡像的是地圖之類的原生 view 時，它需要的是真實的指標事件而不是 tap／pan 的語意結果，應使用 `pointers`。
 
