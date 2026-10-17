@@ -126,6 +126,24 @@ describe('GestureRecognizer', () => {
     expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'tap', 'tap'])
   })
 
+  it('needs a quick second tap: 150 ms apart is two taps, and a bounce under 40 ms is not a double tap either', () => {
+    const slow = setup()
+    slow.recognizer.pointerDown(1, { x: 20, y: 20 })
+    slow.recognizer.pointerUp(1, { x: 20, y: 20 })
+    slow.scheduler.advance(150)
+    slow.recognizer.pointerDown(1, { x: 20, y: 20 })
+    slow.recognizer.pointerUp(1, { x: 20, y: 20 })
+    expect(slow.events.map(e => e.type)).toEqual(['tap', 'tap'])
+
+    const bounce = setup()
+    bounce.recognizer.pointerDown(1, { x: 20, y: 20 })
+    bounce.recognizer.pointerUp(1, { x: 20, y: 20 })
+    bounce.scheduler.advance(20)
+    bounce.recognizer.pointerDown(1, { x: 20, y: 20 })
+    bounce.recognizer.pointerUp(1, { x: 20, y: 20 })
+    expect(bounce.events.map(e => e.type)).toEqual(['tap', 'tap'])
+  })
+
   it('does not double-tap when the second tap is late or far away', () => {
     const { events, scheduler, recognizer } = setup()
     recognizer.pointerDown(1, { x: 20, y: 20 })

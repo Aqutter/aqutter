@@ -35,7 +35,9 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 | `pointers` | 原始指標事件（down／move／up／cancel，附硬體時間戳） | Flutter：原生端開 `injectPointers: true`，被鏡像的 widget 直接用標準 `GestureDetector`／地圖手勢 |
 | `both` | 兩者都送 | 兩邊都判斷，通常用不到 |
 
-語意手勢的門檻可用元素屬性覆寫：`double-tap-ms`（第一下放開到第二下按下，預設 180）、`double-tap-distance`（兩下的最大距離，CSS 像素，預設 24）、`long-press-ms`（預設 500）。快速連點計數的場景若仍被誤判成雙擊，調小 `double-tap-ms`；不需要雙擊時直接不處理 `doubleTap` 即可（第二下仍會先送 `tap`）。
+語意手勢的門檻可用元素屬性覆寫：`double-tap-ms`（第一下放開到第二下按下的上限，預設 130）、`double-tap-min-ms`（下限，預設 40，更短視為觸控誤報而不是雙擊）、`double-tap-distance`（兩下的最大距離，CSS 像素，預設 16）、`long-press-ms`（預設 500）。
+
+快速連點計數（放開到再按下約 150 到 250 ms）與刻意雙擊（約 80 到 150 ms）的間隔有重疊，單看時間分不乾淨：連點被誤判成雙擊就調小 `double-tap-ms`，真的雙擊點不中就調大。不需要雙擊時直接不處理 `doubleTap` 即可（第二下仍會先送 `tap`）。
 
 被鏡像的是地圖之類的原生 view 時，它需要的是真實的指標事件而不是 tap／pan 的語意結果，應使用 `pointers`。
 

@@ -21,6 +21,8 @@ export interface GestureOptions {
   slop: number
   longPressMs: number
   doubleTapMs: number
+  /** 第一下放開到第二下按下的最短間隔（毫秒）；更短視為觸控誤報（兩次獨立的點擊），不算雙擊。 */
+  doubleTapMinMs: number
   /** 兩次點擊被視為「同一處」的最大距離（像素）。 */
   doubleTapDistance: number
 }
@@ -28,8 +30,9 @@ export interface GestureOptions {
 export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
   slop: 8,
   longPressMs: 500,
-  doubleTapMs: 180,
-  doubleTapDistance: 24,
+  doubleTapMs: 130,
+  doubleTapMinMs: 40,
+  doubleTapDistance: 16,
 }
 
 interface Point {
@@ -213,7 +216,8 @@ export class GestureRecognizer {
   private finishTap(point: Point, now: number): void {
     const n = this.normalize(point)
     const previous = this.lastTap
-    if (previous && this.downAt - previous.at <= this.options.doubleTapMs && distance(previous.point, point) <= this.options.doubleTapDistance) {
+    const gap = previous ? this.downAt - previous.at : Infinity
+    if (previous && gap >= this.options.doubleTapMinMs && gap <= this.options.doubleTapMs && distance(previous.point, point) <= this.options.doubleTapDistance) {
       // 第二下仍先送 tap（連續點擊要每下都算），再送 doubleTap 讓需要的人額外處理
       this.lastTap = null
       this.emit({ type: 'tap', x: n.x, y: n.y })
