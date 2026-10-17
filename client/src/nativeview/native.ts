@@ -61,8 +61,8 @@ const scheduleFrame = (callback: () => void): void => {
  * 連到原生端的鏡像工作階段：把收到的幀畫進 canvas，並提供 [send] 回傳訊息。
  *
  * - 斷線會自動重連（原生端重啟、WebView 重掛後仍能接回）。[stop] 之後不再重連。
- * - 同一個繪製週期內收到多幀只畫最新一幀；被丟棄、亂序或解碼失敗的幀也會回覆確認，
- *   否則原生端會以為網頁卡住而停止送幀（流量控制，見 `doc/nativeview.md`）。
+ * - 同一個繪製週期內收到多幀只畫最新一幀。每一幀（含之後被丟棄或畫不出來的）在**收到時**就回覆確認，
+ *   不等畫完；否則原生端會以為網頁卡住而停止送幀，或確認往返多出一個繪製週期（流量控制，見 `doc/nativeview.md`）。
  * - 繪製 RGBA 不複製像素：`ImageData` 直接包住收到的緩衝區。
  */
 /** 一幀的兩則原始訊息。 */
@@ -223,15 +223,16 @@ export class AqutterNative {
       }
       const header = this.awaitingPayload
       this.awaitingPayload = null
+      // 收到就確認，不等畫完：畫要等下一個繪製週期，確認若等到那時，往返延遲會多出約一個週期，
+      // 原生端的「未確認上限」就會卡住送幀。網頁不會因此堆積——pending 只留最新一幀。
+      // 網頁主執行緒忙碌時 onmessage 不會執行，確認自然延後，流量控制仍然有效。
+      this.ack(header)
       this.enqueue({ header, payload: event.data })
     }
   }
 
-  /** 收到一幀：只留最新的，下一個繪製週期再畫。被取代的舊幀立刻確認。 */
+  /** 收到一幀：只留最新的，下一個繪製週期再畫；被取代的舊幀直接丟掉（收到時已確認）。 */
   private enqueue(frame: RawFrame): void {
-    if (this.pending) {
-      this.ack(this.pending.header)
-    }
     this.pending = frame
     if (!this.frameScheduled) {
       this.frameScheduled = true
@@ -257,43 +258,37 @@ export class AqutterNative {
       frame = decodeAqutterNativeFrame(raw.header, raw.payload)
     }
     catch {
-      this.ack(raw.header)
-      return
+      return // 標頭或像素不合法：丟棄（收到時已確認）
     }
-    try {
-      if (frame.seq <= this.lastSeq) {
-        return // 亂序的舊幀
-      }
-      this.lastSeq = frame.seq
-      const token = ++this.drawToken
-      const drawStart = performance.now()
-      const { canvas } = this.options
-      if (frame.format === AqutterNativeFormat.Rgba) {
-        if (canvas.width !== frame.width || canvas.height !== frame.height) {
-          canvas.width = frame.width
-          canvas.height = frame.height
-        }
-        // 不複製：ImageData 直接包住收到的像素緩衝區
-        const pixels = new Uint8ClampedArray(raw.payload, 0, frame.payload.byteLength)
-        this.context.putImageData(new ImageData(pixels, frame.width, frame.height), 0, 0)
-      }
-      else {
-        const bitmap = await createImageBitmap(new Blob([frame.payload.slice()], { type: 'image/png' }))
-        if (token !== this.drawToken) {
-          bitmap.close() // 解碼期間已經有更新的幀開始繪製
-          return
-        }
-        if (canvas.width !== frame.width || canvas.height !== frame.height) {
-          canvas.width = frame.width
-          canvas.height = frame.height
-        }
-        this.context.drawImage(bitmap, 0, 0, frame.width, frame.height)
-        bitmap.close()
-      }
-      this.options.onFrame?.({ width: frame.width, height: frame.height, bytes: raw.header.byteLength + raw.payload.byteLength, latencyMs: Date.now() - frame.sentAt, drawMs: performance.now() - drawStart })
+    if (frame.seq <= this.lastSeq) {
+      return // 亂序的舊幀
     }
-    finally {
-      this.sendRaw({ type: 'ack', seq: frame.seq })
+    this.lastSeq = frame.seq
+    const token = ++this.drawToken
+    const drawStart = performance.now()
+    const { canvas } = this.options
+    if (frame.format === AqutterNativeFormat.Rgba) {
+      if (canvas.width !== frame.width || canvas.height !== frame.height) {
+        canvas.width = frame.width
+        canvas.height = frame.height
+      }
+      // 不複製：ImageData 直接包住收到的像素緩衝區
+      const pixels = new Uint8ClampedArray(raw.payload, 0, frame.payload.byteLength)
+      this.context.putImageData(new ImageData(pixels, frame.width, frame.height), 0, 0)
     }
+    else {
+      const bitmap = await createImageBitmap(new Blob([frame.payload.slice()], { type: 'image/png' }))
+      if (token !== this.drawToken) {
+        bitmap.close() // 解碼期間已經有更新的幀開始繪製
+        return
+      }
+      if (canvas.width !== frame.width || canvas.height !== frame.height) {
+        canvas.width = frame.width
+        canvas.height = frame.height
+      }
+      this.context.drawImage(bitmap, 0, 0, frame.width, frame.height)
+      bitmap.close()
+    }
+    this.options.onFrame?.({ width: frame.width, height: frame.height, bytes: raw.header.byteLength + raw.payload.byteLength, latencyMs: Date.now() - frame.sentAt, drawMs: performance.now() - drawStart })
   }
 }
