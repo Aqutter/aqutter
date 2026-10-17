@@ -1,6 +1,7 @@
 import { BridgeHandler } from '../contract/bridge'
 import { callFlutter } from '../index'
-import { GestureRecognizer } from './gestures'
+import { DEFAULT_GESTURE_OPTIONS, GestureRecognizer } from './gestures'
+import type { GestureOptions } from './gestures'
 import { toPointerMessage } from './pointer'
 import type { AqutterNativePointerPhase } from './pointer'
 import { AqutterNative } from './native'
@@ -50,7 +51,7 @@ const createElementClass = (): CustomElementConstructor => {
    * 手勢訊息格式見 `AqutterNativeGesture`；元素只送出，不改變自身內容。
    */
   class AqutterNativeElement extends HTMLElement {
-    static readonly observedAttributes = ['session', 'fit', 'input']
+    static readonly observedAttributes = ['session', 'fit', 'input', 'double-tap-ms', 'double-tap-distance', 'long-press-ms']
 
     private canvas: HTMLCanvasElement | null = null
     private mirror: AqutterNative | null = null
@@ -84,8 +85,8 @@ const createElementClass = (): CustomElementConstructor => {
       if (name === 'fit') {
         this.applyFit()
       }
-      else if (name === 'input') {
-        // 每次事件才讀屬性，不必重連
+      else if (name === 'input' || name === 'double-tap-ms' || name === 'double-tap-distance' || name === 'long-press-ms') {
+        // 輸入相關屬性在每次事件（或下一次按下）才讀，不必重連
       }
       else if (this.isConnected) {
         this.restart()
@@ -164,9 +165,21 @@ const createElementClass = (): CustomElementConstructor => {
       if (!canvas) {
         return
       }
+      const number = (attribute: string, fallback: number): number => {
+        const value = Number(this.getAttribute(attribute))
+        return this.hasAttribute(attribute) && Number.isFinite(value) && value > 0 ? value : fallback
+      }
+      // 門檻以屬性覆寫：double-tap-ms、double-tap-distance、long-press-ms（每次讀取，改屬性立即生效）
+      const options: GestureOptions = {
+        ...DEFAULT_GESTURE_OPTIONS,
+        get doubleTapMs() { return number('double-tap-ms', DEFAULT_GESTURE_OPTIONS.doubleTapMs) },
+        get doubleTapDistance() { return number('double-tap-distance', DEFAULT_GESTURE_OPTIONS.doubleTapDistance) },
+        get longPressMs() { return number('long-press-ms', DEFAULT_GESTURE_OPTIONS.longPressMs) },
+      }
       this.recognizer = new GestureRecognizer(
         gesture => this.send(gesture),
         () => ({ width: canvas.clientWidth, height: canvas.clientHeight }),
+        options,
       )
       const local = (event: PointerEvent): { x: number, y: number } => {
         const rect = canvas.getBoundingClientRect()

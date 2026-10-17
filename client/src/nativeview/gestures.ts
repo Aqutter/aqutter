@@ -28,8 +28,8 @@ export interface GestureOptions {
 export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
   slop: 8,
   longPressMs: 500,
-  doubleTapMs: 250,
-  doubleTapDistance: 32,
+  doubleTapMs: 180,
+  doubleTapDistance: 24,
 }
 
 interface Point {

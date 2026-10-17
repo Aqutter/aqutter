@@ -97,22 +97,33 @@ describe('GestureRecognizer', () => {
     const { events, scheduler, recognizer } = setup()
     recognizer.pointerDown(1, { x: 20, y: 20 })
     recognizer.pointerUp(1, { x: 20, y: 20 })
-    scheduler.advance(200) // 放開到再按下 200ms，在門檻內
+    scheduler.advance(120) // 放開到再按下 120ms，在門檻內
     recognizer.pointerDown(1, { x: 20, y: 20 })
-    scheduler.advance(150) // 手指按住 150ms：放開到放開共 350ms，舊算法會漏判
+    scheduler.advance(150) // 手指按住 150ms：放開到放開共 270ms，舊算法會漏判
     recognizer.pointerUp(1, { x: 20, y: 20 })
     expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'doubleTap'])
   })
 
   it('uses the event timestamps, so a delayed handler does not change the double-tap decision', () => {
     const { events, scheduler, recognizer } = setup()
-    // 兩下實際相隔 200ms（事件時間戳），但主執行緒忙，第二下的 handler 晚了 500ms 才執行
+    // 兩下實際相隔 120ms（事件時間戳），但主執行緒忙，第二下的 handler 晚了 500ms 才執行
     recognizer.pointerDown(1, { x: 20, y: 20 }, 1000)
     recognizer.pointerUp(1, { x: 20, y: 20 }, 1050)
     scheduler.advance(700)
-    recognizer.pointerDown(1, { x: 20, y: 20 }, 1250)
-    recognizer.pointerUp(1, { x: 20, y: 20 }, 1300)
+    recognizer.pointerDown(1, { x: 20, y: 20 }, 1170)
+    recognizer.pointerUp(1, { x: 20, y: 20 }, 1220)
     expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'doubleTap'])
+  })
+
+  it('treats casual repeated counting taps (about 220 ms apart) as separate taps, not a double tap', () => {
+    const { events, scheduler, recognizer } = setup()
+    for (let i = 0; i < 4; i++) {
+      recognizer.pointerDown(1, { x: 20, y: 20 })
+      scheduler.advance(60)
+      recognizer.pointerUp(1, { x: 20, y: 20 })
+      scheduler.advance(220)
+    }
+    expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'tap', 'tap'])
   })
 
   it('does not double-tap when the second tap is late or far away', () => {
