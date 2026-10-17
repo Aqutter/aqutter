@@ -104,6 +104,17 @@ describe('GestureRecognizer', () => {
     expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'doubleTap'])
   })
 
+  it('uses the event timestamps, so a delayed handler does not change the double-tap decision', () => {
+    const { events, scheduler, recognizer } = setup()
+    // 兩下實際相隔 200ms（事件時間戳），但主執行緒忙，第二下的 handler 晚了 500ms 才執行
+    recognizer.pointerDown(1, { x: 20, y: 20 }, 1000)
+    recognizer.pointerUp(1, { x: 20, y: 20 }, 1050)
+    scheduler.advance(700)
+    recognizer.pointerDown(1, { x: 20, y: 20 }, 1250)
+    recognizer.pointerUp(1, { x: 20, y: 20 }, 1300)
+    expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'doubleTap'])
+  })
+
   it('does not double-tap when the second tap is late or far away', () => {
     const { events, scheduler, recognizer } = setup()
     recognizer.pointerDown(1, { x: 20, y: 20 })

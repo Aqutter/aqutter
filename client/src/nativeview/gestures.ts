@@ -99,14 +99,15 @@ export class GestureRecognizer {
     }
   }
 
-  pointerDown(id: number, point: Point): void {
+  /** [time]：事件發生的時刻（毫秒，單調）。傳 `event.timeStamp`；省略則用處理當下的時鐘。 */
+  pointerDown(id: number, point: Point, time?: number): void {
     this.pointers.set(id, point)
     if (this.pointers.size === 1) {
       this.origin = point
       this.last = point
       this.panning = false
       this.longPressed = false
-      this.downAt = this.scheduler.now()
+      this.downAt = time ?? this.scheduler.now()
       this.longPressTimer = this.scheduler.setTimeout(() => {
         this.longPressTimer = null
         if (!this.panning && this.origin) {
@@ -158,7 +159,7 @@ export class GestureRecognizer {
     this.emit({ type: 'pan', phase: 'update', x: to.x, y: to.y, ...delta })
   }
 
-  pointerUp(id: number, point: Point): void {
+  pointerUp(id: number, point: Point, time?: number): void {
     if (!this.pointers.has(id)) {
       return
     }
@@ -179,7 +180,7 @@ export class GestureRecognizer {
       this.endPan()
     }
     else if (!this.longPressed && this.origin) {
-      this.finishTap(this.origin)
+      this.finishTap(this.origin, time ?? this.scheduler.now())
     }
     this.origin = null
     this.last = null
@@ -209,8 +210,7 @@ export class GestureRecognizer {
     this.emit({ type: 'pan', phase: 'end', x: n.x, y: n.y, dx: 0, dy: 0 })
   }
 
-  private finishTap(point: Point): void {
-    const now = this.scheduler.now()
+  private finishTap(point: Point, now: number): void {
     const n = this.normalize(point)
     const previous = this.lastTap
     if (previous && this.downAt - previous.at <= this.options.doubleTapMs && distance(previous.point, point) <= this.options.doubleTapDistance) {

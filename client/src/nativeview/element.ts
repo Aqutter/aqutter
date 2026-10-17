@@ -165,10 +165,10 @@ const createElementClass = (): CustomElementConstructor => {
       }
       canvas.addEventListener('pointerdown', (event) => {
         canvas.setPointerCapture(event.pointerId)
-        this.recognizer?.pointerDown(event.pointerId, local(event))
+        this.recognizer?.pointerDown(event.pointerId, local(event), event.timeStamp)
       })
       canvas.addEventListener('pointermove', event => this.recognizer?.pointerMove(event.pointerId, local(event)))
-      canvas.addEventListener('pointerup', event => this.recognizer?.pointerUp(event.pointerId, local(event)))
+      canvas.addEventListener('pointerup', event => this.recognizer?.pointerUp(event.pointerId, local(event), event.timeStamp))
       canvas.addEventListener('pointercancel', () => this.recognizer?.cancel())
     }
 }
