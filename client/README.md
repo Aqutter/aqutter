@@ -11,7 +11,7 @@ Aqutter 殼的網頁端 client：框架中立（不依賴 Nuxt / Vite 等），�
 以 TypeScript 原始碼發佈，由使用端打包器編譯。安裝：
 
 ```bash
-pnpm add "github:Aqutter/aqutter#0.2.1&path:/client"
+pnpm add "github:Aqutter/aqutter#0.0.0&path:/client"
 ```
 
 使用與 plugin 開發見 [docs/](../docs)。

@@ -17,7 +17,7 @@ WebView 由獨立 repo `Aqutter/aqutter_core`（以 git tag 依賴）提供。
 ## 保留鐵則
 
 - **名稱定案**：見 `AGENTS.md` 第 1 條；channel、handler、env 鍵、plugin 命名規則都是「兩種語言各存一份」的字串，只改一邊就是錯。
-- **以 git 依賴發佈，不上 pub.dev / npm**：shell 與 plugin 都用 `git:`（`path: shell`、`ref: <tag>`）；client 與 CLI 以 `github:Aqutter/aqutter#<tag>&path:/<dir>` 安裝。三者共用同一個版本 tag。
+- **以 git 依賴發佈，不上 pub.dev / npm**：shell 與 plugin 都用 `git:`（`path: shell`、`ref: <tag>`）；client 與 CLI 以 `github:Aqutter/aqutter#<tag>&path:/<dir>` 安裝。三者共用同一個版本 tag；開發階段版本固定為 `0.0.0`（tag `0.0.0` 隨 `main` 前進）。
 - **CLI 的 `dist/` 必須與 `src/`、`template/` 同步提交**（使用者直接從 GitHub 安裝，沒有編譯步驟）。
 - **設定驅動、框架中立**：CLI 不寫死任何網頁框架，框架差異只在 `cli/src/web.ts` 的轉接器；其餘指令只認 `aqutter.config.json`。
 - **env 範圍**：`AQUTTER_*` 只有殼讀；dev 連線位址 `AQUTTER_DEV_URL` 由 `aqutter dev` 依平台注入。
@@ -26,7 +26,7 @@ WebView 由獨立 repo `Aqutter/aqutter_core`（以 git tag 依賴）提供。
 
 ## 工作流程
 
-目前開發階段直接推送 `main`，不開 PR、milestone 或版本分支；版本以 tag 標記。
+目前開發階段直接推送 `main`，不開 PR、milestone 或版本分支；版本以 tag `0.0.0` 標記。
 
 ## 驗證
 

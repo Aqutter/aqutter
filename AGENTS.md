@@ -21,4 +21,4 @@ cd cli && pnpm typecheck && pnpm test && pnpm build
 
 ## 工作流程
 
-目前開發階段直接推送 `main`，不開 PR / milestone / 版本分支；版本以 tag 標記（`shell`、`client`、`cli` 共用同一個 tag）。
+目前開發階段直接推送 `main`，不開 PR / milestone / 版本分支；開發階段版本一律 `0.0.0`：`shell`、`client`、`cli` 共用 git tag `0.0.0`，有變更時把 tag 移到最新的 `main`；各 repo 彼此以 `0.0.0` 為鎖定點。

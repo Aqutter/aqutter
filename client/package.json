@@ -1,6 +1,6 @@
 {
   "name": "@aqutter/aqutter",
-  "version": "0.2.1",
+  "version": "0.0.0",
   "private": false,
   "description": "Flutter WebView 橋接：框架中立的網頁端 client 與跨層契約（handler / event 名稱與型別）。",
   "type": "module",
