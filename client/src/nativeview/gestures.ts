@@ -41,7 +41,7 @@ export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
   longPressMs: 500,
   doubleTapMs: 130,
   doubleTapMinMs: 40,
-  doubleTapDistance: 16,
+  doubleTapDistance: 32,
 }
 
 interface Point {
