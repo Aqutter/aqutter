@@ -16,6 +16,7 @@ export 'src/plugin/aqutter_plugin.dart'
 export 'package:aqutter_core/aqutter_core.dart'
     show
         AqutterNative,
+        AqutterNativeAdaptive,
         AqutterNativeFormat,
         AqutterNativeFrame,
         AqutterNativeHost,
