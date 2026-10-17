@@ -3,8 +3,8 @@
  *
  * 辨識規則：
  * - 單指按下後移動超過 {@link GestureOptions.slop} → `pan`（start / update / end）
- * - 單指在 slop 內放開 → `tap`；{@link GestureOptions.doubleTapMs} 內於近處再點一次 → `doubleTap`
- *   （第一下的 `tap` 已先送出，不延遲等待）
+ * - 單指在 slop 內放開 → `tap`；{@link GestureOptions.doubleTapMs} 內於近處再點一次 → 再送 `tap` 之後接著 `doubleTap`
+ *   （每一下都有 `tap`、不延遲等待；`doubleTap` 是額外通知，連續快點每下仍會計數）
  * - 單指按住超過 {@link GestureOptions.longPressMs} 沒移動 → `longPress`（放開後不再送 `tap`）
  * - 第二指按下 → 結束 pan、開始 `pinch`（`scale` 為自 pinch 開始的累計倍率，`x`/`y` 為兩指中心）
  */
@@ -28,7 +28,7 @@ export interface GestureOptions {
 export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
   slop: 8,
   longPressMs: 500,
-  doubleTapMs: 300,
+  doubleTapMs: 250,
   doubleTapDistance: 32,
 }
 
@@ -60,6 +60,8 @@ export class GestureRecognizer {
   private longPressed = false
   private longPressTimer: unknown = null
   private lastTap: { at: number, point: Point } | null = null
+  /** 這一次按下的時刻；雙擊間隔從「第一下放開」算到「第二下按下」（與系統手勢一致），不含按住的時間。 */
+  private downAt = 0
 
   private pinchStartDistance = 0
   private pinching = false
@@ -104,6 +106,7 @@ export class GestureRecognizer {
       this.last = point
       this.panning = false
       this.longPressed = false
+      this.downAt = this.scheduler.now()
       this.longPressTimer = this.scheduler.setTimeout(() => {
         this.longPressTimer = null
         if (!this.panning && this.origin) {
@@ -210,8 +213,10 @@ export class GestureRecognizer {
     const now = this.scheduler.now()
     const n = this.normalize(point)
     const previous = this.lastTap
-    if (previous && now - previous.at <= this.options.doubleTapMs && distance(previous.point, point) <= this.options.doubleTapDistance) {
+    if (previous && this.downAt - previous.at <= this.options.doubleTapMs && distance(previous.point, point) <= this.options.doubleTapDistance) {
+      // 第二下仍先送 tap（連續點擊要每下都算），再送 doubleTap 讓需要的人額外處理
       this.lastTap = null
+      this.emit({ type: 'tap', x: n.x, y: n.y })
       this.emit({ type: 'doubleTap', x: n.x, y: n.y })
       return
     }

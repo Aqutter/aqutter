@@ -25,7 +25,7 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 | `send(message)` | 送訊息給原生端；未連線回 `false` |
 | `sendCommand(name, args?)` | 送 `command` 訊息 |
 
-元素自動辨識手勢並回傳（座標為 0..1 正規化值）：`tap`、`doubleTap`、`longPress`、`pan`（`phase` start / update / end）、`pinch`（`phase`、`scale`）。完整欄位與規則見原生端文件與 `GestureRecognizer` 的註解。
+元素自動辨識手勢並回傳（座標為 0..1 正規化值）：`tap`、`doubleTap`（第二下會先送 `tap` 再送 `doubleTap`，連點每下都有 `tap`）、`longPress`、`pan`（`phase` start / update / end）、`pinch`（`phase`、`scale`）。完整欄位與規則見原生端文件與 `GestureRecognizer` 的註解。
 
 不想註冊元素、要自己畫時，可直接用 `AqutterNative`：
 

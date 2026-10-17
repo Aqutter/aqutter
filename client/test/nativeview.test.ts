@@ -90,7 +90,18 @@ describe('GestureRecognizer', () => {
     scheduler.advance(100)
     recognizer.pointerDown(1, { x: 22, y: 21 })
     recognizer.pointerUp(1, { x: 22, y: 21 })
-    expect(events.map(e => e.type)).toEqual(['tap', 'doubleTap'])
+    expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'doubleTap'])
+  })
+
+  it('measures the double-tap gap from the first release to the second press, not release to release', () => {
+    const { events, scheduler, recognizer } = setup()
+    recognizer.pointerDown(1, { x: 20, y: 20 })
+    recognizer.pointerUp(1, { x: 20, y: 20 })
+    scheduler.advance(200) // 放開到再按下 200ms，在門檻內
+    recognizer.pointerDown(1, { x: 20, y: 20 })
+    scheduler.advance(150) // 手指按住 150ms：放開到放開共 350ms，舊算法會漏判
+    recognizer.pointerUp(1, { x: 20, y: 20 })
+    expect(events.map(e => e.type)).toEqual(['tap', 'tap', 'doubleTap'])
   })
 
   it('does not double-tap when the second tap is late or far away', () => {
