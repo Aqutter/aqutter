@@ -1,35 +1,46 @@
 import { describe, expect, it } from 'vitest'
 
-import { decodeAqutterNativeFrame, GestureRecognizer, AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat } from '../src/nativeview'
+import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame, GestureRecognizer, peekAqutterNativeSeq } from '../src/nativeview'
 import type { AqutterNativeGesture, Scheduler } from '../src/nativeview'
 
-const makeFrame = (width: number, height: number, format: number, payload: number[], sentAt = 1700000000000, seq = 1): ArrayBuffer => {
-  const buffer = new ArrayBuffer(AQUTTER_NATIVE_HEADER_LENGTH + payload.length)
-  const view = new DataView(buffer)
+const makeFrame = (width: number, height: number, format: number, payload: number[], sentAt = 1700000000000, seq = 1): { header: ArrayBuffer, payload: ArrayBuffer } => {
+  const header = new ArrayBuffer(AQUTTER_NATIVE_HEADER_LENGTH)
+  const view = new DataView(header)
   view.setUint32(0, width, true)
   view.setUint32(4, height, true)
   view.setUint32(8, format, true)
   view.setUint32(12, seq, true)
   view.setFloat64(16, sentAt, true)
-  new Uint8Array(buffer, AQUTTER_NATIVE_HEADER_LENGTH).set(payload)
-  return buffer
+  const body = new ArrayBuffer(payload.length)
+  new Uint8Array(body).set(payload)
+  return { header, payload: body }
 }
 
 describe('decodeAqutterNativeFrame', () => {
   it('decodes the header and exposes the payload without copying', () => {
-    const frame = decodeAqutterNativeFrame(makeFrame(1, 1, AqutterNativeFormat.Rgba, [9, 8, 7, 255]))
+    const { header, payload } = makeFrame(1, 1, AqutterNativeFormat.Rgba, [9, 8, 7, 255])
+    const frame = decodeAqutterNativeFrame(header, payload)
     expect(frame).toMatchObject({ width: 1, height: 1, format: AqutterNativeFormat.Rgba, seq: 1, sentAt: 1700000000000 })
     expect([...frame.payload]).toEqual([9, 8, 7, 255])
+    expect(frame.payload.buffer).toBe(payload)
   })
 
   it('accepts png payloads of any length', () => {
-    expect(decodeAqutterNativeFrame(makeFrame(10, 10, AqutterNativeFormat.Png, [1, 2, 3])).format).toBe(AqutterNativeFormat.Png)
+    const { header, payload } = makeFrame(10, 10, AqutterNativeFormat.Png, [1, 2, 3])
+    expect(decodeAqutterNativeFrame(header, payload).format).toBe(AqutterNativeFormat.Png)
   })
 
-  it('rejects short frames, unknown formats and mismatched RGBA length', () => {
-    expect(() => decodeAqutterNativeFrame(new ArrayBuffer(4))).toThrow(/too short/)
-    expect(() => decodeAqutterNativeFrame(makeFrame(1, 1, 7, [0]))).toThrow(/unknown frame format/)
-    expect(() => decodeAqutterNativeFrame(makeFrame(2, 2, AqutterNativeFormat.Rgba, [0, 0, 0, 0]))).toThrow(/does not match/)
+  it('rejects short headers, unknown formats and mismatched RGBA length', () => {
+    expect(() => decodeAqutterNativeFrame(new ArrayBuffer(4), new ArrayBuffer(0))).toThrow(/too short/)
+    const unknown = makeFrame(1, 1, 7, [0])
+    expect(() => decodeAqutterNativeFrame(unknown.header, unknown.payload)).toThrow(/unknown frame format/)
+    const mismatch = makeFrame(2, 2, AqutterNativeFormat.Rgba, [0, 0, 0, 0])
+    expect(() => decodeAqutterNativeFrame(mismatch.header, mismatch.payload)).toThrow(/does not match/)
+  })
+
+  it('peeks the sequence number', () => {
+    expect(peekAqutterNativeSeq(makeFrame(1, 1, AqutterNativeFormat.Rgba, [0, 0, 0, 0], 0, 42).header)).toBe(42)
+    expect(peekAqutterNativeSeq(new ArrayBuffer(3))).toBe(0)
   })
 })
 

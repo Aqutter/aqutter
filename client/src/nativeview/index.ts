@@ -1,6 +1,6 @@
 export { AQUTTER_NATIVE_TAG, defineAqutterNative } from './element'
 export type { AqutterNativeElement } from './element'
-export { decodeAqutterNativeFrame, AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat } from './frame'
+export { decodeAqutterNativeFrame, peekAqutterNativeSeq, AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat } from './frame'
 export type { AqutterNativeFrame, AqutterNativeFrameHeader } from './frame'
 export { DEFAULT_GESTURE_OPTIONS, GestureRecognizer } from './gestures'
 export type { GestureOptions, GesturePhase, AqutterNativeGesture, Scheduler } from './gestures'

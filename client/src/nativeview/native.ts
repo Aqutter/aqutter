@@ -1,4 +1,4 @@
-import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame } from './frame'
+import { AqutterNativeFormat, decodeAqutterNativeFrame, peekAqutterNativeSeq } from './frame'
 import type { AqutterNativeFrame } from './frame'
 import type { AqutterNativeGesture } from './gestures'
 
@@ -65,14 +65,22 @@ const scheduleFrame = (callback: () => void): void => {
  *   否則原生端會以為網頁卡住而停止送幀（流量控制，見 `doc/nativeview.md`）。
  * - 繪製 RGBA 不複製像素：`ImageData` 直接包住收到的緩衝區。
  */
+/** 一幀的兩則原始訊息。 */
+interface RawFrame {
+  header: ArrayBuffer
+  payload: ArrayBuffer
+}
+
 export class AqutterNative {
   private socket: WebSocket | null = null
   private stopped = true
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private readonly context: CanvasRenderingContext2D
 
-  /** 等待下一個繪製週期的幀；只留最新一幀。 */
-  private pending: ArrayBuffer | null = null
+  /** 等待下一個繪製週期的幀（標頭 + 像素）；只留最新一幀。 */
+  private pending: RawFrame | null = null
+  /** 已收到標頭、等待像素的那一則；null 表示下一則訊息是標頭。 */
+  private awaitingPayload: ArrayBuffer | null = null
   private frameScheduled = false
   /** 已經開始繪製的最大序號，用來丟棄亂序的舊幀。 */
   private lastSeq = -1
@@ -188,6 +196,7 @@ export class AqutterNative {
     socket.onopen = () => {
       // 新連線：序號與尺寸回報都重來（原生端的工作階段可能重建過）
       this.lastSeq = -1
+      this.awaitingPayload = null
       this.lastReported = ''
       this.lastVisibleSent = null
       this.options.onStatus?.(true)
@@ -199,22 +208,31 @@ export class AqutterNative {
         this.socket = null
       }
       this.pending = null
+      this.awaitingPayload = null
       this.options.onStatus?.(false)
       this.scheduleReconnect()
     }
     socket.onmessage = (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        this.enqueue(event.data)
+      if (!(event.data instanceof ArrayBuffer)) {
+        return
       }
+      // 嚴格交替：標頭、像素、標頭、像素…
+      if (this.awaitingPayload === null) {
+        this.awaitingPayload = event.data
+        return
+      }
+      const header = this.awaitingPayload
+      this.awaitingPayload = null
+      this.enqueue({ header, payload: event.data })
     }
   }
 
   /** 收到一幀：只留最新的，下一個繪製週期再畫。被取代的舊幀立刻確認。 */
-  private enqueue(buffer: ArrayBuffer): void {
+  private enqueue(frame: RawFrame): void {
     if (this.pending) {
-      this.ack(this.pending)
+      this.ack(this.pending.header)
     }
-    this.pending = buffer
+    this.pending = frame
     if (!this.frameScheduled) {
       this.frameScheduled = true
       scheduleFrame(() => {
@@ -228,19 +246,18 @@ export class AqutterNative {
     }
   }
 
-  /** 讀出幀序號並回覆確認；緩衝區不合法時序號用 0（原生端只用計數）。 */
-  private ack(buffer: ArrayBuffer): void {
-    const seq = buffer.byteLength >= AQUTTER_NATIVE_HEADER_LENGTH ? new DataView(buffer).getUint32(12, true) : 0
-    this.sendRaw({ type: 'ack', seq })
+  /** 讀出幀序號並回覆確認；標頭不合法時序號用 0（原生端只用計數）。 */
+  private ack(header: ArrayBuffer): void {
+    this.sendRaw({ type: 'ack', seq: peekAqutterNativeSeq(header) })
   }
 
-  private async draw(buffer: ArrayBuffer): Promise<void> {
+  private async draw(raw: RawFrame): Promise<void> {
     let frame: AqutterNativeFrame
     try {
-      frame = decodeAqutterNativeFrame(buffer)
+      frame = decodeAqutterNativeFrame(raw.header, raw.payload)
     }
     catch {
-      this.ack(buffer)
+      this.ack(raw.header)
       return
     }
     try {
@@ -256,8 +273,8 @@ export class AqutterNative {
           canvas.width = frame.width
           canvas.height = frame.height
         }
-        // 不複製：ImageData 直接包住收到的緩衝區（跳過標頭）
-        const pixels = new Uint8ClampedArray(frame.payload.buffer as ArrayBuffer, frame.payload.byteOffset, frame.payload.byteLength)
+        // 不複製：ImageData 直接包住收到的像素緩衝區
+        const pixels = new Uint8ClampedArray(raw.payload, 0, frame.payload.byteLength)
         this.context.putImageData(new ImageData(pixels, frame.width, frame.height), 0, 0)
       }
       else {
@@ -273,7 +290,7 @@ export class AqutterNative {
         this.context.drawImage(bitmap, 0, 0, frame.width, frame.height)
         bitmap.close()
       }
-      this.options.onFrame?.({ width: frame.width, height: frame.height, bytes: buffer.byteLength, latencyMs: Date.now() - frame.sentAt, drawMs: performance.now() - drawStart })
+      this.options.onFrame?.({ width: frame.width, height: frame.height, bytes: raw.header.byteLength + raw.payload.byteLength, latencyMs: Date.now() - frame.sentAt, drawMs: performance.now() - drawStart })
     }
     finally {
       this.sendRaw({ type: 'ack', seq: frame.seq })

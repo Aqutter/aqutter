@@ -2,17 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNative, AqutterNativeFormat } from '../src/nativeview'
 
-const makeFrame = (seq: number, format = AqutterNativeFormat.Rgba, width = 1, height = 1): ArrayBuffer => {
-  const payload = format === AqutterNativeFormat.Rgba ? width * height * 4 : 3
-  const buffer = new ArrayBuffer(AQUTTER_NATIVE_HEADER_LENGTH + payload)
-  const view = new DataView(buffer)
+interface TestFrame { header: ArrayBuffer, payload: ArrayBuffer }
+
+const makeFrame = (seq: number, format = AqutterNativeFormat.Rgba, width = 1, height = 1): TestFrame => {
+  const payloadLength = format === AqutterNativeFormat.Rgba ? width * height * 4 : 3
+  const header = new ArrayBuffer(AQUTTER_NATIVE_HEADER_LENGTH)
+  const view = new DataView(header)
   view.setUint32(0, width, true)
   view.setUint32(4, height, true)
   view.setUint32(8, format, true)
   view.setUint32(12, seq, true)
   view.setFloat64(16, Date.now(), true)
-  new Uint8Array(buffer, AQUTTER_NATIVE_HEADER_LENGTH).fill(seq)
-  return buffer
+  const payload = new ArrayBuffer(payloadLength)
+  new Uint8Array(payload).fill(seq)
+  return { header, payload }
 }
 
 class FakeSocket {
@@ -38,6 +41,12 @@ class FakeSocket {
 
   receive(data: ArrayBuffer): void {
     this.onmessage?.({ data })
+  }
+
+  /** 一幀 = 標頭、像素兩則訊息。 */
+  receiveFrame(frame: TestFrame): void {
+    this.receive(frame.header)
+    this.receive(frame.payload)
   }
 
   get messages(): { type: string, [key: string]: unknown }[] {
@@ -102,20 +111,20 @@ describe('AqutterNative', () => {
   it('draws RGBA without copying the pixels', async () => {
     const { socket, puts, flush } = setup()
     const ws = await socket()
-    const buffer = makeFrame(1)
-    ws.receive(buffer)
+    const frame = makeFrame(1)
+    ws.receiveFrame(frame)
     flush()
     expect(puts).toHaveLength(1)
-    expect(puts[0].data.buffer).toBe(buffer)
-    expect(puts[0].data.byteOffset).toBe(AQUTTER_NATIVE_HEADER_LENGTH)
+    expect(puts[0].data.buffer).toBe(frame.payload)
+    expect(puts[0].data.byteOffset).toBe(0)
   })
 
   it('draws only the newest frame of a burst and acknowledges every frame once', async () => {
     const { socket, puts, flush } = setup()
     const ws = await socket()
-    ws.receive(makeFrame(1))
-    ws.receive(makeFrame(2))
-    ws.receive(makeFrame(3))
+    ws.receiveFrame(makeFrame(1))
+    ws.receiveFrame(makeFrame(2))
+    ws.receiveFrame(makeFrame(3))
     flush()
     expect(puts).toHaveLength(1)
     expect(puts[0].data[0]).toBe(3)
@@ -126,9 +135,9 @@ describe('AqutterNative', () => {
   it('drops frames that arrive out of order but still acknowledges them', async () => {
     const { socket, puts, flush } = setup()
     const ws = await socket()
-    ws.receive(makeFrame(5))
+    ws.receiveFrame(makeFrame(5))
     flush()
-    ws.receive(makeFrame(4))
+    ws.receiveFrame(makeFrame(4))
     flush()
     expect(puts).toHaveLength(1)
     expect(ws.messages.filter(message => message.type === 'ack').map(ack => ack.seq)).toEqual([5, 4])
@@ -141,9 +150,9 @@ describe('AqutterNative', () => {
       resolvers.push(resolve as (bitmap: { id: number, close: () => void }) => void)
     }))
     const ws = await socket()
-    ws.receive(makeFrame(1, AqutterNativeFormat.Png))
+    ws.receiveFrame(makeFrame(1, AqutterNativeFormat.Png))
     flush()
-    ws.receive(makeFrame(2, AqutterNativeFormat.Png))
+    ws.receiveFrame(makeFrame(2, AqutterNativeFormat.Png))
     flush()
     // 較新的幀（第二個解碼）先完成，舊的後完成
     resolvers[1]({ id: 2, close: () => undefined })
@@ -159,6 +168,7 @@ describe('AqutterNative', () => {
   it('acknowledges frames it cannot decode', async () => {
     const { socket, puts, flush } = setup()
     const ws = await socket()
+    ws.receive(new ArrayBuffer(4)) // 標頭太短
     ws.receive(new ArrayBuffer(4))
     flush()
     expect(puts).toHaveLength(0)

@@ -1,7 +1,9 @@
 /**
  * 鏡像幀的二進位格式（Dart → 網頁）。與 `aqutter_core` 的 `encodeAqutterNativeFrame` 成對。
  *
- * little-endian：`[w u32 | h u32 | fmt u32 | seq u32 | sentAt f64 (epoch ms)][payload]`。
+ * 一幀是**兩則**連續的二進位訊息：先標頭、再像素（原生端為了省一次複製而分開送）。WebSocket 保證順序，
+ * 接收端嚴格依「標頭、像素、標頭、像素…」交替解讀。標頭為 little-endian：
+ * `[w u32 | h u32 | fmt u32 | seq u32 | sentAt f64 (epoch ms)]`。
  */
 
 /** 標頭長度（bytes）。 */
@@ -31,12 +33,20 @@ export interface AqutterNativeFrame extends AqutterNativeFrameHeader {
   payload: Uint8Array
 }
 
-/** 解碼幀；長度不足、格式不明或 RGBA 長度與寬高不符時拋錯。 */
-export const decodeAqutterNativeFrame = (buffer: ArrayBuffer): AqutterNativeFrame => {
-  if (buffer.byteLength < AQUTTER_NATIVE_HEADER_LENGTH) {
-    throw new Error(`[aqutterNative] frame too short: ${buffer.byteLength} bytes`)
+/** 讀出標頭中的序號（不驗證其餘欄位）；緩衝區太短回 0。 */
+export const peekAqutterNativeSeq = (header: ArrayBuffer): number => {
+  return header.byteLength >= AQUTTER_NATIVE_HEADER_LENGTH ? new DataView(header).getUint32(12, true) : 0
+}
+
+/**
+ * 以標頭與像素兩則訊息組出一幀；標頭太短、格式不明或 RGBA 長度與寬高不符時拋錯。
+ * `payload` 是像素緩衝區的視圖，不複製資料。
+ */
+export const decodeAqutterNativeFrame = (header: ArrayBuffer, payloadBuffer: ArrayBuffer): AqutterNativeFrame => {
+  if (header.byteLength < AQUTTER_NATIVE_HEADER_LENGTH) {
+    throw new Error(`[aqutterNative] frame header too short: ${header.byteLength} bytes`)
   }
-  const view = new DataView(buffer)
+  const view = new DataView(header)
   const width = view.getUint32(0, true)
   const height = view.getUint32(4, true)
   const format = view.getUint32(8, true)
@@ -45,7 +55,7 @@ export const decodeAqutterNativeFrame = (buffer: ArrayBuffer): AqutterNativeFram
   if (format !== AqutterNativeFormat.Png && format !== AqutterNativeFormat.Rgba) {
     throw new Error(`[aqutterNative] unknown frame format: ${format}`)
   }
-  const payload = new Uint8Array(buffer, AQUTTER_NATIVE_HEADER_LENGTH)
+  const payload = new Uint8Array(payloadBuffer)
   if (format === AqutterNativeFormat.Rgba && payload.length !== width * height * 4) {
     throw new Error(`[aqutterNative] RGBA payload ${payload.length} bytes does not match ${width}x${height}`)
   }

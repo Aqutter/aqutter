@@ -91,3 +91,9 @@ class MainActivity : FlutterActivity() {
   ```
 
 驗證（實機）：`adb shell settings put global always_finish_activities 1` 後 HOME 再重啟 App 重複數次，狀態列每次都應隱藏（測完改回 `0`）；藍牙 HID 配對／斷線時 logcat 有 `Config changes=70` 但無 Activity 重建、無 Impeller 重新初始化；`aapt dump xmltree` 的 `configChanges` 值應含 `0x40`。
+
+## R8 保留規則（release 建置）
+
+範本在 `android/app/proguard-rules.pro` 帶了保留規則，並由 `build.gradle.kts` 的 release 設定載入。**不要刪掉**：部分 plugin 的 Android 實作（`shared_preferences_android` 2.5.0 起）以 JNI 用原名反射呼叫 Kotlin 的 suspend 函式與協程類別，R8 看不到這些呼叫，會把方法刪掉或把 `kotlin.coroutines.Continuation` 這類型別改名，結果 release 版一啟動就丟 `NoSuchMethodError` / `ClassNotFoundException`，殼顯示「啟動失敗」。debug 版不縮減，所以只有 release 會壞；鎖在較舊版本（例如 `shared_preferences_android 2.4.27`）的專案不會遇到。
+
+規則保留：`io.flutter.plugins.**`、`dev.fluttercommunity.plus.**`、`com.github.dart_lang.jni.**`、`com.github.aqutter.**`、`kotlin.**`、`kotlinx.coroutines.**`。自己加了用 JNI 的 plugin 並在 release 遇到同類錯誤時，把該 plugin 的套件加進去。
