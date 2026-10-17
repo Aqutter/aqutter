@@ -54,11 +54,23 @@ pnpm exec aqutter build macos --env=.env/.env.prod
 
 ## 5. 在網頁內呼叫原生
 
+網頁載入完成後必須呼叫一次 `app_ready`，殼才會移除啟動過場（沒呼叫，畫面會一直停在「載入網頁」）：
+
+```ts
+import { callFlutter } from '@aqutter/aqutter'
+import { BridgeHandler } from '@aqutter/aqutter/contract'
+
+await callFlutter(BridgeHandler.AppReady)
+```
+
+其他呼叫：
+
 ```ts
 import { callFlutter, isFlutter } from '@aqutter/aqutter'
+import { BridgeHandler } from '@aqutter/aqutter/contract'
 
 if (isFlutter()) {
-  const info = await callFlutter('platform_info')
+  const info = await callFlutter(BridgeHandler.PlatformInfo)
 }
 ```
 

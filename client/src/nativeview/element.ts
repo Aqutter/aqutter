@@ -11,7 +11,7 @@ const FITS: readonly MirrorFit[] = ['fill', 'contain', 'cover']
 
 const TEMPLATE = `
 <style>
-  :host { display: block; position: relative; overflow: hidden; }
+  :host { display: block; position: relative; overflow: hidden; touch-action: none; }
   canvas { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
 </style>
 <canvas part="canvas"></canvas>
