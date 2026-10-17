@@ -39,9 +39,11 @@ export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
   slop: 8,
   doubleTap: 'exclusive',
   longPressMs: 500,
-  doubleTapMs: 130,
+  // 預設依實機量到的數字：iPad 上真人的快速雙擊，第一下放開到第二下按下約 225–260 ms、兩下相距 9–36 px
+  // （iOS 與 Android 系統的雙擊視窗也約 300 ms）。太緊會讓雙擊完全點不中。
+  doubleTapMs: 270,
   doubleTapMinMs: 40,
-  doubleTapDistance: 32,
+  doubleTapDistance: 40,
 }
 
 interface Point {

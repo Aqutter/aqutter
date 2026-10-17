@@ -125,11 +125,11 @@ describe('GestureRecognizer', () => {
       expect(types(events)).toEqual(['doubleTap'])
     })
 
-    it('counting taps about 220 ms apart are four separate taps', () => {
+    it('counting taps about 320 ms apart are four separate taps', () => {
       const { events, scheduler, recognizer } = setup()
       for (let i = 0; i < 4; i++) {
         press(recognizer, scheduler, undefined, 60)
-        scheduler.advance(220)
+        scheduler.advance(320)
       }
       expect(types(events)).toEqual(['tap', 'tap', 'tap', 'tap'])
     })
@@ -137,7 +137,7 @@ describe('GestureRecognizer', () => {
     it('a second tap that is too late, too early (a bounce) or too far away is a separate tap', () => {
       const late = setup()
       press(late.recognizer, late.scheduler)
-      late.scheduler.advance(150)
+      late.scheduler.advance(320)
       press(late.recognizer, late.scheduler)
       late.scheduler.advance(500)
       expect(types(late.events)).toEqual(['tap', 'tap'])
@@ -155,6 +155,15 @@ describe('GestureRecognizer', () => {
       press(far.recognizer, far.scheduler, { x: 150, y: 80 })
       far.scheduler.advance(500)
       expect(types(far.events)).toEqual(['tap', 'tap'])
+    })
+
+    it('a quick double tap measured on a real iPad (about 250 ms between release and press, 20 px apart) is a double tap', () => {
+      const { events, scheduler, recognizer } = setup()
+      press(recognizer, scheduler, { x: 100, y: 50 }, 70)
+      scheduler.advance(250)
+      press(recognizer, scheduler, { x: 120, y: 50 }, 70)
+      scheduler.advance(500)
+      expect(types(events)).toEqual(['doubleTap'])
     })
 
     it('a triple tap is a doubleTap followed by a tap', () => {
