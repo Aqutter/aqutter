@@ -36,5 +36,11 @@ cd client && pnpm typecheck && pnpm test
 cd cli && pnpm typecheck && pnpm test && pnpm build
 ```
 
-已驗證：範例網頁專案（Vite）`init` → `seed` → `build macos` 成功、`plugin create/add/remove` 與 App `flutter analyze` 通過。
-未驗證：Windows、Linux、實體 iOS 裝置、Android 與 iOS 的簽章流程、Nuxt 與 Next 轉接器的實跑。
+已驗證：
+- 範例網頁專案（Vite）`init` → `seed` → `build macos` 成功、`plugin create/add/remove` 與 App `flutter analyze` 通過。
+- 全新專案 `demo-app`（Vite，從 GitHub 安裝 CLI、client 與三個 plugin）在三個平台都能 `aqutter dev`：
+  - **macOS**：mirror-demo 的幀與手勢往返、plugin 方法與事件（自測腳本）。
+  - **Android 模擬器（Android 16，HCPP）**：三個 plugin 都註冊；battery 回傳電量與狀態；mirror-demo 的鏡像（純 Flutter widget 經 `RepaintBoundary`）、HTML 疊在其上、實際點擊與滑動都有作用。
+  - **iOS 模擬器（iPhone 17）**：App 建置、安裝並載入網頁，兩個 plugin 註冊（`haptics=true battery=true`）；mirror-demo 的鏡像、點擊與滑動有作用；iOS 原生的 `AqutterNativeCapture.swift` 編譯通過。battery 在模擬器回傳 `UNAVAILABLE`（模擬器沒有電池資訊），錯誤有如實傳回網頁。
+- 首次在 WebKit 載入 Nuxt dev server 會因 Vite 冷快取出現 `currentRenderingInstance` 的錯誤畫面，重啟後正常（Chrome 不會）。
+未驗證：Windows、Linux、實體 iOS 裝置、觸覺回饋的實際震動、iOS `drawHierarchy` 與 Android PlatformView 的擷取路徑（demo 鏡像的是 Flutter widget）、Android 與 iOS 的簽章流程、Nuxt 與 Next 轉接器的實跑。
