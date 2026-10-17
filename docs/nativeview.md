@@ -66,7 +66,7 @@ AqutterNative(
 )
 ```
 
-PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains: 'GMSMapView'`）。以 Google Maps 為例：把 `GoogleMap` 當 `child`、停用它自己的手勢，在 `onMessage` 用 `GoogleMapController` 套用 `pan` / `pinch`。範例 plugin：[aqutter-plugin-mirror-demo](https://github.com/Aqutter/aqutter-plugin-mirror-demo)。
+PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains: 'GMSMapView'`）。以 Google Maps 為例：把 `GoogleMap` 當 `child`，在 `onMessage` 用 `GoogleMapController` 套用 `pan` / `pinch`。完整實作見 [aqutter-plugin-google-maps](https://github.com/Aqutter/aqutter-plugin-google-maps)（Android、iOS；含 API key 設定）；純 Flutter 畫面的範例見 [aqutter-plugin-mirror-demo](https://github.com/Aqutter/aqutter-plugin-mirror-demo)。iOS 的 PlatformView 不接受注入的 Flutter 指標事件，地圖類請用語意手勢（`input="gestures"`）換成相機操作。
 
 ## 效能
 
