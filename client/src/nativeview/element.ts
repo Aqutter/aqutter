@@ -243,8 +243,9 @@ const createElementClass = (): CustomElementConstructor => {
           this.recognizer?.pointerUp(event.pointerId, local(event), event.timeStamp)
         }
       })
-      // iOS 在 App 的 WebView 裡，快速連點的第二下只會補一個 click，不送任何 touch／pointer 事件，
-      // 辨識器因此永遠看不到第二下。正常的 click 一定緊接在 pointerup 之後；沒有對應 pointerup 的 click 就是這種
+      // iOS 在 App 的 WebView 裡，快速連點的第二下只會補一個 click，不送任何 touch／pointer 事件
+      // （實機紀錄：一次快速雙擊 = 1 組 down／up、約 45 ms 後一個 click、再約 145 ms 後第二個 click），
+      // 辨識器因此看不到第二下。正常的 click 一定緊接在 pointerup 之後；沒有對應 pointerup 的 click 就是這種
       // 「被吃掉的第二下」，補成一次按下加放開，雙擊才湊得成。
       let upAwaitingClick = false
       canvas.addEventListener('pointerdown', () => { upAwaitingClick = false })

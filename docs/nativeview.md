@@ -47,6 +47,8 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 
 殼的 iOS WebView 開了 `preventGestureDelay`，關掉 Flutter 平台視圖的 `FlutterDelayingGestureRecognizer`；沒開時，快速連點的第二下進不了網頁（pointer／touch 事件只收到第一下），雙擊永遠判不出來。
 
+即使如此，iOS 的 App 內 WebView 仍可能吞掉快速連點的第二下，只留下一個沒有對應 `pointerup` 的 `click`（實機：一次快速雙擊 = 一組 down／up，加上先後兩個 click）。`<aqutter-native>` 把這種 click 補成一次按下加放開交給辨識器；觸控不做明確的指標捕捉。根因尚未查明，這是繞過去的做法。
+
 快速連點計數（放開到再按下約 150 到 250 ms）與刻意雙擊（約 80 到 150 ms）的間隔有重疊，單看時間分不乾淨：連點被誤判成雙擊就調小 `double-tap-ms`，真的雙擊點不中就調大。同一個區域同時要「連點計數」與「雙擊」時，兩者本質上會互相干擾，建議改用不同的操作（例如長按）。
 
 被鏡像的是地圖之類的原生 view 時，它需要的是真實的指標事件而不是 tap／pan 的語意結果，應使用 `pointers`。
