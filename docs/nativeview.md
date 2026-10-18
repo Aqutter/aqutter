@@ -43,6 +43,8 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 | `both` | 每一下立刻送 `tap`，第二下之後再送 `doubleTap`（雙擊會同時有兩次 `tap` 與一次 `doubleTap`） | 無延遲，但雙擊與單擊都會觸發 |
 | `off` | 不辨識雙擊，每一下立刻送 `tap` | 無延遲，沒有 `doubleTap` |
 
+`max-in-flight`（1 到 8）：這個鏡像每個連線最多同時有幾幀已送出但未被確認；預設 3，調成 1 沒有排隊、傳輸受限的大幀內容延遲可降到約三分之一，擷取受限的內容（地圖）沒有差別，執行中改屬性即生效。
+
 其他門檻可用屬性覆寫：`double-tap-ms`（第一下放開到第二下按下的上限；預設 130，**iOS（含 iPadOS）預設 300**：iPad 實機量到真人的快速雙擊約 225 到 260 ms，Android 的雙擊在 130 ms 內。這是兩台裝置各一組的實測，不是平台規格）、`double-tap-min-ms`（下限，預設 40，更短視為觸控誤報而不是雙擊）、`double-tap-distance`（兩下的最大距離，CSS 像素；預設 32，iOS 預設 80；iPad 實機量到快速連點的兩下常相距 50 到 160 像素，40 會讓多數雙擊判成兩個單擊；手指在平板上自然會偏移，太小會讓 iPad 的快速雙擊點不中，而且距離無法區分連點計數與雙擊，因為連點的手指也在同一處）、`slop`（判定為拖曳的移動距離，CSS 像素；預設 8，iOS 預設 18：手指按下時自然滑動，8 會把不少點擊判成拖曳，第二下一變成拖曳雙擊就湊不成）、`long-press-ms`（預設 500）。
 
 殼的 iOS WebView 開了 `preventGestureDelay`，關掉 Flutter 平台視圖的 `FlutterDelayingGestureRecognizer`；沒開時，快速連點的第二下進不了網頁（pointer／touch 事件只收到第一下），雙擊永遠判不出來。

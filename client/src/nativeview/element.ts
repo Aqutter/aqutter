@@ -54,7 +54,7 @@ const createElementClass = (): CustomElementConstructor => {
    * 手勢訊息格式見 `AqutterNativeGesture`；元素只送出，不改變自身內容。
    */
   class AqutterNativeElement extends HTMLElement {
-    static readonly observedAttributes = ['session', 'fit', 'input', 'double-tap', 'double-tap-ms', 'double-tap-min-ms', 'double-tap-distance', 'slop', 'long-press-ms']
+    static readonly observedAttributes = ['session', 'fit', 'input', 'double-tap', 'double-tap-ms', 'double-tap-min-ms', 'double-tap-distance', 'slop', 'long-press-ms', 'max-in-flight']
 
     private canvas: HTMLCanvasElement | null = null
     private mirror: AqutterNative | null = null
@@ -90,6 +90,9 @@ const createElementClass = (): CustomElementConstructor => {
       if (name === 'fit') {
         this.applyFit()
       }
+      else if (name === 'max-in-flight') {
+        this.mirror?.setMaxInFlight(this.readMaxInFlight())
+      }
       else if (name === 'input' || name === 'double-tap' || name === 'double-tap-ms' || name === 'double-tap-min-ms' || name === 'double-tap-distance' || name === 'slop' || name === 'long-press-ms') {
         // 輸入相關屬性在每次事件（或下一次按下）才讀，不必重連
       }
@@ -119,6 +122,12 @@ const createElementClass = (): CustomElementConstructor => {
       }
     }
 
+    /** `max-in-flight` 屬性（1 到 8 的整數）；沒設或不合法回 undefined（用原生端的預設）。 */
+    private readMaxInFlight(): number | undefined {
+      const value = Number(this.getAttribute('max-in-flight'))
+      return this.hasAttribute('max-in-flight') && Number.isInteger(value) && value >= 1 && value <= 8 ? value : undefined
+    }
+
     private restart(): void {
       this.mirror?.stop()
       this.mirror = null
@@ -132,6 +141,7 @@ const createElementClass = (): CustomElementConstructor => {
         resolveEndpoint: () => callFlutter(BridgeHandler.NativeEndpoint),
       measure: () => ({ width: this.clientWidth, height: this.clientHeight, devicePixelRatio: window.devicePixelRatio || 1 }),
         onStatus: connected => this.dispatchEvent(new CustomEvent('aqutter-status', { detail: { connected } })),
+        maxInFlight: this.readMaxInFlight(),
         onFrame: info => this.dispatchEvent(new CustomEvent('aqutter-frame', { detail: info })),
       })
       this.mirror.start()
