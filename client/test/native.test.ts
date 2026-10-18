@@ -150,9 +150,9 @@ describe('AqutterNative', () => {
       resolvers.push(resolve as (bitmap: { id: number, close: () => void }) => void)
     }))
     const ws = await socket()
-    ws.receiveFrame(makeFrame(1, AqutterNativeFormat.Png))
+    ws.receiveFrame(makeFrame(1, AqutterNativeFormat.Jpeg))
     flush()
-    ws.receiveFrame(makeFrame(2, AqutterNativeFormat.Png))
+    ws.receiveFrame(makeFrame(2, AqutterNativeFormat.Jpeg))
     flush()
     // 較新的幀（第二個解碼）先完成，舊的後完成
     resolvers[1]({ id: 2, close: () => undefined })

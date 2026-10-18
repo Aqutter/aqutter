@@ -94,6 +94,6 @@ PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains:
 
 ## 限制
 
-- 傳輸為未壓縮 RGBA / PNG；H.264 + WebCodecs 尚未實作。
+- 傳輸為未壓縮 RGBA（預設，所有平台）或 JPEG（只用於原生擷取，`nativeJpegQuality`）；PNG、WebP、H.264 實驗過、已移除（實測見 aqutter_core 的 doc/nativeview.md）。
 - 已驗證：macOS、Android 模擬器、iOS 模擬器上鏡像 Flutter widget、手勢回控。
 - 尚未驗證：iOS `drawHierarchy` 與 Android PlatformView 的擷取、實體裝置。

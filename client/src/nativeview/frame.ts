@@ -9,19 +9,15 @@
 /** 標頭長度（bytes）。 */
 export const AQUTTER_NATIVE_HEADER_LENGTH = 24
 
-/** 幀的像素格式。 */
+/**
+ * 幀的像素格式。線上格式代碼 0（PNG）、3（WebP）、4／5（H.264）曾經實驗過、已移除：PNG 與 WebP 的編碼太慢，
+ * H.264 的幀率沒有提升（瓶頸在擷取）。細節與實測數字見 aqutter_core 的 doc/nativeview.md。
+ */
 export enum AqutterNativeFormat {
-  /** PNG 壓縮。 */
-  Png = 0,
-  /** 未壓縮 straight（非預乘）RGBA，每像素 4 bytes。 */
+  /** 未壓縮 straight（非預乘）RGBA，每像素 4 bytes。預設。 */
   Rgba = 1,
-  /** JPEG 壓縮（有損）。 */
+  /** JPEG 壓縮（有損），只用於原生擷取（`nativeJpegQuality`）。 */
   Jpeg = 2,
-  // 3 保留（Android 的 WebP 是軟體編碼，實測不可行，沒有採用）
-  /** H.264（Annex B）關鍵幀，含 SPS／PPS；以 WebCodecs 解碼。 */
-  H264Key = 4,
-  /** H.264（Annex B）非關鍵幀。 */
-  H264Delta = 5,
 }
 
 /** 解碼後的標頭。 */
@@ -59,7 +55,7 @@ export const decodeAqutterNativeFrame = (header: ArrayBuffer, payloadBuffer: Arr
   const format = view.getUint32(8, true)
   const seq = view.getUint32(12, true)
   const sentAt = view.getFloat64(16, true)
-  if (format !== AqutterNativeFormat.Png && format !== AqutterNativeFormat.Rgba && format !== AqutterNativeFormat.Jpeg && format !== AqutterNativeFormat.H264Key && format !== AqutterNativeFormat.H264Delta) {
+  if (format !== AqutterNativeFormat.Rgba && format !== AqutterNativeFormat.Jpeg) {
     throw new Error(`[aqutterNative] unknown frame format: ${format}`)
   }
   const payload = new Uint8Array(payloadBuffer)

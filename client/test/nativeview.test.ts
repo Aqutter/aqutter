@@ -30,16 +30,11 @@ describe('decodeAqutterNativeFrame', () => {
     expect(decodeAqutterNativeFrame(header, payload).format).toBe(AqutterNativeFormat.Jpeg)
   })
 
-  it('accepts h264 key and delta payloads of any length', () => {
-    for (const format of [AqutterNativeFormat.H264Key, AqutterNativeFormat.H264Delta]) {
-      const { header, payload } = makeFrame(10, 10, format, [0, 0, 0, 1, 0x67])
-      expect(decodeAqutterNativeFrame(header, payload).format).toBe(format)
+  it('rejects the retired format codes (png 0, webp 3, h264 4 and 5)', () => {
+    for (const format of [0, 3, 4, 5]) {
+      const { header, payload } = makeFrame(10, 10, format as AqutterNativeFormat, [1, 2, 3])
+      expect(() => decodeAqutterNativeFrame(header, payload)).toThrow(/unknown frame format/)
     }
-  })
-
-  it('accepts png payloads of any length', () => {
-    const { header, payload } = makeFrame(10, 10, AqutterNativeFormat.Png, [1, 2, 3])
-    expect(decodeAqutterNativeFrame(header, payload).format).toBe(AqutterNativeFormat.Png)
   })
 
   it('rejects short headers, unknown formats and mismatched RGBA length', () => {
