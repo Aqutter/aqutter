@@ -54,8 +54,10 @@ export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
  */
 export const IOS_GESTURE_OPTIONS: GestureOptions = {
   ...DEFAULT_GESTURE_OPTIONS,
-  doubleTapMs: 400,
-  doubleTapDistance: 100,
+  // 手指按下時會自然滑動：8 px 會把不少點擊判成拖曳（第二下變 pan，雙擊就湊不成）；18 px 與 Flutter 的 kTouchSlop 一致
+  slop: 18,
+  doubleTapMs: 350,
+  doubleTapDistance: 80,
 }
 
 /** 這個環境是不是 iOS 觸控（iPhone、iPad；iPadOS 的 UA 會自稱 Macintosh，所以另看觸控點數）。 */

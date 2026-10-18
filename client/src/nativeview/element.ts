@@ -51,11 +51,13 @@ const createElementClass = (): CustomElementConstructor => {
    * 手勢訊息格式見 `AqutterNativeGesture`；元素只送出，不改變自身內容。
    */
   class AqutterNativeElement extends HTMLElement {
-    static readonly observedAttributes = ['session', 'fit', 'input', 'double-tap', 'double-tap-ms', 'double-tap-min-ms', 'double-tap-distance', 'long-press-ms']
+    static readonly observedAttributes = ['session', 'fit', 'input', 'double-tap', 'double-tap-ms', 'double-tap-min-ms', 'double-tap-distance', 'slop', 'long-press-ms']
 
     private canvas: HTMLCanvasElement | null = null
     private mirror: AqutterNative | null = null
     private recognizer: GestureRecognizer | null = null
+    /** 目前生效的手勢門檻（含屬性覆寫）；除錯、顯示用。 */
+    gestureOptions: GestureOptions | null = null
     private resizeObserver: ResizeObserver | null = null
     private intersectionObserver: IntersectionObserver | null = null
     private inView = true
@@ -85,7 +87,7 @@ const createElementClass = (): CustomElementConstructor => {
       if (name === 'fit') {
         this.applyFit()
       }
-      else if (name === 'input' || name === 'double-tap' || name === 'double-tap-ms' || name === 'double-tap-min-ms' || name === 'double-tap-distance' || name === 'long-press-ms') {
+      else if (name === 'input' || name === 'double-tap' || name === 'double-tap-ms' || name === 'double-tap-min-ms' || name === 'double-tap-distance' || name === 'slop' || name === 'long-press-ms') {
         // 輸入相關屬性在每次事件（或下一次按下）才讀，不必重連
       }
       else if (this.isConnected) {
@@ -173,7 +175,7 @@ const createElementClass = (): CustomElementConstructor => {
         const value = this.getAttribute('double-tap')
         return value === 'both' || value === 'off' || value === 'exclusive' ? value : DEFAULT_GESTURE_OPTIONS.doubleTap
       }
-      // 門檻以屬性覆寫：double-tap-ms、double-tap-distance、long-press-ms（每次讀取，改屬性立即生效）
+      // 門檻以屬性覆寫：double-tap-ms、double-tap-distance、slop、long-press-ms（每次讀取，改屬性立即生效）
       const defaults = isIosTouch() ? IOS_GESTURE_OPTIONS : DEFAULT_GESTURE_OPTIONS
       const options: GestureOptions = {
         ...defaults,
@@ -181,8 +183,10 @@ const createElementClass = (): CustomElementConstructor => {
         get doubleTapMs() { return number('double-tap-ms', defaults.doubleTapMs) },
         get doubleTapMinMs() { return number('double-tap-min-ms', defaults.doubleTapMinMs) },
         get doubleTapDistance() { return number('double-tap-distance', defaults.doubleTapDistance) },
+        get slop() { return number('slop', defaults.slop) },
         get longPressMs() { return number('long-press-ms', defaults.longPressMs) },
       }
+      this.gestureOptions = options
       this.recognizer = new GestureRecognizer(
         gesture => this.send(gesture),
         () => ({ width: canvas.clientWidth, height: canvas.clientHeight }),
@@ -206,7 +210,10 @@ const createElementClass = (): CustomElementConstructor => {
       }
       canvas.addEventListener('pointerdown', (event) => {
         try {
-          canvas.setPointerCapture(event.pointerId)
+          // 觸控的指標本來就隱含捕捉；iOS 上多做一次顯式捕捉，快速連點的第二下會變成只有 click、沒有 pointer／touch 事件
+          if (event.pointerType !== 'touch') {
+            canvas.setPointerCapture(event.pointerId)
+          }
         }
         catch {
           // 指標已不在（例如事件是程式合成的）：不捕捉也能繼續辨識
@@ -235,6 +242,24 @@ const createElementClass = (): CustomElementConstructor => {
         if (wantsGestures()) {
           this.recognizer?.pointerUp(event.pointerId, local(event), event.timeStamp)
         }
+      })
+      // iOS 在 App 的 WebView 裡，快速連點的第二下只會補一個 click，不送任何 touch／pointer 事件，
+      // 辨識器因此永遠看不到第二下。正常的 click 一定緊接在 pointerup 之後；沒有對應 pointerup 的 click 就是這種
+      // 「被吃掉的第二下」，補成一次按下加放開，雙擊才湊得成。
+      let upAwaitingClick = false
+      canvas.addEventListener('pointerdown', () => { upAwaitingClick = false })
+      canvas.addEventListener('pointerup', () => { upAwaitingClick = true })
+      canvas.addEventListener('click', (event) => {
+        if (upAwaitingClick) {
+          upAwaitingClick = false
+          return
+        }
+        if (!wantsGestures()) {
+          return
+        }
+        const point = local(event)
+        this.recognizer?.pointerDown(-1, point, event.timeStamp)
+        this.recognizer?.pointerUp(-1, point, event.timeStamp)
       })
       canvas.addEventListener('pointercancel', (event) => {
         if (wantsPointers() && pressed.delete(event.pointerId)) {
