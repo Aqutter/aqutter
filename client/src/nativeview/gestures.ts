@@ -39,11 +39,28 @@ export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
   slop: 8,
   doubleTap: 'exclusive',
   longPressMs: 500,
-  // 預設依實機量到的數字：iPad 上真人的快速雙擊，第一下放開到第二下按下約 225–260 ms、兩下相距 9–36 px
-  // （iOS 與 Android 系統的雙擊視窗也約 300 ms）。太緊會讓雙擊完全點不中。
-  doubleTapMs: 270,
+  doubleTapMs: 130,
   doubleTapMinMs: 40,
+  doubleTapDistance: 32,
+}
+
+/**
+ * iOS（含 iPadOS）的預設：同一個快速雙擊，iPad 實機量到「第一下放開到第二下按下」約 225–260 ms、兩下相距 9–36 px，
+ * 比 Android 慢；用 130 ms 的預設在 iPad 上點不中。這是兩台裝置各一組的實測，不是平台規格；
+ * 不符合你的手感時用元素屬性 `double-tap-ms` / `double-tap-distance` 覆寫。
+ */
+export const IOS_GESTURE_OPTIONS: GestureOptions = {
+  ...DEFAULT_GESTURE_OPTIONS,
+  doubleTapMs: 270,
   doubleTapDistance: 40,
+}
+
+/** 這個環境是不是 iOS 觸控（iPhone、iPad；iPadOS 的 UA 會自稱 Macintosh，所以另看觸控點數）。 */
+export const isIosTouch = (nav: { userAgent: string, platform?: string, maxTouchPoints?: number } | undefined = typeof navigator === 'undefined' ? undefined : navigator): boolean => {
+  if (!nav) {
+    return false
+  }
+  return /iPad|iPhone|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && (nav.maxTouchPoints ?? 0) > 1)
 }
 
 interface Point {

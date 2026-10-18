@@ -1,6 +1,6 @@
 import { BridgeHandler } from '../contract/bridge'
 import { callFlutter } from '../index'
-import { DEFAULT_GESTURE_OPTIONS, GestureRecognizer } from './gestures'
+import { DEFAULT_GESTURE_OPTIONS, GestureRecognizer, IOS_GESTURE_OPTIONS, isIosTouch } from './gestures'
 import type { DoubleTapMode, GestureOptions } from './gestures'
 import { toPointerMessage } from './pointer'
 import type { AqutterNativePointerPhase } from './pointer'
@@ -174,13 +174,14 @@ const createElementClass = (): CustomElementConstructor => {
         return value === 'both' || value === 'off' || value === 'exclusive' ? value : DEFAULT_GESTURE_OPTIONS.doubleTap
       }
       // 門檻以屬性覆寫：double-tap-ms、double-tap-distance、long-press-ms（每次讀取，改屬性立即生效）
+      const defaults = isIosTouch() ? IOS_GESTURE_OPTIONS : DEFAULT_GESTURE_OPTIONS
       const options: GestureOptions = {
-        ...DEFAULT_GESTURE_OPTIONS,
+        ...defaults,
         get doubleTap(): DoubleTapMode { return doubleTapMode() },
-        get doubleTapMs() { return number('double-tap-ms', DEFAULT_GESTURE_OPTIONS.doubleTapMs) },
-        get doubleTapMinMs() { return number('double-tap-min-ms', DEFAULT_GESTURE_OPTIONS.doubleTapMinMs) },
-        get doubleTapDistance() { return number('double-tap-distance', DEFAULT_GESTURE_OPTIONS.doubleTapDistance) },
-        get longPressMs() { return number('long-press-ms', DEFAULT_GESTURE_OPTIONS.longPressMs) },
+        get doubleTapMs() { return number('double-tap-ms', defaults.doubleTapMs) },
+        get doubleTapMinMs() { return number('double-tap-min-ms', defaults.doubleTapMinMs) },
+        get doubleTapDistance() { return number('double-tap-distance', defaults.doubleTapDistance) },
+        get longPressMs() { return number('long-press-ms', defaults.longPressMs) },
       }
       this.recognizer = new GestureRecognizer(
         gesture => this.send(gesture),

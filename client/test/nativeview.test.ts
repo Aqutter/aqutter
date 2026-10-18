@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame, DEFAULT_GESTURE_OPTIONS, GestureRecognizer, peekAqutterNativeSeq, toPointerMessage } from '../src/nativeview'
+import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame, DEFAULT_GESTURE_OPTIONS, GestureRecognizer, IOS_GESTURE_OPTIONS, isIosTouch, peekAqutterNativeSeq, toPointerMessage } from '../src/nativeview'
 import type { AqutterNativeGesture, GestureOptions, Scheduler } from '../src/nativeview'
 
 const makeFrame = (width: number, height: number, format: number, payload: number[], sentAt = 1700000000000, seq = 1): { header: ArrayBuffer, payload: ArrayBuffer } => {
@@ -125,11 +125,11 @@ describe('GestureRecognizer', () => {
       expect(types(events)).toEqual(['doubleTap'])
     })
 
-    it('counting taps about 320 ms apart are four separate taps', () => {
+    it('counting taps about 220 ms apart are four separate taps', () => {
       const { events, scheduler, recognizer } = setup()
       for (let i = 0; i < 4; i++) {
         press(recognizer, scheduler, undefined, 60)
-        scheduler.advance(320)
+        scheduler.advance(220)
       }
       expect(types(events)).toEqual(['tap', 'tap', 'tap', 'tap'])
     })
@@ -137,7 +137,7 @@ describe('GestureRecognizer', () => {
     it('a second tap that is too late, too early (a bounce) or too far away is a separate tap', () => {
       const late = setup()
       press(late.recognizer, late.scheduler)
-      late.scheduler.advance(320)
+      late.scheduler.advance(150)
       press(late.recognizer, late.scheduler)
       late.scheduler.advance(500)
       expect(types(late.events)).toEqual(['tap', 'tap'])
@@ -157,8 +157,15 @@ describe('GestureRecognizer', () => {
       expect(types(far.events)).toEqual(['tap', 'tap'])
     })
 
-    it('a quick double tap measured on a real iPad (about 250 ms between release and press, 20 px apart) is a double tap', () => {
-      const { events, scheduler, recognizer } = setup()
+    it('a quick double tap measured on a real iPad (about 250 ms between release and press, 20 px apart) is a double tap with the iOS defaults, but not with the others', () => {
+      const other = setup()
+      press(other.recognizer, other.scheduler, { x: 100, y: 50 }, 70)
+      other.scheduler.advance(250)
+      press(other.recognizer, other.scheduler, { x: 120, y: 50 }, 70)
+      other.scheduler.advance(500)
+      expect(types(other.events)).toEqual(['tap', 'tap'])
+
+      const { events, scheduler, recognizer } = setup(IOS_GESTURE_OPTIONS)
       press(recognizer, scheduler, { x: 100, y: 50 }, 70)
       scheduler.advance(250)
       press(recognizer, scheduler, { x: 120, y: 50 }, 70)
@@ -279,5 +286,19 @@ describe('toPointerMessage', () => {
   it('does not divide by zero for a collapsed element', () => {
     const message = toPointerMessage('down', { pointerId: 1, clientX: 5, clientY: 5, timeStamp: 1, pointerType: 'mouse' }, { left: 0, top: 0 }, { width: 0, height: 0 })
     expect(message).toMatchObject({ x: 0, y: 0 })
+  })
+})
+
+describe('isIosTouch', () => {
+  it('detects iPhone and iPad, including iPadOS which reports itself as a Mac with touch', () => {
+    expect(isIosTouch({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' })).toBe(true)
+    expect(isIosTouch({ userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)' })).toBe(true)
+    expect(isIosTouch({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', platform: 'MacIntel', maxTouchPoints: 5 })).toBe(true)
+  })
+
+  it('does not treat a desktop Mac, Android or an unknown environment as iOS', () => {
+    expect(isIosTouch({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', platform: 'MacIntel', maxTouchPoints: 0 })).toBe(false)
+    expect(isIosTouch({ userAgent: 'Mozilla/5.0 (Linux; Android 16; 25097RP43G) AppleWebKit/537.36 Chrome/155' })).toBe(false)
+    expect(isIosTouch(undefined)).toBe(false)
   })
 })
