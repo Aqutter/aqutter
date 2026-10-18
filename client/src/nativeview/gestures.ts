@@ -49,13 +49,13 @@ export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
 
 /**
  * iOS（含 iPadOS）的預設：同一個快速雙擊，iPad 實機量到「第一下放開到第二下按下」約 225–260 ms、兩下相距 9–36 px，
- * 比 Android 慢；用 130 ms 的預設在 iPad 上點不中。這是兩台裝置各一組的實測，不是平台規格；
+ * 比 Android 慢；用 130 ms 的預設在 iPad 上點不中。兩下的距離也寬得多：真人在大畫面上的連點常相距 50–160 px。這是兩台裝置各一組的實測，不是平台規格；
  * 不符合你的手感時用元素屬性 `double-tap-ms` / `double-tap-distance` 覆寫。
  */
 export const IOS_GESTURE_OPTIONS: GestureOptions = {
   ...DEFAULT_GESTURE_OPTIONS,
   doubleTapMs: 400,
-  doubleTapDistance: 40,
+  doubleTapDistance: 100,
 }
 
 /** 這個環境是不是 iOS 觸控（iPhone、iPad；iPadOS 的 UA 會自稱 Macintosh，所以另看觸控點數）。 */
