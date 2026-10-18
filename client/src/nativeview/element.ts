@@ -122,8 +122,11 @@ const createElementClass = (): CustomElementConstructor => {
       }
     }
 
-    /** `max-in-flight` 屬性（1 到 8 的整數）；沒設或不合法回 undefined（用原生端的預設）。 */
-    private readMaxInFlight(): number | undefined {
+    /** `max-in-flight` 屬性（1 到 8 的整數，或 `auto`）；沒設或不合法回 undefined（用原生端的預設）。 */
+    private readMaxInFlight(): number | 'auto' | undefined {
+      if (this.getAttribute('max-in-flight') === 'auto') {
+        return 'auto'
+      }
       const value = Number(this.getAttribute('max-in-flight'))
       return this.hasAttribute('max-in-flight') && Number.isInteger(value) && value >= 1 && value <= 8 ? value : undefined
     }

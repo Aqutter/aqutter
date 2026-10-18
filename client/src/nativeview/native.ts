@@ -17,7 +17,7 @@ type ControlMessage =
   | { type: 'ack', seq: number }
   | { type: 'resize', width: number, height: number, dpr: number }
   | { type: 'visibility', visible: boolean }
-  | { type: 'config', maxInFlight: number }
+  | { type: 'config', maxInFlight: number | 'auto' }
 
 /** 顯示尺寸（CSS 像素）與裝置像素比。 */
 export interface AqutterNativeViewportInfo {
@@ -44,8 +44,8 @@ export interface AqutterNativeOptions {
    * 原生端據此只擷取網頁實際需要的像素，而不是固定解析度。
    */
   measure?: () => AqutterNativeViewportInfo | null
-  /** 每個連線在途（已送出、未確認）的幀數上限（1 到 8）；省略用原生端的預設。1 沒有排隊、延遲最低但吞吐較低。 */
-  maxInFlight?: number
+  /** 每個連線在途（已送出、未確認）的幀數上限（1 到 8）；省略用原生端的預設。1 沒有排隊、延遲最低但吞吐較低；`'auto'` 由原生端探測各值的實際幀率後自動選擇。 */
+  maxInFlight?: number | 'auto'
   /** 每畫完一幀呼叫；`latencyMs` 為（網頁收到時間 − 原生送出時間），兩邊時鐘同機所以可信。 */
   onFrame?: (info: { width: number, height: number, bytes: number, latencyMs: number, drawMs: number }) => void
 }
@@ -132,13 +132,13 @@ export class AqutterNative {
 
   /** 重新量測並把顯示尺寸回報給原生端（尺寸沒變就不送）。元素大小改變時呼叫。 */
   /** 設定在途幀數上限；連線中隨時可改，重新連線時會補送。 */
-  setMaxInFlight(limit: number | undefined): void {
+  setMaxInFlight(limit: number | 'auto' | undefined): void {
     this.maxInFlight = limit
     this.flushMaxInFlight()
   }
 
-  private maxInFlight: number | undefined
-  private lastMaxInFlightSent: number | undefined
+  private maxInFlight: number | 'auto' | undefined
+  private lastMaxInFlightSent: number | 'auto' | undefined
 
   private flushMaxInFlight(): void {
     const limit = this.maxInFlight
