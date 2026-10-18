@@ -90,6 +90,9 @@ export class AqutterNative {
   private lastSeq = -1
   /** 每次開始繪製遞增；非同步解碼（PNG）完成後若已有更新的繪製就放棄。 */
   private drawToken = 0
+  private decoder: { state: string, configure: (config: unknown) => void, decode: (chunk: unknown) => void, close: () => void } | null = null
+  private waitingForKey = true
+  private decodeMeta: Array<{ sentAt: number, bytes: number, start: number, width: number, height: number }> = []
   private lastReported = ''
   private visible = true
   private lastVisibleSent: boolean | null = null
@@ -219,6 +222,7 @@ export class AqutterNative {
     socket.onopen = () => {
       // 新連線：序號與尺寸回報都重來（原生端的工作階段可能重建過）
       this.lastSeq = -1
+      this.resetDecoder()
       this.awaitingPayload = null
       this.lastReported = ''
       this.lastVisibleSent = null
@@ -255,6 +259,12 @@ export class AqutterNative {
       // 原生端的「未確認上限」就會卡住送幀。網頁不會因此堆積——pending 只留最新一幀。
       // 網頁主執行緒忙碌時 onmessage 不會執行，確認自然延後，流量控制仍然有效。
       this.ack(header)
+      // H.264 的每一幀都要依序交給解碼器（跳過任何一幀，後面的幀就解不出來、畫面破碎），所以不走「只畫最新一幀」的合併
+      const format = header.byteLength >= 12 ? new DataView(header).getUint32(8, true) : 0
+      if (format === AqutterNativeFormat.H264Key || format === AqutterNativeFormat.H264Delta) {
+        this.receiveH264(header, event.data)
+        return
+      }
       this.enqueue({ header, payload: event.data })
     }
   }
@@ -280,6 +290,93 @@ export class AqutterNative {
     this.sendRaw({ type: 'ack', seq: peekAqutterNativeSeq(header) })
   }
 
+  /** 由 SPS 組出 WebCodecs 的 codec 字串（`avc1.PPCCLL`）；找不到 SPS 回 null。 */
+  private h264Codec(data: Uint8Array): string | null {
+    for (let i = 0; i + 4 < data.length; i++) {
+      const startCode = data[i] === 0 && data[i + 1] === 0 && (data[i + 2] === 1 || (data[i + 2] === 0 && data[i + 3] === 1))
+      if (!startCode) {
+        continue
+      }
+      const nal = i + (data[i + 2] === 1 ? 3 : 4)
+      if ((data[nal] & 0x1f) === 7 && nal + 3 < data.length) {
+        const hex = (value: number): string => value.toString(16).padStart(2, '0')
+        return `avc1.${hex(data[nal + 1])}${hex(data[nal + 2])}${hex(data[nal + 3])}`
+      }
+    }
+    return null
+  }
+
+  private receiveH264(header: ArrayBuffer, payload: ArrayBuffer): void {
+    let frame: AqutterNativeFrame
+    try {
+      frame = decodeAqutterNativeFrame(header, payload)
+    }
+    catch {
+      return
+    }
+    if (frame.seq <= this.lastSeq) {
+      return
+    }
+    this.lastSeq = frame.seq
+    this.decodeH264(frame, header.byteLength + payload.byteLength, performance.now())
+  }
+
+  private resetDecoder(): void {
+    try {
+      this.decoder?.close()
+    }
+    catch {
+      // 已關閉
+    }
+    this.decoder = null
+    this.waitingForKey = true
+    this.decodeMeta = []
+  }
+
+  /** H.264 幀：交給 WebCodecs 的 VideoDecoder，輸出時再畫進 canvas 並回報幀資訊。需要安全情境（https 或 localhost）。 */
+  private decodeH264(frame: AqutterNativeFrame, bytes: number, start: number): void {
+    const VideoDecoderCtor = (globalThis as unknown as { VideoDecoder?: new (init: unknown) => NonNullable<AqutterNative['decoder']> }).VideoDecoder
+    const ChunkCtor = (globalThis as unknown as { EncodedVideoChunk?: new (init: unknown) => unknown }).EncodedVideoChunk
+    if (!VideoDecoderCtor || !ChunkCtor) {
+      return
+    }
+    const isKey = frame.format === AqutterNativeFormat.H264Key
+    if (isKey && (!this.decoder || this.decoder.state !== 'configured')) {
+      const codec = this.h264Codec(frame.payload)
+      if (!codec) {
+        return
+      }
+      this.resetDecoder()
+      const { canvas } = this.options
+      this.decoder = new VideoDecoderCtor({
+        output: (videoFrame: { close: () => void }) => {
+          const meta = this.decodeMeta.shift()
+          const size = meta ?? { width: canvas.width, height: canvas.height, sentAt: Date.now(), bytes: 0, start: performance.now() }
+          if (canvas.width !== size.width || canvas.height !== size.height) {
+            canvas.width = size.width
+            canvas.height = size.height
+          }
+          this.context.drawImage(videoFrame as unknown as CanvasImageSource, 0, 0)
+          videoFrame.close()
+          this.options.onFrame?.({ width: size.width, height: size.height, bytes: size.bytes, latencyMs: Date.now() - size.sentAt, drawMs: performance.now() - size.start })
+        },
+        error: () => {
+          this.resetDecoder() // 等下一個關鍵幀（原生端每 2 秒一個）
+        },
+      })
+      this.decoder.configure({ codec, optimizeForLatency: true, avc: { format: 'annexb' } })
+    }
+    if (!this.decoder || this.decoder.state !== 'configured') {
+      return
+    }
+    if (this.waitingForKey && !isKey) {
+      return
+    }
+    this.waitingForKey = false
+    this.decodeMeta.push({ sentAt: frame.sentAt, bytes, start, width: frame.width, height: frame.height })
+    this.decoder.decode(new ChunkCtor({ type: isKey ? 'key' : 'delta', timestamp: frame.seq * 1000, data: frame.payload.slice() }))
+  }
+
   private async draw(raw: RawFrame): Promise<void> {
     let frame: AqutterNativeFrame
     try {
@@ -295,6 +392,10 @@ export class AqutterNative {
     const token = ++this.drawToken
     const drawStart = performance.now()
     const { canvas } = this.options
+    if (frame.format === AqutterNativeFormat.H264Key || frame.format === AqutterNativeFormat.H264Delta) {
+      this.decodeH264(frame, raw.header.byteLength + raw.payload.byteLength, drawStart)
+      return
+    }
     if (frame.format === AqutterNativeFormat.Rgba) {
       if (canvas.width !== frame.width || canvas.height !== frame.height) {
         canvas.width = frame.width
