@@ -36,7 +36,7 @@ export interface GestureOptions {
 }
 
 /** 互斥模式等待第二下的計時寬限（毫秒），吸收事件晚到的抖動。 */
-export const DOUBLE_TAP_GRACE_MS = 60
+export const DOUBLE_TAP_GRACE_MS = 0
 
 export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
   slop: 8,
@@ -56,7 +56,7 @@ export const IOS_GESTURE_OPTIONS: GestureOptions = {
   ...DEFAULT_GESTURE_OPTIONS,
   // 手指按下時會自然滑動：8 px 會把不少點擊判成拖曳（第二下變 pan，雙擊就湊不成）；18 px 與 Flutter 的 kTouchSlop 一致
   slop: 18,
-  doubleTapMs: 350,
+  doubleTapMs: 300,
   doubleTapDistance: 80,
 }
 

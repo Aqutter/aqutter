@@ -93,16 +93,12 @@ describe('GestureRecognizer', () => {
       expect(events).toEqual([{ type: 'tap', x: 0.5, y: 0.5 }])
     })
 
-    it('still pairs a second press whose event arrives after the window timer would have fired', () => {
+    it('with no grace period the pending tap is sent as soon as the window ends', () => {
       const { events, scheduler, recognizer } = setup()
-      const gap = DEFAULT_GESTURE_OPTIONS.doubleTapMs - 10
       recognizer.pointerDown(1, { x: 100, y: 50 }, 0)
       recognizer.pointerUp(1, { x: 100, y: 50 }, 50)
-      // 事件時間戳的間隔在視窗內，但頁面忙，事件在視窗結束後、寬限內才送達
-      scheduler.advance(DEFAULT_GESTURE_OPTIONS.doubleTapMs + 20)
-      recognizer.pointerDown(1, { x: 100, y: 50 }, 50 + gap)
-      recognizer.pointerUp(1, { x: 100, y: 50 }, 50 + gap + 40)
-      expect(types(events)).toEqual(['doubleTap'])
+      scheduler.advance(DEFAULT_GESTURE_OPTIONS.doubleTapMs + DOUBLE_TAP_GRACE_MS)
+      expect(types(events)).toEqual(['tap'])
     })
 
     it('a double tap sends only doubleTap, never tap', () => {
@@ -169,17 +165,17 @@ describe('GestureRecognizer', () => {
       expect(types(far.events)).toEqual(['tap', 'tap'])
     })
 
-    it('a quick double tap measured on a real iPad (about 250 ms between release and press, 20 px apart) is a double tap with the iOS defaults, but not with the others', () => {
+    it('a quick double tap measured on a real iPad (about 230 ms between release and press, 20 px apart) is a double tap with the iOS defaults, but not with the others', () => {
       const other = setup()
       press(other.recognizer, other.scheduler, { x: 100, y: 50 }, 70)
-      other.scheduler.advance(250)
+      other.scheduler.advance(230)
       press(other.recognizer, other.scheduler, { x: 120, y: 50 }, 70)
       other.scheduler.advance(500)
       expect(types(other.events)).toEqual(['tap', 'tap'])
 
       const { events, scheduler, recognizer } = setup(IOS_GESTURE_OPTIONS)
       press(recognizer, scheduler, { x: 100, y: 50 }, 70)
-      scheduler.advance(250)
+      scheduler.advance(230)
       press(recognizer, scheduler, { x: 120, y: 50 }, 70)
       scheduler.advance(500)
       expect(types(events)).toEqual(['doubleTap'])

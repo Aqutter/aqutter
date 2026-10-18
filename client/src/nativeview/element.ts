@@ -10,6 +10,9 @@ import type { AqutterNativeFit, AqutterNativeMessage } from './native'
 /** 預設的自訂元素標籤。 */
 export const AQUTTER_NATIVE_TAG = 'aqutter-native'
 
+/** 放開後多久內到達的「沒有 pointerup 的 click」才算被吃掉的第二下（毫秒）。 */
+const PHANTOM_CLICK_MAX_MS = 250
+
 const FITS: readonly AqutterNativeFit[] = ['fill', 'contain', 'cover']
 
 /** `input` 屬性：回傳什麼輸入給原生端。`gestures` 語意手勢（預設）；`pointers` 原始指標事件；`both` 兩者。 */
@@ -243,24 +246,30 @@ const createElementClass = (): CustomElementConstructor => {
           this.recognizer?.pointerUp(event.pointerId, local(event), event.timeStamp)
         }
       })
-      // iOS 在 App 的 WebView 裡，快速連點的第二下只會補一個 click，不送任何 touch／pointer 事件
-      // （實機紀錄：一次快速雙擊 = 1 組 down／up、約 45 ms 後一個 click、再約 145 ms 後第二個 click），
-      // 辨識器因此看不到第二下。正常的 click 一定緊接在 pointerup 之後；沒有對應 pointerup 的 click 就是這種
-      // 「被吃掉的第二下」，補成一次按下加放開，雙擊才湊得成。
+      // iOS 在 App 的 WebView 裡，快速連點的第二下只會補一個 click，不送任何 touch／pointer 事件，
+      // 辨識器因此看不到第二下。正常的 click 緊接在 pointerup 之後；沒有對應 pointerup 的 click 有兩種：
+      //   - 被吃掉的第二下：在前一下放開後約 200 ms 內到達（實機紀錄：放開後約 190 ms）
+      //   - iOS 對每次點擊都會再補的一個額外 click：在放開後約 300 ms 以後到達（實機紀錄：約 340 ms）
+      // 只有前者補成一次按下加放開；後者若也補，慢節奏連點的單擊會一個接一個被配成雙擊。
       let upAwaitingClick = false
+      let lastUpAt = Number.NEGATIVE_INFINITY
       canvas.addEventListener('pointerdown', () => { upAwaitingClick = false })
-      canvas.addEventListener('pointerup', () => { upAwaitingClick = true })
+      canvas.addEventListener('pointerup', (event) => {
+        upAwaitingClick = true
+        lastUpAt = event.timeStamp
+      })
       canvas.addEventListener('click', (event) => {
         if (upAwaitingClick) {
           upAwaitingClick = false
           return
         }
-        if (!wantsGestures()) {
+        if (!wantsGestures() || event.timeStamp - lastUpAt > PHANTOM_CLICK_MAX_MS) {
           return
         }
         const point = local(event)
         this.recognizer?.pointerDown(-1, point, event.timeStamp)
         this.recognizer?.pointerUp(-1, point, event.timeStamp)
+        lastUpAt = Number.NEGATIVE_INFINITY // 同一次放開只補一次
       })
       canvas.addEventListener('pointercancel', (event) => {
         if (wantsPointers() && pressed.delete(event.pointerId)) {
