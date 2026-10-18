@@ -35,6 +35,9 @@ export interface GestureOptions {
   doubleTapDistance: number
 }
 
+/** 互斥模式等待第二下的計時寬限（毫秒），吸收事件晚到的抖動。 */
+export const DOUBLE_TAP_GRACE_MS = 60
+
 export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
   slop: 8,
   doubleTap: 'exclusive',
@@ -51,7 +54,7 @@ export const DEFAULT_GESTURE_OPTIONS: GestureOptions = {
  */
 export const IOS_GESTURE_OPTIONS: GestureOptions = {
   ...DEFAULT_GESTURE_OPTIONS,
-  doubleTapMs: 270,
+  doubleTapMs: 400,
   doubleTapDistance: 40,
 }
 
@@ -267,7 +270,9 @@ export class GestureRecognizer {
       }
       this.flushPendingTap()
       // 等雙擊視窗：期間若接著一次符合條件的按下，這一下就變成雙擊的第一下
-      const timer = this.scheduler.setTimeout(() => this.flushPendingTap(), this.options.doubleTapMs)
+      // 計時器多留一點寬限：頁面忙時第二下的事件會晚到，是否為雙擊仍以事件時間戳的間隔判斷，
+      // 計時器若剛好先過期，單擊就先送出、雙擊被拆成兩下
+      const timer = this.scheduler.setTimeout(() => this.flushPendingTap(), this.options.doubleTapMs + DOUBLE_TAP_GRACE_MS)
       this.pendingTap = { at: now, point, timer }
       return
     }

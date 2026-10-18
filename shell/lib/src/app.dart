@@ -770,6 +770,8 @@ class _AqutterPageState extends State<AqutterPage> {
       // key 隨每次重掛遞增：強制 Flutter 銷毀舊 element 並建立新的 platform view。
       // initialUrlRequest 只在建立當下讀取，element 被原地重用時換了也不生效。
       key: ValueKey(_webViewGeneration),
+      // iOS：關掉 Flutter 平台視圖的 DelayingGestureRecognizer，否則快速連點的第二下進不了網頁
+      preventGestureDelay: true,
       initialUrlRequest: AqutterURLRequest(url: AqutterWebUri.uri(baseUrl)),
       initialSettings: AqutterWebViewSettings(
         javaScriptEnabled: true,

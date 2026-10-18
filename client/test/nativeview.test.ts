@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame, DEFAULT_GESTURE_OPTIONS, GestureRecognizer, IOS_GESTURE_OPTIONS, isIosTouch, peekAqutterNativeSeq, toPointerMessage } from '../src/nativeview'
+import { AQUTTER_NATIVE_HEADER_LENGTH, AqutterNativeFormat, decodeAqutterNativeFrame, DEFAULT_GESTURE_OPTIONS, DOUBLE_TAP_GRACE_MS, GestureRecognizer, IOS_GESTURE_OPTIONS, isIosTouch, peekAqutterNativeSeq, toPointerMessage } from '../src/nativeview'
 import type { AqutterNativeGesture, GestureOptions, Scheduler } from '../src/nativeview'
 
 const makeFrame = (width: number, height: number, format: number, payload: number[], sentAt = 1700000000000, seq = 1): { header: ArrayBuffer, payload: ArrayBuffer } => {
@@ -89,8 +89,20 @@ describe('GestureRecognizer', () => {
       recognizer.pointerDown(1, { x: 100, y: 50 })
       recognizer.pointerUp(1, { x: 100, y: 50 })
       expect(events).toEqual([]) // 還在等雙擊視窗
-      scheduler.advance(DEFAULT_GESTURE_OPTIONS.doubleTapMs)
+      scheduler.advance(DEFAULT_GESTURE_OPTIONS.doubleTapMs + DOUBLE_TAP_GRACE_MS)
       expect(events).toEqual([{ type: 'tap', x: 0.5, y: 0.5 }])
+    })
+
+    it('still pairs a second press whose event arrives after the window timer would have fired', () => {
+      const { events, scheduler, recognizer } = setup()
+      const gap = DEFAULT_GESTURE_OPTIONS.doubleTapMs - 10
+      recognizer.pointerDown(1, { x: 100, y: 50 }, 0)
+      recognizer.pointerUp(1, { x: 100, y: 50 }, 50)
+      // 事件時間戳的間隔在視窗內，但頁面忙，事件在視窗結束後、寬限內才送達
+      scheduler.advance(DEFAULT_GESTURE_OPTIONS.doubleTapMs + 20)
+      recognizer.pointerDown(1, { x: 100, y: 50 }, 50 + gap)
+      recognizer.pointerUp(1, { x: 100, y: 50 }, 50 + gap + 40)
+      expect(types(events)).toEqual(['doubleTap'])
     })
 
     it('a double tap sends only doubleTap, never tap', () => {
