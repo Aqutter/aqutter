@@ -278,7 +278,7 @@ export class AqutterNative {
       this.context.putImageData(new ImageData(pixels, frame.width, frame.height), 0, 0)
     }
     else {
-      const bitmap = await createImageBitmap(new Blob([frame.payload.slice()], { type: 'image/png' }))
+      const bitmap = await createImageBitmap(new Blob([frame.payload.slice()], { type: frame.format === AqutterNativeFormat.Jpeg ? 'image/jpeg' : 'image/png' }))
       if (token !== this.drawToken) {
         bitmap.close() // 解碼期間已經有更新的幀開始繪製
         return

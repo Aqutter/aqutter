@@ -25,6 +25,11 @@ describe('decodeAqutterNativeFrame', () => {
     expect(frame.payload.buffer).toBe(payload)
   })
 
+  it('accepts jpeg payloads of any length', () => {
+    const { header, payload } = makeFrame(10, 10, AqutterNativeFormat.Jpeg, [1, 2, 3])
+    expect(decodeAqutterNativeFrame(header, payload).format).toBe(AqutterNativeFormat.Jpeg)
+  })
+
   it('accepts png payloads of any length', () => {
     const { header, payload } = makeFrame(10, 10, AqutterNativeFormat.Png, [1, 2, 3])
     expect(decodeAqutterNativeFrame(header, payload).format).toBe(AqutterNativeFormat.Png)

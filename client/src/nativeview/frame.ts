@@ -15,6 +15,8 @@ export enum AqutterNativeFormat {
   Png = 0,
   /** 未壓縮 straight（非預乘）RGBA，每像素 4 bytes。 */
   Rgba = 1,
+  /** JPEG 壓縮（有損）。 */
+  Jpeg = 2,
 }
 
 /** 解碼後的標頭。 */
@@ -52,7 +54,7 @@ export const decodeAqutterNativeFrame = (header: ArrayBuffer, payloadBuffer: Arr
   const format = view.getUint32(8, true)
   const seq = view.getUint32(12, true)
   const sentAt = view.getFloat64(16, true)
-  if (format !== AqutterNativeFormat.Png && format !== AqutterNativeFormat.Rgba) {
+  if (format !== AqutterNativeFormat.Png && format !== AqutterNativeFormat.Rgba && format !== AqutterNativeFormat.Jpeg) {
     throw new Error(`[aqutterNative] unknown frame format: ${format}`)
   }
   const payload = new Uint8Array(payloadBuffer)
