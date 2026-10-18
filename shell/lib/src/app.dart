@@ -803,6 +803,9 @@ class _AqutterPageState extends State<AqutterPage> {
         // 刻意不動 mediaPlaybackRequiresUserGesture（預設 true）：那條放寬的是「不需使用者
         // 手勢即可播放」，影響範圍是整個 app 的所有影音，代價與這裡要解決的問題不對等。
         allowsInlineMediaPlayback: true,
+        // 測試用：以 `--dart-define=AQUTTER_MEDIA_AUTOPLAY=true` 讓影音不需使用者手勢即可播放（自動化測試沒有人可以點）。
+        // 預設關閉，理由見上。
+        mediaPlaybackRequiresUserGesture: !const bool.fromEnvironment('AQUTTER_MEDIA_AUTOPLAY'),
         // iOS 16.4+ / macOS 13.3+ 的 Safari Web Inspector 與 Windows WebView2 的 DevTools；
         // Android 忽略此鍵，由 main() 的靜態開關處理（見 _applyWebViewDebugFlag）。
         isInspectable: _webViewDebugEnabled(),
