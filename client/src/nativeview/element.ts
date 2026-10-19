@@ -82,6 +82,8 @@ const createElementClass = (): CustomElementConstructor => {
       this.intersectionObserver?.disconnect()
       this.intersectionObserver = null
       document.removeEventListener('visibilitychange', this.onVisibilityChange)
+      this.touchReconcile?.abort()
+      this.touchReconcile = null
       this.mirror?.stop()
       this.mirror = null
     }
@@ -171,6 +173,8 @@ const createElementClass = (): CustomElementConstructor => {
       })
       this.intersectionObserver.observe(this)
     }
+
+    private touchReconcile: AbortController | null = null
 
     private readonly onVisibilityChange = (): void => this.syncVisible()
 
@@ -284,6 +288,28 @@ const createElementClass = (): CustomElementConstructor => {
         this.recognizer?.pointerUp(-1, point, event.timeStamp)
         lastUpAt = Number.NEGATIVE_INFINITY // 同一次放開只補一次
       })
+      // 殘留保險：觸控的 pointerup／pointercancel 偶爾不會送達（例如 iPad 的系統多指手勢、App 切換），
+      // 辨識器就會一直記著已經放開的手指，之後單指拖曳與縮放都被擋掉。以 touch 事件的實際觸點數對帳：
+      // 螢幕上已沒有任何觸點，就把殘留全部收掉。
+      const reconcile = (event: TouchEvent): void => {
+        if (event.touches.length > 0) {
+          return
+        }
+        for (const id of pressed) {
+          if (wantsPointers()) {
+            this.send({ type: 'pointer', phase: 'cancel', id, x: 0.5, y: 0.5, t: performance.now(), pointerType: 'touch' })
+          }
+        }
+        pressed.clear()
+        if (wantsGestures() && (this.recognizer?.activeCount ?? 0) > 0) {
+          this.recognizer?.cancel()
+        }
+      }
+      this.touchReconcile?.abort()
+      this.touchReconcile = new AbortController()
+      const { signal } = this.touchReconcile
+      document.addEventListener('touchend', reconcile, { passive: true, signal })
+      document.addEventListener('touchcancel', reconcile, { passive: true, signal })
       canvas.addEventListener('pointercancel', (event) => {
         if (wantsPointers() && pressed.delete(event.pointerId)) {
           sendPointer('cancel', event)

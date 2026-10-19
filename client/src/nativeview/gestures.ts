@@ -230,6 +230,11 @@ export class GestureRecognizer {
     this.last = null
   }
 
+  /** 目前記著的按下中指標數；手指已全部離開卻仍大於 0，代表有殘留。 */
+  get activeCount(): number {
+    return this.pointers.size
+  }
+
   /** 系統取消（例如指標被攔截）：收尾進行中的手勢，不送 tap。 */
   cancel(): void {
     this.clearLongPress()
