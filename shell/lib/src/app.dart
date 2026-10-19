@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:aqutter_core/aqutter_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +21,7 @@ import 'server/local_server.dart';
 import 'server/update_config.dart';
 import 'server/update_config_store.dart';
 import 'server/update_session.dart';
+import 'ui/basic_widgets.dart';
 import 'ui/host_update_screen.dart';
 import 'ui/startup_overlay.dart';
 import 'ui/update_required_screen.dart';
@@ -94,9 +95,14 @@ class AqutterApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return WidgetsApp(
       title: config.title,
+      color: config.primaryLight,
       debugShowCheckedModeBanner: false,
+      pageRouteBuilder: <T>(RouteSettings settings, WidgetBuilder builder) => PageRouteBuilder<T>(
+        settings: settings,
+        pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+      ),
       home: AqutterPage(config: config, plugins: plugins),
     );
   }
@@ -714,9 +720,9 @@ class _AqutterPageState extends State<AqutterPage> {
     }
 
     final baseUrl = _baseUrl;
-    final content = Scaffold(
-      backgroundColor: widget.config.surfaceOf(brightness),
-      // 鍵盤彈出時刻意沿用 framework 預設的 resizeToAvoidBottomInset: true，讓 WebView
+    final content = AqutterSurface(
+      color: widget.config.surfaceOf(brightness),
+      // 鍵盤彈出時由 [AqutterSurface] 沿用 Scaffold 的 resizeToAvoidBottomInset 行為，讓 WebView
       // 本身縮成「螢幕高 − 鍵盤高」——網頁的 layout viewport 因此真的變小，捲動容器的
       // 頂端與底端都捲得到。曾改為 false 並交給 fork 的 keyboardAvoidance 平移 WebView，
       // 但平移模型是「拿頂部換底部」：整塊上推 S px 後頂部就少 S、底部仍壓著 K − S，
@@ -725,7 +731,7 @@ class _AqutterPageState extends State<AqutterPage> {
       //
       // 過場疊在 WebView 之上而非與之二選一：WebView 掛上後到網頁首次繪製之間，
       // 原本完全沒有回饋，那正是使用者最容易誤以為當掉的一段。
-      body: Stack(
+      child: Stack(
         fit: StackFit.expand,
         children: [
           // plugin 的墊底內容：被網頁蓋住但仍在 Flutter 裡渲染（供鏡像擷取）
@@ -782,7 +788,7 @@ class _AqutterPageState extends State<AqutterPage> {
         contentInsetAdjustmentBehavior: AqutterScrollViewContentInsetAdjustmentBehavior.NEVER,
         // 關掉 fork 的原生鍵盤避讓（預設 true）。Android 端它會吃掉 IME 插邊並平移整個
         // WebView，網頁因此永遠不知道鍵盤存在、window.visualViewport 也不再變化；iOS 端則
-        // 補鍵盤高度的 contentInset。兩者都與上方 Scaffold 讓 WebView 真正縮小的做法衝突
+        // 補鍵盤高度的 contentInset。兩者都與上方 AqutterSurface 讓 WebView 真正縮小的做法衝突
         // （前者是頂底二擇一的平移，後者會疊成雙倍留白），故全平台一律關閉，改由 Chromium /
         // WebKit 自己在縮小後的 viewport 內捲焦點欄位——此時它們是唯一的搬動者。
         keyboardAvoidance: false,
@@ -839,9 +845,9 @@ class _ErrorScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brightness = _effectiveBrightnessOf(context);
-    return Scaffold(
-      backgroundColor: config.surfaceOf(brightness),
-      body: Center(
+    return AqutterSurface(
+      color: config.surfaceOf(brightness),
+      child: Center(
         child: Text(
           message,
           textAlign: TextAlign.center,

@@ -3,7 +3,7 @@
 
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aqutter/src/app.dart';
@@ -41,7 +41,7 @@ void main() {
   testWidgets('AqutterApp renders the startup overlay on first frame', (WidgetTester tester) async {
     await tester.pumpWidget(const AqutterApp());
 
-    expect(find.byType(MaterialApp), findsOneWidget);
+    expect(find.byType(WidgetsApp), findsOneWidget);
     // 首幀 _baseUrl / _error 皆為 null，_stage 仍是初始值 → 過場顯示第一個階段。
     expect(find.byType(StartupOverlay), findsOneWidget);
     expect(find.text(StartupStage.preparingBundle.message), findsOneWidget);
@@ -55,7 +55,7 @@ void main() {
   });
 
   // 這是本測試檔存在的主要理由：底色由原生自己算，文字色若忘了一起算，就會被
-  // MaterialApp 預設的淺色 ThemeData 固定成近黑——深色模式下實測只有 1.07:1。
+  // 預設主題 固定成近黑——深色模式下實測只有 1.07:1。
   // 靜態分析與型別都攔不住這種「顏色錯了但程式正確」的缺陷，只能用斷言守。
   for (final brightness in Brightness.values) {
     testWidgets('startup overlay text is readable in ${brightness.name}', (WidgetTester tester) async {

@@ -28,7 +28,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
-  uses-material-design: true
+  uses-material-design: false
   assets:
     # 首次啟動的種子網頁包（由 `aqutter seed` 產生 web-bundle.zip；建置產物不納入版控）。
     # 以「目錄」形式宣告：單檔宣告會讓全新 clone 在資源打包階段失敗。

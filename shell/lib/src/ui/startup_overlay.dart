@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+
+import 'basic_widgets.dart';
 
 /// 啟動與更新過程的階段。
 ///
@@ -230,13 +232,13 @@ class _StepRow extends StatelessWidget {
         const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
+          child: AqutterProgressBar(
             value: barValue,
-            minHeight: 4,
+            height: 4,
             color: isActive || status == _StepStatus.done
                 ? indicatorColor
                 : indicatorColor.withValues(alpha: 0.25),
-            backgroundColor: foregroundColor.withValues(alpha: 0.12),
+            trackColor: foregroundColor.withValues(alpha: 0.12),
           ),
         ),
       ],
@@ -274,11 +276,11 @@ class _OverallBar extends StatelessWidget {
         const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
+          child: AqutterProgressBar(
             value: value,
-            minHeight: 8,
+            height: 8,
             color: indicatorColor,
-            backgroundColor: foregroundColor.withValues(alpha: 0.12),
+            trackColor: foregroundColor.withValues(alpha: 0.12),
           ),
         ),
       ],

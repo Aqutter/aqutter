@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+
+import 'basic_widgets.dart';
 
 import '../server/bundle_manager.dart';
 
@@ -50,9 +52,9 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
   @override
   Widget build(BuildContext context) {
     final foreground = widget.foregroundColor;
-    return Scaffold(
-      backgroundColor: widget.backgroundColor,
-      body: Center(
+    return AqutterSurface(
+      color: widget.backgroundColor,
+      child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 320),
           child: Padding(
@@ -73,20 +75,18 @@ class _UpdateRequiredScreenState extends State<UpdateRequiredScreen> {
                   style: TextStyle(color: foreground),
                 ),
                 const SizedBox(height: 24),
-                FilledButton(
+                AqutterButton(
+                  label: _busy ? '確認中…' : '重試',
                   onPressed: _busy ? null : _retry,
+                  backgroundColor: widget.accentColor,
                   // 與 HostUpdateScreen 同一理由：accent 在深色主題是淺青，白字對比不足
-                  style: FilledButton.styleFrom(
-                    backgroundColor: widget.accentColor,
-                    foregroundColor: widget.backgroundColor,
-                  ),
-                  child: Text(_busy ? '確認中…' : '重試'),
+                  foregroundColor: widget.backgroundColor,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   '${widget.failure.cause}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+                  style: TextStyle(color: kAqutterErrorColor, fontSize: 12),
                 ),
               ],
             ),

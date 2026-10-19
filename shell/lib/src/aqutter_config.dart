@@ -1,13 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 /// 殼的外觀設定，由 App 的 `main()` 傳給 `runAqutter`。
 ///
 /// 殼在網頁尚未繪製、iOS 回彈捲動、啟動過場與錯誤畫面時會露出原生底色。這些顏色
 /// 應與網頁的 surface / onSurface / primary 色票一致，否則會成為與內容不連續的色塊。
 ///
-/// 底色、前景色與強調色都自己持有而不交給 `ThemeData`：`MaterialApp` 預設的淺色
-/// ThemeData 會把文字固定成近黑——底色自己算、文字色卻跟著 theme，深色模式下兩者就會
-/// 對撞成近乎不可讀的對比度。
+/// 底色、前景色與強調色都由設定自己持有：殼不依賴 Material 或 Cupertino（沒有 `ThemeData`），
+/// 每個畫面的底色與文字色都從這裡取，深色模式下才不會對撞成近乎不可讀的對比度。
 class AqutterConfig {
   const AqutterConfig({
     this.title = 'Aqutter App',

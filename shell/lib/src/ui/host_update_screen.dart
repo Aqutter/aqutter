@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+
+import 'basic_widgets.dart';
 
 import '../server/host_requirement.dart';
 import '../server/host_updater.dart';
@@ -74,9 +76,9 @@ class _HostUpdateScreenState extends State<HostUpdateScreen> {
     final requirement = widget.requirement;
     final foreground = widget.foregroundColor;
     final error = _error;
-    return Scaffold(
-      backgroundColor: widget.backgroundColor,
-      body: Center(
+    return AqutterSurface(
+      color: widget.backgroundColor,
+      child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 320),
           child: Padding(
@@ -100,17 +102,19 @@ class _HostUpdateScreenState extends State<HostUpdateScreen> {
                 if (requirement.updateUrl != null) ...[
                   const SizedBox(height: 24),
                   if (_busy && _isApk) ...[
-                    LinearProgressIndicator(value: _progress, color: widget.accentColor),
+                    AqutterProgressBar(
+                      value: _progress,
+                      color: widget.accentColor,
+                      trackColor: widget.accentColor.withValues(alpha: 0.24),
+                    ),
                     const SizedBox(height: 16),
                   ],
-                  FilledButton(
+                  AqutterButton(
+                    label: _isApk ? '下載並安裝' : '前往更新',
                     onPressed: _busy ? null : _start,
-                    // 前景取 surface 色而非 ThemeData 的 onPrimary：accent 在深色主題是淺青，白字會糊掉
-                    style: FilledButton.styleFrom(
-                      backgroundColor: widget.accentColor,
-                      foregroundColor: widget.backgroundColor,
-                    ),
-                    child: Text(_isApk ? '下載並安裝' : '前往更新'),
+                    backgroundColor: widget.accentColor,
+                    // 前景取 surface 色：accent 在深色主題是淺青，白字會糊掉
+                    foregroundColor: widget.backgroundColor,
                   ),
                 ],
                 if (error != null) ...[
@@ -118,7 +122,7 @@ class _HostUpdateScreenState extends State<HostUpdateScreen> {
                   Text(
                     error,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+                    style: TextStyle(color: kAqutterErrorColor, fontSize: 12),
                   ),
                 ],
               ],
