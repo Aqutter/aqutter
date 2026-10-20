@@ -91,6 +91,46 @@
 
 見 [Plugin 開發](plugins.md)。
 
+## aqutter doctor
+
+唯讀檢查專案與「這支 CLI 所代表的框架版本」是否一致，並對每個不一致的項目指出修法。框架版本以 CLI 自帶的範本（`environment`、`.fvmrc`）與 CLI 版本為準。
+
+| 檢查 | 說明 |
+|---|---|
+| Flutter 版本 | 本機 `flutter` 是否落在框架允許的範圍（不在範圍內為**錯誤**；在範圍內但不是基準版本為警告） |
+| pubspec `environment` | `sdk` / `flutter` 約束是否與框架一致 |
+| 殼 ref | `<appDir>/pubspec.yaml` 的 `aqutter` git ref 是否等於 CLI 版本；殼依賴是本機路徑時略過 |
+| `.fvmrc`（選配） | 只在 `<appDir>/.fvmrc` 已存在時才檢查版本是否為框架基準；沒有這個檔案不會有任何提示（框架不要求使用 FVM） |
+| npm 依賴 | `package.json` 內以 github 指定的 `@aqutter/aqutter`、`@aqutter/aqutter-cli` ref |
+| lock | `pubspec.lock` 鎖定的 commit 是否落後遠端 ref（需連網；開發階段 tag 會隨 `main` 移動，lock 不會自動跟上） |
+
+| 旗標 | 說明 |
+|---|---|
+| `--offline` | 不連網，略過 lock 與遠端的比對 |
+
+結束碼：有**錯誤**才為 1；只有警告為 0。
+
+## aqutter upgrade
+
+把專案對齊到這支 CLI 所代表的框架版本。
+
+會改的（只改需要改的那一行，保留原有格式）：
+
+- `<appDir>/pubspec.yaml`：`environment.sdk`、`environment.flutter`，以及殼依賴的 git `ref`（本機路徑依賴不動）。
+- `<appDir>/.fvmrc`：只在專案已有這個檔案時才更新 Flutter 版本（不會替沒有的專案建立；內容不是合法 JSON 時略過並提示，不覆寫）。
+- `package.json`：`@aqutter/aqutter`、`@aqutter/aqutter-cli` 的 github 依賴 ref。
+
+接著在 `<appDir>` 執行 `flutter pub upgrade aqutter aqutter_core`，讓 `pubspec.lock` 跟上。
+
+**不會改**：`init` 當初展開的原生檔案（`android/`、`ios/`、`windows/` 等）與 `lib/`——它們是專案自己的。
+
+| 旗標 | 說明 |
+|---|---|
+| `--dry-run` | 只列出會改什麼，不寫檔、不執行 flutter |
+| `--skip-pub` | 只改檔案，不執行 `flutter pub upgrade` |
+
+升級流程：先把 `package.json` 內 Aqutter 的依賴升到新版並重新安裝（讓 CLI 本身變成新版），再用新版 CLI 執行 `aqutter upgrade`，最後 `aqutter doctor` 確認。升級後若 `package.json` 有變動，指令會提示重新安裝依賴的指令。
+
 ## 行程環境變數
 
 | 變數 | 用於 | 說明 |

@@ -15,6 +15,8 @@ const HELP = `aqutter ${pkg.version}
   android gen-jks      產生 Android 簽章用 keystore 與 key.properties
   plugin create <name> 產生 Aqutter plugin 專案
   plugin add <pkg>     把 plugin 加入目前專案
+  doctor [--offline]   檢查專案與本 CLI 對應的框架版本是否一致（Flutter、殼 ref、.fvmrc、npm 依賴、lock）
+  upgrade [--dry-run]  把專案對齊到本 CLI 對應的框架版本（pubspec / .fvmrc / package.json，並更新 lock）
 
 通用旗標（dev / seed / build）：-e <環境名或 env 檔>（等同 --env=…）--x-env=<名稱> --flavor=<名稱>；詳見各指令說明。
 `
@@ -55,6 +57,16 @@ const main = async (): Promise<void> => {
     case 'build': {
       const { runBuild } = await import('./commands/build.ts')
       await runBuild(project, rest)
+      return
+    }
+    case 'doctor': {
+      const { runDoctor } = await import('./commands/doctor.ts')
+      await runDoctor(project, rest)
+      return
+    }
+    case 'upgrade': {
+      const { runUpgrade } = await import('./commands/upgrade.ts')
+      await runUpgrade(project, rest)
       return
     }
     case 'env': {

@@ -5,8 +5,8 @@ version: 0.0.0
 
 environment:
   sdk: '>=3.13.0 <4.0.0'
-  # Flutter is pinned to the 3.47 line (3.47.4 is the reference, see .fvmrc).
-  # Bump this together with .fvmrc and docs/getting-started.md when the framework upgrades Flutter.
+  # Flutter is pinned to the 3.47 line; 3.47.4 (the lower bound) is the reference version.
+  # Bump this together with docs/getting-started.md when the framework upgrades Flutter.
   flutter: '>=3.47.4 <3.48.0'
 
 dependencies:
