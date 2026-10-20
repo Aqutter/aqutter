@@ -26,7 +26,7 @@ import { networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 
 import type { Project } from '../config.ts'
-import { IS_WIN, createPrompter, ensureSeedDir, parseArgs, resolvePort } from '../shared.ts'
+import { IS_WIN, createPrompter, ensureSeedDir, isPortInUse, parseArgs, resolvePort } from '../shared.ts'
 import { resolveEnvironment } from '../environments.ts'
 import type { Prompter } from '../shared.ts'
 import { chooseOne, listEnvFiles, listFlavors, resolveXEnv } from '../menu.ts'
@@ -467,6 +467,12 @@ export const runDev = async (project: Project, argv: string[]): Promise<void> =>
 
   if (port === null) {
     return fail(`--port 需為 1-65535 的整數，收到「${flags.port}」。`)
+  }
+
+  // 埠被別的程式占用時中止：dev server 與對方可能綁在不同位址族（::1 / ::）而不報錯，
+  // 結果殼與瀏覽器連到的是另一個專案。
+  if (await isPortInUse(port)) {
+    return fail(`埠 ${port} 已有程式在使用，請改用 --port=<n>（或先關閉占用者）。`)
   }
 
   if (positional.length > 1) {

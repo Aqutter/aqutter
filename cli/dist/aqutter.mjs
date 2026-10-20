@@ -213,9 +213,10 @@ var init_package = __esm({
 // src/shared.ts
 import { spawnSync } from "node:child_process";
 import { existsSync as existsSync2, lstatSync, mkdirSync, readFileSync as readFileSync2, readdirSync, statSync } from "node:fs";
+import { connect } from "node:net";
 import { basename, join as join2 } from "node:path";
 import readline from "node:readline";
-var MIN_PORT, MAX_PORT, IS_WIN, SHORT_FLAGS, parseArgs, resolvePort, ensureSeedDir, StepFailure, createStep, resolveEnvFile, envNameOf, readAppVersion, ENTRY_KIND, walk, collectFiles, collectEntries, MASK_CHAR, PASSTHROUGH_PREFIXES, isTerminalControl, createPrompter;
+var MIN_PORT, MAX_PORT, IS_WIN, SHORT_FLAGS, parseArgs, resolvePort, PORT_PROBE_TIMEOUT_MS, isPortInUse, ensureSeedDir, StepFailure, createStep, resolveEnvFile, envNameOf, readAppVersion, ENTRY_KIND, walk, collectFiles, collectEntries, MASK_CHAR, PASSTHROUGH_PREFIXES, isTerminalControl, createPrompter;
 var init_shared = __esm({
   "src/shared.ts"() {
     "use strict";
@@ -265,6 +266,24 @@ var init_shared = __esm({
         return null;
       }
       return port;
+    };
+    PORT_PROBE_TIMEOUT_MS = 500;
+    isPortInUse = async (port) => {
+      const probe = (host) => new Promise((resolve5) => {
+        const socket = connect({
+          port,
+          host
+        });
+        const done = (inUse) => {
+          socket.destroy();
+          resolve5(inUse);
+        };
+        socket.setTimeout(PORT_PROBE_TIMEOUT_MS, () => done(false));
+        socket.once("connect", () => done(true));
+        socket.once("error", () => done(false));
+      });
+      const results = await Promise.all([probe("127.0.0.1"), probe("::1")]);
+      return results.some(Boolean);
     };
     ensureSeedDir = (project) => {
       mkdirSync(project.seedDir, { recursive: true });
@@ -1612,6 +1631,9 @@ var init_dev = __esm({
       const port = resolvePort(project, flags);
       if (port === null) {
         return fail3(`--port \u9700\u70BA 1-65535 \u7684\u6574\u6578\uFF0C\u6536\u5230\u300C${flags.port}\u300D\u3002`);
+      }
+      if (await isPortInUse(port)) {
+        return fail3(`\u57E0 ${port} \u5DF2\u6709\u7A0B\u5F0F\u5728\u4F7F\u7528\uFF0C\u8ACB\u6539\u7528 --port=<n>\uFF08\u6216\u5148\u95DC\u9589\u5360\u7528\u8005\uFF09\u3002`);
       }
       if (positional.length > 1) {
         console.warn(`[${TAG3}] \u5FFD\u7565\u591A\u9918\u4F4D\u7F6E\u53C3\u6578\uFF1A${positional.slice(1).join(" ")}\uFF08\u74B0\u5883\u8ACB\u7528 -e <\u74B0\u5883\u540D\u6216 env \u6A94\u8DEF\u5F91>\uFF09`);

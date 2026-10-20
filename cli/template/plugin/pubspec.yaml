@@ -1,5 +1,5 @@
 name: {{dartPackage}}
-description: Aqutter plugin — {{id}}.
+description: Aqutter plugin - {{id}}.
 publish_to: 'none'
 version: 0.0.0
 
@@ -11,15 +11,15 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # App 與 plugin 必須使用同一個殼版本（git ref 相同），否則 pub 會解不出相依。
+  # The app and the plugin must use the same shell version (same git ref), otherwise pub cannot resolve the dependencies.
   aqutter:
     git:
       url: https://github.com/Aqutter/aqutter.git
       path: shell
       ref: {{shellRef}}
 
-  # 需要原生能力時，在這裡加上既有的 Flutter plugin（例如 battery_plus）；
-  # 其原生部分由 Flutter 工具鏈在 App 建置時自動整合，不需要額外設定。
+  # When native capabilities are needed, add an existing Flutter plugin here (e.g. battery_plus);
+  # its native part is integrated automatically by the Flutter toolchain at app build time, no extra setup needed.
 
 dev_dependencies:
   flutter_test:

@@ -8,6 +8,8 @@
 - **NuGet CLI（`nuget.exe`）必須在 PATH**（關鍵）。`aqutter_core` 的 Windows CMake 步驟以 `nuget` 下載原生相依（`nlohmann.json`、WebView2 SDK）；PATH 上沒有 `nuget.exe` 時建置會失敗並顯示 `NUGET-NOTFOUND` / 返回碼 9009（`dotnet` CLI 內建的 `dotnet nuget` **不算**，plugin 找的是獨立執行檔）。
   - 安裝：下載官方 <https://dist.nuget.org/win-x86-commandline/latest/nuget.exe>（約 7 MB），放到一個已在 PATH 的資料夾（或新增其所在資料夾到使用者 PATH），開新終端機後 `nuget help` 可驗證。
 - 首次 `flutter build windows` 會經上述 NuGet 抓取原生 SDK，需網路。
+- **第一次先在 `aqutter/` 執行 `flutter pub get`**，再跑 `aqutter dev windows`。dev 時網頁字型由殼的套件目錄供應，沒有先 `pub get` 會看到「找不到殼套件的字型目錄」警告，且 Windows plugin 的原生資訊（`.flutter-plugins-dependencies`）也還不存在。
+- 預設 dev 埠（3000）若已被別的程式占用，`aqutter dev` 會中止並提示改用 `--port=<n>`。
 
 ## 1. WebView2 Runtime
 
@@ -54,5 +56,13 @@ aqutter build windows        # 或 aqutter dev windows
 ```
 
 產物：`build/windows/x64/runner/Release/`（含 `<appName>.exe` + DLL + `data/`）。整個 `Release/` 目錄需一起散佈。
+
+## 8. 疑難排解
+
+| 現象 | 原因與處理 |
+| :--- | :--- |
+| `flutter pub get` 報「aqutter from git doesn't support null safety」「sdk: '<2.0.0'」 | 非 UTF-8 的 Windows（例如繁中 cp950）上，pub 以系統碼頁讀取 git 依賴的 `pubspec.yaml`；其中的中文註解被誤解碼並吃掉換行，`sdk:` 設定因此消失。**git 依賴（`shell/`、`aqutter_core`）的 `pubspec.yaml` 必須保持純 ASCII**。臨時解法：Windows「設定 > 時間與語言 > 語言與區域 > 系統管理語言設定」勾選「Beta：使用 Unicode UTF-8 提供全球語言支援」並重開機。 |
+| CMake 報 `Unknown CMake command "aqutter_core_apply_standard_settings"` | `pubspec.lock` 鎖在舊 commit。開發階段 `shell`、`aqutter_core` 共用的 `0.0.0` tag 會隨 `main` 移動，lock 會過期：在 `aqutter/` 執行 `flutter pub upgrade aqutter aqutter_core` 後重建。 |
+| 安裝階段報 `file cannot create directory: C:/Program Files/<appName>` 或編譯報 `C1041`（PDB 被占用） | 先前被中斷的建置留下了錯誤的 CMake 快取或殘留的 `cl.exe` / `MSBuild`。結束殘留程序後刪除 `aqutter/build/windows` 重建。 |
 
 **Code signing（選配）**：Windows 以 Authenticode 對 `.exe` 簽章（`signtool sign /fd SHA256 /a <appName>.exe`，需 EV/OV 憑證），非建置必要步驟，發佈給外部使用者時再處理。企業散佈亦可打包為 MSIX（`msix` 套件）另行評估。亦可用 `aqutter build --signing=…` 自動簽章，見 [build-and-signing.md](build-and-signing.md)。

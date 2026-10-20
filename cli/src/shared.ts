@@ -1,6 +1,7 @@
 // dev / build / seed 共用：參數解析、env 檔解析、產物命名、逐步執行器、互動問答器。
 import { spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { connect } from 'node:net'
 import { basename, join } from 'node:path'
 import readline from 'node:readline'
 import type { Project } from './config.ts'
@@ -84,6 +85,34 @@ export const resolvePort = (project: Project, flags: Flags): number | null => {
     return null
   }
   return port
+}
+
+// 埠探測的連線逾時（本機回送，通常即時成功或即時拒絕）
+const PORT_PROBE_TIMEOUT_MS = 500
+
+/**
+ * 該埠是否已有程式在聆聽。
+ *
+ * 同時探 IPv4 與 IPv6 回送位址：`localhost` 在不同系統解析成 `127.0.0.1` 或 `::1`，
+ * dev server 與別的程式可能分別綁在兩個位址族上，兩邊都不衝突、啟動不報錯，
+ * 瀏覽器與殼卻連到另一個專案（用「連得上」判斷，而非「綁得上」）。
+ */
+export const isPortInUse = async (port: number): Promise<boolean> => {
+  const probe = (host: string): Promise<boolean> => new Promise((resolve) => {
+    const socket = connect({
+      port,
+      host,
+    })
+    const done = (inUse: boolean): void => {
+      socket.destroy()
+      resolve(inUse)
+    }
+    socket.setTimeout(PORT_PROBE_TIMEOUT_MS, () => done(false))
+    socket.once('connect', () => done(true))
+    socket.once('error', () => done(false))
+  })
+  const results = await Promise.all([probe('127.0.0.1'), probe('::1')])
+  return results.some(Boolean)
 }
 
 /**
