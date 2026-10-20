@@ -6,7 +6,9 @@ version: 0.0.0
 environment:
   # The lower bound is this project's baseline SDK (Flutter 3.47.0 / Dart 3.13.0), not the lowest common denominator of the dependencies.
   sdk: '>=3.13.0 <4.0.0'
-  flutter: '>=3.47.0'
+  # Flutter is pinned to the 3.47 line (3.47.4 is the reference, see .fvmrc).
+  # Bump this together with .fvmrc and docs/getting-started.md when the framework upgrades Flutter.
+  flutter: '>=3.47.4 <3.48.0'
 
 dependencies:
   flutter:

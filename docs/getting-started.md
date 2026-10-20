@@ -5,7 +5,7 @@
 | 項目 | 版本 |
 |---|---|
 | Node.js | ≥ 20 |
-| Flutter | ≥ 3.47.0（Dart ≥ 3.13.0） |
+| Flutter | 3.47.4（Dart 3.13.x）。框架固定此版本：pubspec 限制為 3.47.4 以上、3.48.0 以下，`aqutter init` 另產生 `.fvmrc`；建議用 [FVM](https://fvm.app) 切換版本（沒裝 FVM 時 `.fvmrc` 不會有作用，但 pubspec 的限制仍會生效） |
 | 目標平台工具鏈 | iOS / macOS：Xcode；Android：Android SDK；Windows：Visual Studio |
 
 ## 1. 安裝
