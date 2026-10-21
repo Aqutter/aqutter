@@ -1,22 +1,24 @@
 # 發佈與安裝
 
 ## Summary
-開發階段的框架不上 npm 與 pub.dev，全部以 git 依賴安裝；shell、client、cli 與 aqutter_core 共用同一個版本標記，目前固定為 0.0.0，標記隨 main 前進。cli 的打包產物納入版控，使用者直接從 GitHub 安裝時不必在本機編譯。
+開發階段的框架不上 npm 與 pub.dev，全部以 git 依賴安裝；shell、client 與 aqutter_core 使用版本標記，目前固定為 0.0.0，標記隨 main 前進；cli 已拆到獨立 repo aqutter-cli，有自己的標記。版本之間的對應以發佈清單為準。
 
 ## 安裝方式
 | 元件 | 安裝來源 | 安裝到哪裡 |
 |---|---|---|
-| cli | GitHub 子目錄 | 網頁專案的開發相依 |
+| cli | aqutter-cli repo 根目錄 | 網頁專案的開發相依 |
 | client | GitHub 子目錄 | 網頁專案的相依 |
 | shell | pubspec 的 git 依賴 | 產生的 Flutter App |
 | aqutter_core | pubspec 的 git 依賴，由 shell 帶入 | 產生的 Flutter App |
 
-來源：1. [project.md](../../project.md#L20)　2. [getting-started.md](../../../docs/getting-started.md#L13-L17)
+來源：1. [project.md](../../project.md#L21)　2. [getting-started.md](../../../docs/getting-started.md#L11-L30)
 
 ### 安裝 cli
 
+npm、pnpm、yarn、bun 皆可，語法相同：
+
 ```bash
-pnpm add -D "github:Aqutter/aqutter#0.0.0&path:/cli"
+pnpm add -D github:Aqutter/aqutter-cli#0.0.0
 ```
 
 ### 安裝 client
@@ -25,17 +27,17 @@ pnpm add -D "github:Aqutter/aqutter#0.0.0&path:/cli"
 pnpm add "github:Aqutter/aqutter#0.0.0&path:/client"
 ```
 
-來源：1. [getting-started.md](../../../docs/getting-started.md#L16-L17)
+來源：1. [getting-started.md](../../../docs/getting-started.md#L15-L28)
 
 ## 限制
 | 項目 | 說明 |
 |---|---|
-| 套件管理器 | 子目錄安裝的寫法只有 pnpm 支援，npm 與 yarn 無法安裝 |
+| 套件管理器 | cli 四種都能安裝；client 的子目錄寫法目前只有 pnpm 支援 |
 | 版本標記 | 0.0.0 會被移動，專案的 pubspec.lock 與套件管理器的 lock 可能落後遠端 |
 | 版本檢查 | aqutter doctor 比對 lock 與遠端標記，aqutter upgrade 把專案對齊目前的框架版本 |
-| 版本對應 | 框架版本的對應關係另由[發佈清單](release-manifest.md)記錄；目前還沒有 CLI 版本讀取它 |
+| 版本對應 | 框架版本的對應關係另由[發佈清單](release-manifest.md)記錄；aqutter doctor 與 aqutter upgrade 會讀它 |
 
-來源：1. [project.md](../../project.md#L20-L21)　2. [doctor.ts](../../../cli/src/commands/doctor.ts)　3. [upgrade.ts](../../../cli/src/commands/upgrade.ts)
+來源：1. [project.md](../../project.md#L21)　2. [cli.md](../../../docs/cli.md)　3. [releases.md](../../../docs/releases.md)
 
 ---
 [⚙️ Env](../environment.md) | [🏠 Wiki](../index.md)

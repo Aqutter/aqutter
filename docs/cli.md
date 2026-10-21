@@ -1,6 +1,6 @@
 # CLI 指令與旗標
 
-指令為 `aqutter`（套件 `@aqutter/aqutter-cli`）。除 `init`、`plugin create` 外，都從目前目錄往上找 `aqutter.config.json` 決定專案根。
+指令為 `aqutter`（套件 `@aqutter/aqutter-cli`）。CLI 位於獨立 repo [`Aqutter/aqutter-cli`](https://github.com/Aqutter/aqutter-cli)，本文件對應 CLI `0.0.0`；指令的實際行為以該 repo 的 `aqutter --help` 為準。除 `init`、`plugin create` 外，都從目前目錄往上找 `aqutter.config.json` 決定專案根。
 
 旗標一律用 `--key=value`（值必須以 `=` 綁定；`--env x` 會把 `x` 當位置參數）。旗標放在位置參數前或後皆可。
 
@@ -93,43 +93,45 @@
 
 ## aqutter doctor
 
-唯讀檢查專案與「這支 CLI 所代表的框架版本」是否一致，並對每個不一致的項目指出修法。框架版本以 CLI 自帶的範本（`environment`、`.fvmrc`）與 CLI 版本為準。
+唯讀檢查專案與[發佈清單](releases.md)（release manifest）所描述的框架版本是否一致，並對每個不一致的項目指出修法。框架版本取自清單的 `stable` 頻道；Flutter 版本、`environment` 約束、殼 ref 都以該版本的清單內容為準。
 
 | 檢查 | 說明 |
 |---|---|
 | Flutter 版本 | 本機 `flutter` 低於框架要求的下限為**錯誤**；高於基準版本（框架尚未驗證）為警告，不阻擋；等於基準版本通過。pubspec 沒有設上限，所以較新的 Flutter 不會被 pub 擋下，由這裡提醒 |
 | pubspec `environment` | `sdk` / `flutter` 約束是否與框架一致 |
-| 殼 ref | `<appDir>/pubspec.yaml` 的 `aqutter` git ref 是否等於 CLI 版本；殼依賴是本機路徑時略過 |
+| 殼 ref | `<appDir>/pubspec.yaml` 的 `aqutter` git ref 是否等於清單記載的 commit；殼依賴是本機路徑時略過 |
 | `.fvmrc`（選配） | 只在 `<appDir>/.fvmrc` 已存在時才檢查版本是否為框架基準；沒有這個檔案不會有任何提示（框架不要求使用 FVM） |
 | npm 依賴 | `package.json` 內以 github 指定的 `@aqutter/aqutter`、`@aqutter/aqutter-cli` ref |
 | lock | `pubspec.lock` 鎖定的 commit 是否落後遠端 ref（需連網；開發階段 tag 會隨 `main` 移動，lock 不會自動跟上） |
 
 | 旗標 | 說明 |
 |---|---|
-| `--offline` | 不連網，略過 lock 與遠端的比對 |
+| `--offline` | 不連網：清單只用本機快取，再退回 CLI 內建快照；同時略過 lock 與遠端的比對 |
 
 結束碼：有**錯誤**才為 1；只有警告為 0。
 
 ## aqutter upgrade
 
-把專案對齊到這支 CLI 所代表的框架版本。
+把專案對齊到清單所描述的框架版本（預設 `stable` 頻道）。
+
+| 旗標 | 說明 |
+|---|---|
+| `--to=<版本>` | 指定框架版本；已撤回（`yanked`）的版本會被拒絕 |
+| `--dry-run` | 只列出會改什麼，不寫檔、不執行 flutter |
+| `--skip-pub` | 只改檔案，不執行 `flutter pub upgrade` |
+| `--offline` | 不連網，清單只用本機快取與內建快照 |
 
 會改的（只改需要改的那一行，保留原有格式）：
 
 - `<appDir>/pubspec.yaml`：`environment.sdk`、`environment.flutter`，以及殼依賴的 git `ref`（本機路徑依賴不動）。
 - `<appDir>/.fvmrc`：只在專案已有這個檔案時才更新 Flutter 版本（不會替沒有的專案建立；內容不是合法 JSON 時略過並提示，不覆寫）。
-- `package.json`：`@aqutter/aqutter`、`@aqutter/aqutter-cli` 的 github 依賴 ref。
+- `package.json`：`@aqutter/aqutter` 改為清單的 client 安裝字串；`@aqutter/aqutter-cli` 若仍是舊的 `…aqutter#…&path:/cli` 語法，改為 `github:Aqutter/aqutter-cli#<版本>`。
 
 接著在 `<appDir>` 執行 `flutter pub upgrade aqutter aqutter_core`，讓 `pubspec.lock` 跟上。
 
 **不會改**：`init` 當初展開的原生檔案（`android/`、`ios/`、`windows/` 等）與 `lib/`——它們是專案自己的。
 
-| 旗標 | 說明 |
-|---|---|
-| `--dry-run` | 只列出會改什麼，不寫檔、不執行 flutter |
-| `--skip-pub` | 只改檔案，不執行 `flutter pub upgrade` |
-
-升級流程：先把 `package.json` 內 Aqutter 的依賴升到新版並重新安裝（讓 CLI 本身變成新版），再用新版 CLI 執行 `aqutter upgrade`，最後 `aqutter doctor` 確認。升級後若 `package.json` 有變動，指令會提示重新安裝依賴的指令。
+升級流程：先把 `@aqutter/aqutter-cli` 升到新版並重新安裝（若清單的 `cli.min` 高於目前 CLI，指令會拒絕並提示），再執行 `aqutter upgrade`，最後 `aqutter doctor` 確認。升級後若 `package.json` 有變動，指令會提示重新安裝依賴的指令。
 
 ## 行程環境變數
 
@@ -139,3 +141,7 @@
 | `JAVA_HOME` | `android gen-jks` | 尋找 `keytool` |
 | `HOME` | `dev` | 尋找 Android SDK 的 `adb` |
 | `DEV_PORT` / `DEV_HOST` | 由 `dev` 設給 dev server | 專案設定（CSP、HMR）讀取；iOS 實機時 `DEV_HOST` 為區網 IP |
+
+## 清單來源
+
+`init`、`plugin create`、`doctor`、`upgrade` 會讀發佈清單：預設從 `https://raw.githubusercontent.com/Aqutter/aqutter/main/manifest/releases.json` 取得並快取 24 小時，逾時 15 秒；失敗時依序退回舊快取與 CLI 內建快照。可用環境變數 `AQUTTER_MANIFEST_URL` 或 `aqutter.config.json` 的 `manifest.url` 改成其他 https 網址。

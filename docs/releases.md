@@ -2,7 +2,7 @@
 
 `manifest/releases.json` 記錄「哪些版本的 shell、aqutter_core、client 與 Flutter 是一組」。它是 Aqutter 版本相容性的唯一來源，目的是讓 CLI 與專案不必把這類知識寫死在自己裡面。
 
-> **現況**：這份清單已發佈，但還沒有任何 CLI 版本讀取它。讀取由 `aqutter-cli` 提供（`init`、`doctor`、`upgrade`）。在那之前，專案仍照 [快速開始](getting-started.md) 與 [CLI](cli.md) 的現行方式運作。
+> **現況**：`aqutter-cli` 的 `init`、`plugin create`、`doctor`、`upgrade` 會讀取這份清單，取得方式與旗標見 [CLI](cli.md)。
 
 ## 取得位置
 

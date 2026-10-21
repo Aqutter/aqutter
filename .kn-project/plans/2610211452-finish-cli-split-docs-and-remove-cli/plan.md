@@ -2,7 +2,7 @@
 
 - Status: Planning
 - Created: 2026-10-21 14:52
-- Issue: 待建立
+- Issue: Aqutter/aqutter#4
 - Milestone: N/A / Base Branch: main
 
 ## Summary
@@ -41,3 +41,7 @@
 
 ## Manual Follow-ups
 - bun：`bun add -d "github:Aqutter/aqutter-cli#0.0.0"` 然後 `bunx aqutter --version`，通過後才可執行移除 `cli/`。
+
+## Deviations
+- `.kn-project/wiki/environment.md` 是由 `cli/template/env/.env.example` 生成的頁面；`cli/` 移除後來源會消失，目前保持原樣（來源仍指向 `cli/`），移除 `cli/` 時要決定新的生成來源（`aqutter-cli` 的檔案不在本 repo 內）。
+- client 子目錄安裝目前只有 pnpm 支援，文件如實寫明限制，沒有新增 npm／yarn／bun 的 client 安裝方式。
