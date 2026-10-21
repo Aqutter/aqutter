@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-21T04:00:00Z",
+  "generatedAt": "2026-10-21T08:00:00Z",
   "channels": {
     "stable": "0.0.0"
   },
@@ -21,7 +21,7 @@
         "ref": "72f7b067f691d5cb937eb7101f1161bd54676454"
       },
       "client": {
-        "spec": "github:Aqutter/aqutter#48d58e205967680f1ab1fffab02520014854ae4b&path:/client"
+        "spec": "github:Aqutter/aqutter-js#ac7c23b6f8030d97dafa2c798ceb97a90382f6bf"
       },
       "cli": {
         "min": "0.0.0"

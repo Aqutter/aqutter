@@ -1,13 +1,13 @@
 # 架構總覽
 
 ## Summary
-Aqutter 把既有的網頁專案包成原生 App：網頁跑在 Flutter 殼的 WebView 裡，殼提供本機 server、網頁包熱更新、原生 bridge 與可擴充的 plugin。框架由本 repo 的 shell、client，獨立 repo 的 cli（aqutter-cli）與 aqutter_core，以及 docs 文件組成。
+Aqutter 把既有的網頁專案包成原生 App：網頁跑在 Flutter 殼的 WebView 裡，殼提供本機 server、網頁包熱更新、原生 bridge 與可擴充的 plugin。框架由本 repo 的 shell，獨立 repo 的 client（aqutter-js）、cli（aqutter-cli）與 aqutter_core，以及 docs 文件組成。
 
 ## 組成
 | 元件 | 位置 | 角色 |
 |---|---|---|
 | shell | 本 repo 的 shell 目錄 | Dart 套件，Flutter 殼本體：本機 server、熱更新、bridge handler、plugin 介面 |
-| client | 本 repo 的 client 目錄 | npm 套件，網頁端的 bridge client、plugin API 與跨層契約型別，以 TypeScript 原始碼發佈 |
+| client | 獨立 repo aqutter-js | npm 套件，網頁端的 bridge client、plugin API 與跨層契約型別，以 TypeScript 原始碼發佈 |
 | cli | 獨立 repo aqutter-cli | npm 套件，提供 aqutter 指令，並內含 App 與 plugin 的專案範本 |
 | aqutter_core | 獨立 repo | WebView 與 in-app browser 的核心，由 shell 以 git 依賴 |
 | docs | 本 repo 的 docs 目錄 | 使用文件 |
@@ -31,8 +31,8 @@ Aqutter 把既有的網頁專案包成原生 App：網頁跑在 Flutter 殼的 W
 
 | 項目 | 兩端 |
 |---|---|
-| bridge 的 handler 與事件名稱 | shell 與 client |
-| 鏡像協定的幀格式與手勢訊息 | aqutter_core 與 client |
+| bridge 的 handler 與事件名稱 | shell 與 client（另一個 repo） |
+| 鏡像協定的幀格式與手勢訊息 | aqutter_core 與 client（兩個獨立 repo） |
 | env 鍵 | shell 的 Dart 端、cli 的 env 範本（另一個 repo）、環境變數頁 |
 
 來源：1. [AGENTS.md](../../../AGENTS.md#L7-L10)

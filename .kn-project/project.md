@@ -8,7 +8,7 @@ Aqutter 框架的 monorepo：把既有網頁專案包成原生 App——網頁�
 | 目錄 | 內容 |
 | :--- | :--- |
 | `shell/` | Dart 套件 `aqutter`：`runAqutter(config, plugins)`、`AqutterConfig`、本機 server、OTA 更新、bridge handlers、plugin 介面 |
-| `client/` | npm 套件 `@aqutter/aqutter`：網頁端 bridge client、plugin API、跨層契約型別（TS 原始碼發佈） |
+| client | 已拆到獨立 repo [`Aqutter/aqutter-js`](https://github.com/Aqutter/aqutter-js)（npm 套件 `@aqutter/aqutter`：網頁端 bridge client、plugin API、跨層契約型別，TS 原始碼發佈）；本 repo 不再有 `client/` |
 | `cli/` | CLI 已拆到獨立 repo [`Aqutter/aqutter-cli`](https://github.com/Aqutter/aqutter-cli)（npm 套件 `@aqutter/aqutter-cli`，指令 `aqutter`，含 `template/app`、`template/plugin` 範本與 `dist/`）；本 repo 不再有 `cli/` |
 | `docs/` | 使用文件 |
 | `manifest/` | release manifest（`releases.json`）與其 JSON Schema：框架各版本對應的 shell、aqutter_core、client 與 Flutter 版本，是版本相容性的唯一來源；由 CI 檢查。說明見 [發佈清單](wiki/ops/release-manifest.md) |
@@ -18,10 +18,10 @@ WebView 由獨立 repo `Aqutter/aqutter_core`（以 git tag 依賴）提供。
 ## 保留鐵則
 
 - **名稱定案**：見 `AGENTS.md` 第 1 條；channel、handler、env 鍵、plugin 命名規則都是「兩種語言各存一份」的字串，只改一邊就是錯。
-- **以 git 依賴發佈，不上 pub.dev / npm**：shell 與 plugin 都用 `git:`（`path: shell`、`ref: <tag>`）；client 以 `github:Aqutter/aqutter#<tag>&path:/client` 安裝（子目錄語法目前只有 pnpm 支援）；CLI 以 `github:Aqutter/aqutter-cli#<tag>` 安裝（npm、pnpm、yarn 皆可；bun 尚未驗證）。shell、client 共用本 repo 的版本 tag；開發階段版本固定為 `0.0.0`（tag `0.0.0` 隨 `main` 前進）。版本相容性以 `manifest/releases.json` 為準，其 ref 一律是 commit sha。
+- **以 git 依賴發佈，不上 pub.dev / npm**：shell 與 plugin 都用 `git:`（`path: shell`、`ref: <tag>`）；client 以 `github:Aqutter/aqutter-js#<ref>`、CLI 以 `github:Aqutter/aqutter-cli#<ref>` 安裝（皆為 repo 根目錄，npm、pnpm、yarn 皆可；bun 尚未驗證）。shell 的版本 tag 在本 repo，client、CLI 各有自己的 tag；開發階段版本固定為 `0.0.0`（tag `0.0.0` 隨 `main` 前進）。版本相容性以 `manifest/releases.json` 為準，其 ref 一律是 commit sha。
 - **CLI 在 `Aqutter/aqutter-cli`**：其 `dist/` 必須與 `src/`、`template/` 同步提交；CLI 不寫死任何網頁框架，只認 `aqutter.config.json`。跨 repo 的成對規則（env 鍵、Flutter 版本、範本變數）見 `AGENTS.md`，目前只靠文件約束，沒有跨 repo CI。
 - **env 範圍**：`AQUTTER_*` 只有殼讀；dev 連線位址 `AQUTTER_DEV_URL` 由 `aqutter dev` 依平台注入。
-- **Native view 鏡像**：原生端在 `aqutter_core`（`AqutterNative`，以 tag 依賴），網頁端在 client（`<aqutter-native>`、`AqutterNative`）；幀格式與訊息格式兩端各存一份（`native_frame.dart` ↔ `client/src/nativeview/frame.ts`、`gestures.ts`），改一邊必改另一邊。`import '@aqutter/aqutter'` 必須在伺服端渲染下安全，故元素類別只在 `defineAqutterNative()` 內建立。
+- **Native view 鏡像**：原生端在 `aqutter_core`（`AqutterNative`，以 tag 依賴），網頁端在 client（`Aqutter/aqutter-js`，`<aqutter-native>`、`AqutterNative`）；幀格式與訊息格式兩端各存一份（`native_frame.dart` ↔ aqutter-js 的 `src/nativeview/frame.ts`、`gestures.ts`），改一邊必改另一邊。`import '@aqutter/aqutter'` 必須在伺服端渲染下安全，故元素類別只在 `defineAqutterNative()` 內建立。
 - **Plugin**：同一個 repo 同時是 npm 套件與 Dart 套件；`aqutter plugin add` 把 Dart 端以 path 依賴指向 `node_modules` 內的套件，並產生 `lib/aqutter_plugins.dart`。
 
 ## 工作流程
@@ -32,7 +32,6 @@ WebView 由獨立 repo `Aqutter/aqutter_core`（以 git tag 依賴）提供。
 
 ```bash
 cd shell && flutter analyze && flutter test
-cd client && pnpm typecheck && pnpm test
 ```
 
 已驗證：

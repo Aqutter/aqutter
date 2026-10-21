@@ -120,11 +120,14 @@ jobs:
                 errors.push(`${where}: shell pubspec sdk is ${environmentValue(pubspec, 'sdk')}, manifest dart is ${release.dart}`)
               }
             }
-            // 4. client 的 github 依賴指向存在的 commit
-            const client = /^github:Aqutter\/aqutter#([0-9a-f]{40})&path:\/client$/.exec(release.client.spec)
-            if (client) {
+            // 4. client 的安裝字串是 aqutter-js 的 commit，且該 commit 存在
+            const client = /^github:Aqutter\/aqutter-js#([0-9a-f]{40})$/.exec(release.client.spec)
+            if (!client) {
+              errors.push(`${where}.client.spec must be github:Aqutter/aqutter-js#<40-hex sha>, got ${release.client.spec}`)
+            }
+            else {
               try {
-                await github(`repos/Aqutter/aqutter/commits/${client[1]}`)
+                await github(`repos/Aqutter/aqutter-js/commits/${client[1]}`)
               }
               catch (error) {
                 errors.push(`${where}.client.spec: ${error.message}`)
