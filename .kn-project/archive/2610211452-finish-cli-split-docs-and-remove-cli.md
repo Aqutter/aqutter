@@ -1,0 +1,43 @@
+# 2610211452 - finish-cli-split-docs-and-remove-cli
+
+- Created: 2026-10-21 14:52 / Archived: 2026-10-21 15:30
+- Issue: Aqutter/aqutter#4
+- Milestone: N/A / Base Branch: main
+
+## Summary
+完成「`cli/` 拆成 `Aqutter/aqutter-cli`」的收尾：把本 repo 描述「CLI 在本 repo」的文件改寫為拆分後的樣子，並移除舊 `cli/` 目錄。這是前置計畫 `2610211114-split-cli-to-aqutter-cli-repo` 被移出的後續項目；PR 分兩個：文件改寫（Aqutter/aqutter#5），移除 `cli/`（Aqutter/aqutter#6）。
+
+## Cross-Repo Scope
+- 單一 repo：`Aqutter/aqutter`。參照（已完成）：`Aqutter/aqutter#2`、`Aqutter/aqutter-cli#1`、`Aqutter/aqutter-nuxt-app#1`。
+
+## Key Decisions
+- **[Phase 0]** 整合主幹 `main`；milestone 不指定。
+- **[Q1]** `docs/cli.md` 留在本 repo，標明對應 CLI 版本，正本指向 `aqutter-cli`。
+- **[Q2]** 跨 repo 成對規則（env 鍵、Flutter 版本、範本變數）只寫文件，不新增 CI。
+- **[設計]** 移除 `cli/` 放最後；閘門為 `aqutter-cli` 可安裝、npm／yarn／pnpm 驗證、下游已遷移、bun 人工驗證。
+- **[執行]** 序列；完成後兩個 PR（文件改寫、移除 `cli/`），Closes 只放在後者。
+- **[bun]** 使用者決定暫不測、視為不支援，文件標「尚未驗證，暫不支援」，閘門以此視為達成。
+- **[env 頁來源]** 以 `docs/env.example`（aqutter-cli 範本的快照）作為 wiki 環境變數頁的生成來源（使用者選擇）。
+
+## Deviations
+- bun 未驗證（本機沒有 bun），未達原本「人工驗證通過」的閘門，改為文件降級。
+- client 子目錄安裝目前只有 pnpm 支援，文件如實寫明，沒有新增 npm／yarn 的 client 安裝方式。
+- 新增 `docs/env.example` 與 `AGENTS.md` 的同步說明，屬計畫外項目。
+
+## Impact Files
+- `README.md`、`docs/getting-started.md`、`client/README.md`、`docs/cli.md`、`docs/releases.md`、`AGENTS.md`、`.kn-project/project.md`。
+- wiki：`ops/distribution.md`、`dev/verification.md`、`platform/architecture.md`、`environment.md`。
+- 移除 `cli/`；新增 `docs/env.example`。
+
+## Details
+- 驗證：wiki lint 硬閘違規 0、wiki 已重新 build；全 repo grep 沒有殘留的 `cli/` 路徑。
+- 未驗證：bun 安裝；新語法在 npm／yarn 下對完整專案的安裝（CLI 本身已於 aqutter-cli 驗證）。
+- 後續（未建立）：VitePress 說明網站見 `Aqutter/aqutter#1`；env 範本快照需手動同步。
+
+## Wiki Changes
+
+| 頁面 | 日期 | 版本 | 變動 | Issue | PR |
+|---|---|---|---|---|---|
+| `dev/verification.md` | 2026-10-21 | — | cli 拆到獨立 repo 後的說明改寫 | [#4](https://github.com/Aqutter/aqutter/issues/4) | [PR #6](https://github.com/Aqutter/aqutter/pull/6) |
+| `ops/distribution.md` | 2026-10-21 | — | cli 拆到獨立 repo 後的說明改寫 | [#4](https://github.com/Aqutter/aqutter/issues/4) | [PR #6](https://github.com/Aqutter/aqutter/pull/6) |
+| `platform/architecture.md` | 2026-10-21 | — | cli 拆到獨立 repo 後的說明改寫 | [#4](https://github.com/Aqutter/aqutter/issues/4) | [PR #6](https://github.com/Aqutter/aqutter/pull/6) |
