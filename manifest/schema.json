@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Aqutter/aqutter/main/manifest/schema.json",
+  "title": "Aqutter release manifest",
+  "description": "Describes which shell, aqutter_core, client and Flutter versions belong together for each Aqutter release. Contract rev 1; see .kn-project plans for the contract.",
+  "type": "object",
+  "required": ["schema", "generatedAt", "channels", "releases"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "description": "Manifest format version. Only bumped for incompatible changes.",
+      "const": 1
+    },
+    "generatedAt": {
+      "description": "ISO 8601 UTC timestamp. Informational only.",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "channels": {
+      "description": "Channel name to release version. Must contain stable.",
+      "type": "object",
+      "required": ["stable"],
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "$ref": "#/$defs/version" }
+    },
+    "releases": {
+      "description": "Release version to release description.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/version" },
+      "additionalProperties": { "$ref": "#/$defs/release" }
+    }
+  },
+  "$defs": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "sha": {
+      "description": "Full lowercase commit sha. Tags are not allowed because they move.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "githubGitUrl": {
+      "description": "HTTPS git URL on the allowed host (github.com).",
+      "type": "string",
+      "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
+    },
+    "release": {
+      "type": "object",
+      "required": ["status", "flutter", "dart", "shell", "core", "client", "cli"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["supported", "deprecated", "yanked"] },
+        "flutter": {
+          "type": "object",
+          "required": ["baseline"],
+          "additionalProperties": false,
+          "properties": {
+            "baseline": { "$ref": "#/$defs/version" }
+          }
+        },
+        "dart": {
+          "description": "environment.sdk constraint, for example >=3.13.0 <4.0.0.",
+          "type": "string",
+          "pattern": "^(>=|<=|>|<)?\\d+\\.\\d+\\.\\d+( (>=|<=|>|<)\\d+\\.\\d+\\.\\d+)*$"
+        },
+        "shell": {
+          "type": "object",
+          "required": ["url", "path", "ref"],
+          "additionalProperties": false,
+          "properties": {
+            "url": { "$ref": "#/$defs/githubGitUrl" },
+            "path": { "const": "shell" },
+            "ref": { "$ref": "#/$defs/sha" }
+          }
+        },
+        "core": {
+          "type": "object",
+          "required": ["url", "ref"],
+          "additionalProperties": false,
+          "properties": {
+            "url": { "$ref": "#/$defs/githubGitUrl" },
+            "ref": { "$ref": "#/$defs/sha" }
+          }
+        },
+        "client": {
+          "type": "object",
+          "required": ["spec"],
+          "additionalProperties": false,
+          "properties": {
+            "spec": { "type": "string", "minLength": 1 }
+          }
+        },
+        "cli": {
+          "type": "object",
+          "required": ["min"],
+          "additionalProperties": false,
+          "properties": {
+            "min": { "$ref": "#/$defs/version" }
+          }
+        },
+        "notes": {
+          "description": "HTTPS URL of the upgrade notes. Omit the key when there are none; never null.",
+          "type": "string",
+          "pattern": "^https://.+"
+        }
+      }
+    }
+  }
+}

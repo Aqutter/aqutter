@@ -1,0 +1,63 @@
+# 2610211114 - split-cli-to-aqutter-cli-repo
+
+- Created: 2026-10-21 11:14 / Archived: 2026-10-21 13:57
+- Issue: Aqutter/aqutter#2
+- Milestone: N/A / Base Branch: main
+
+## Summary
+發佈 release manifest（`manifest/releases.json`、`manifest/schema.json`）與驗證它的 CI，作為框架版本相容性的唯一來源，並新增說明頁 `docs/releases.md`。
+
+這是「把 `cli/` 拆成獨立 repo `Aqutter/aqutter-cli`」的第一階段：`aqutter-cli` 的開發與端到端驗證需要 manifest 先合併上線。原計畫另有文件改寫與最後移除舊 `cli/`，因為都要等 `aqutter-cli` 可安裝，範圍於執行中縮小，這些項目移到後續計畫。契約 rev 1（manifest 格式與取得行為）已凍結，`Aqutter/aqutter-cli` 的同名計畫逐字沿用。
+
+## Cross-Repo Scope
+- 共用計畫 ID `2610211114-split-cli-to-aqutter-cli-repo`、共用分支名 `feature/2610211114-split-cli-to-aqutter-cli-repo`。
+- `Aqutter/aqutter`（本 repo）— 契約提供方：manifest、schema、CI、說明頁。
+- `Aqutter/aqutter-cli`（新 repo，issue `Aqutter/aqutter-cli#1`）— 契約消費方：匯入 `cli/` 與歷史、改讀 manifest、支援四種套件管理器。
+- `Aqutter/aqutter-nuxt-app`（issue 待建立，計畫仍為 Planning）— 下游：改用新依賴語法並跑 `aqutter upgrade`。
+- 執行順序：本 repo 的 manifest 合併上線 → `aqutter-cli` → `aqutter-nuxt-app` → 本 repo 的後續計畫（文件改寫、移除 `cli/`）。
+
+## Key Decisions
+- **[Phase 0]** 目標 repo `Aqutter/aqutter`；整合主幹 `main`（遠端只有一條分支）；wiki 初始化：是；milestone：不指定，base 為 `main`。
+- **[設計]** 只拆 `cli`，`client` 留在本 repo — 理由：`cli` 與其他部分沒有程式碼耦合，而 client↔shell 的契約需要同一個 commit 一起改。
+- **[設計]** 升級與相容知識放在遠端 manifest，不寫死在 CLI；manifest 只准宣告式欄位、不執行下載內容 — 理由：CLI 與 shell 不再共用版本字串；它會驅動檔案修改，是供應鏈風險點。
+- **[Q1]** manifest 放在本 repo `main` 的 `manifest/releases.json`，以 raw 網址提供 — 理由：不依賴尚未完成的說明網站、與程式碼同在 git、不需部署。
+- **[Q2]** 範本留在 CLI，不搬不下載；「建立新網頁專案」的範本為未來功能 — 理由：使用者表示現在可以不做。後果：範本與 shell 的 Flutter 版本、env 鍵成對規則橫跨兩個 repo，改由 manifest 的 `flutter.baseline` 與 `aqutter-cli` 的 CI 承接。
+- **[Q3]** 直接移除 `cli/`（使用者選擇，建議是保留凍結副本）— 後果：舊語法立即失效；保護措施：移除放在最後，需等 `aqutter-cli` 可安裝且下游已遷移。
+- **[Q4]** 沿用 `0.0.0`，manifest 的 `shell.ref`、`core.ref` 與 client 安裝字串一律寫 commit sha — 理由：與現行流程一致；固定在 sha 解決 tag 移動造成的 lock 過期。
+- **[Q5]** 現在就為 `aqutter-nuxt-app` 建立計畫，`aqutter-cli` 待新 repo 建立後再建（使用者選擇，未採納建議的僅一份）。
+- **[契約]** rev 1 凍結（核准日 2026-10-21）；`shell.ref`／`core.ref` 的型別於凍結前由「tag 或 sha」收斂為「僅 sha」。
+- **[執行模式]** 序列 — 依據：只有本 repo 有可執行的工作，相依鏈是一條線。
+- **[執行中]** manifest 的交叉檢查邏輯寫在 workflow 內，不另建檔案 — 理由：避免動到 Impact Files 未列的檔案；同一份程式已在本機對真實 repo 驗證，並以故意改壞的 manifest 驗證會失敗。
+- **[範圍調整]** 計畫縮小為第一階段（manifest、schema、CI、`docs/releases.md`），其餘移到後續計畫 — 理由：剩下的項目都要等 `aqutter-cli` 可安裝；而 `aqutter-cli` 需要 manifest 先合併上線，且 PR 的 `Closes #2` 不應在工作未完成時提前關閉 issue。使用者於核准閘選擇此走法，issue 內文一併調整。
+
+## Deviations
+- **範圍縮小**：原計畫的 README／getting-started／client README／`docs/cli.md`／`AGENTS.md`／`project.md` 與 wiki（安裝語法、組成）改寫，以及最後移除舊 `cli/`，移到後續計畫（見計畫 `tasks.md` 的「移到後續計畫」清單，歸檔時一併記於此）：
+  - 更新 `README.md:20-21`、`docs/getting-started.md:16-17`、`client/README.md:14` 的安裝說明，列出四種套件管理器。
+  - 改寫 `docs/cli.md:94`（doctor）、`docs/cli.md:113`（upgrade），補 manifest、`--offline`、`AQUTTER_MANIFEST_URL`。
+  - 改寫 `AGENTS.md:10-13` 紅線 3、4、4.1、5，並更新 `AGENTS.md:7`、`AGENTS.md:15-20`。
+  - 更新 `.kn-project/project.md:12`、`:20`、`:22`，以及 wiki 的 `ops/distribution.md`、`platform/architecture.md`。
+  - 最後移除舊 `cli/`（不可回復）；閘門：`aqutter-cli` 可安裝、npm／yarn／pnpm 可用新語法安裝並跑通、bun 人工驗證、下游已遷移。
+- 新增 Impact Files 原本沒列的 wiki 頁（`ops/release-manifest.md`），屬於本計畫新增的知識。
+- 契約凍結後沒有任何變更。
+
+## Impact Files
+- `manifest/releases.json` (new) — release manifest 正本（`0.0.0` 一筆；shell、aqutter_core、client 皆為 commit sha，Flutter 基準 3.47.4）。
+- `manifest/schema.json` (new) — manifest 的 JSON Schema（2020-12）。
+- `.github/workflows/manifest-check.yml` (new) — 驗 schema、頻道、ref 存在、Flutter 基準與殼／aqutter_core 一致。
+- `docs/releases.md` (new) — 使用者說明頁。
+- `shell/pubspec.yaml:7-11`（只讀）— `flutter.baseline` 與 `dart` 以它為準，由 CI 比對。
+- `.kn-project/wiki/ops/release-manifest.md` (new)、`.kn-project/wiki/ops/distribution.md`、`.kn-project/wiki/index.md` — wiki。
+- 本 repo 另含 wiki 初始化（`.kn-project/wiki/` 其餘頁面、`wiki.html`、`wiki-data/`）。
+
+## Details
+- 驗證：`ajv-cli`（draft2020）驗證 manifest 通過；交叉檢查程式對真實 repo 通過，並以改壞的 manifest（錯的基準版本、不存在的 sha、stable 指向不存在的版本）確認會失敗；`aqutter-cli` 的內建快照與 manifest 逐字相同；`aqutter-cli` 的 Contract 副本與正本逐字相同。
+- 未驗證：manifest 的 raw 網址（要合併到 `main` 才存在）；`manifest-check` workflow 在 GitHub 上的實際執行結果。
+
+## Wiki Changes
+
+| 頁面 | 日期 | 版本 | 變動 | Issue | PR |
+|---|---|---|---|---|---|
+| `dev/verification.md` | 2026-10-21 | — | 建立 | [#2](https://github.com/Aqutter/aqutter/issues/2) | — |
+| `ops/distribution.md` | 2026-10-21 | — | 建立 | [#2](https://github.com/Aqutter/aqutter/issues/2) | — |
+| `ops/release-manifest.md` | 2026-10-21 | — | 建立 | [#2](https://github.com/Aqutter/aqutter/issues/2) | — |
+| `platform/architecture.md` | 2026-10-21 | — | 建立 | [#2](https://github.com/Aqutter/aqutter/issues/2) | — |
