@@ -1,0 +1,14 @@
+window.WIKI_MANIFEST={
+"title":"aqutter",
+"repoUrl":"https://github.com/Aqutter/aqutter",
+"repoBranch":"main",
+"appflow":null,
+"pages":[
+"index.md",
+"dev/verification.md",
+"environment.md",
+"ops/distribution.md",
+"ops/release-manifest.md",
+"platform/architecture.md",
+]
+};

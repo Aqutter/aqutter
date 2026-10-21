@@ -11,6 +11,7 @@ Aqutter 框架的 monorepo：把既有網頁專案包成原生 App——網頁�
 | `client/` | npm 套件 `@aqutter/aqutter`：網頁端 bridge client、plugin API、跨層契約型別（TS 原始碼發佈） |
 | `cli/` | npm 套件 `@aqutter/aqutter-cli`（指令 `aqutter`）：`init` / `dev` / `seed` / `build` / `flavor add` / `android gen-jks` / `plugin …`，內含 `template/app`（Flutter App 範本）與 `template/plugin`（plugin 範本）；`dist/` 為 esbuild 打包產物並納入版控 |
 | `docs/` | 使用文件 |
+| `manifest/` | release manifest（`releases.json`）與其 JSON Schema：框架各版本對應的 shell、aqutter_core、client 與 Flutter 版本，是版本相容性的唯一來源；由 CI 檢查。說明見 [發佈清單](wiki/ops/release-manifest.md) |
 
 WebView 由獨立 repo `Aqutter/aqutter_core`（以 git tag 依賴）提供。
 
