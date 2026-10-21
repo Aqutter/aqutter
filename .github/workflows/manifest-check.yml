@@ -1,0 +1,140 @@
+name: manifest-check
+
+# Validates manifest/releases.json: JSON schema, channel targets, that every ref
+# exists on GitHub, and that the Flutter baseline matches the shell and aqutter_core
+# pubspec files at those refs. See .kn-project plan 2610211114 (Contract rev 1).
+on:
+  pull_request:
+    paths:
+      - 'manifest/**'
+      - 'shell/pubspec.yaml'
+      - '.github/workflows/manifest-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'manifest/**'
+      - 'shell/pubspec.yaml'
+      - '.github/workflows/manifest-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate against the JSON schema
+        run: npx --yes ajv-cli@5.0.0 validate --spec=draft2020 --strict=false -s manifest/schema.json -d manifest/releases.json
+
+      - name: Cross-checks (channels, refs, Flutter baseline)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node --input-type=module - <<'JS'
+          import { readFileSync } from 'node:fs'
+
+          const manifest = JSON.parse(readFileSync('manifest/releases.json', 'utf8'))
+          const token = process.env.GITHUB_TOKEN
+          const errors = []
+
+          const github = async (path) => {
+            const response = await fetch(`https://api.github.com/${path}`, {
+              headers: {
+                accept: 'application/vnd.github+json',
+                'user-agent': 'aqutter-manifest-check',
+                ...(token ? { authorization: `Bearer ${token}` } : {}),
+              },
+            })
+            if (!response.ok) {
+              throw new Error(`${path} -> HTTP ${response.status}`)
+            }
+            return response.json()
+          }
+
+          const repoOf = (url) => url.replace('https://github.com/', '').replace(/\.git$/, '')
+
+          const fileAt = async (url, path, ref) => {
+            const body = await github(`repos/${repoOf(url)}/contents/${path}?ref=${ref}`)
+            return Buffer.from(body.content, 'base64').toString('utf8')
+          }
+
+          /** environment 區塊內某個鍵的值（去掉引號），找不到回 null。 */
+          const environmentValue = (pubspec, key) => {
+            const lines = pubspec.split(/\r?\n/)
+            const start = lines.findIndex((line) => /^environment:\s*$/.test(line))
+            if (start === -1) {
+              return null
+            }
+            for (let i = start + 1; i < lines.length && (lines[i].trim() === '' || /^ /.test(lines[i])); i += 1) {
+              const match = new RegExp(`^ {2}${key}:\\s*(.+?)\\s*$`).exec(lines[i])
+              if (match) {
+                return match[1].replace(/\s+#.*$/, '').replace(/^(['"])(.*)\1$/, '$2')
+              }
+            }
+            return null
+          }
+
+          const lowerBound = (constraint) => /^>=(\d+\.\d+\.\d+)/.exec(constraint ?? '')?.[1] ?? null
+
+          // 1. channels 指向存在的 release，stable 必須是 supported
+          for (const [channel, version] of Object.entries(manifest.channels)) {
+            if (!manifest.releases[version]) {
+              errors.push(`channels.${channel} -> ${version}: no such release`)
+            }
+          }
+          if (manifest.releases[manifest.channels.stable]?.status !== 'supported') {
+            errors.push(`channels.stable (${manifest.channels.stable}) must point to a supported release`)
+          }
+
+          for (const [version, release] of Object.entries(manifest.releases)) {
+            const where = `releases.${version}`
+            const sources = [
+              ['shell', release.shell, 'shell/pubspec.yaml'],
+              ['core', release.core, 'pubspec.yaml'],
+            ]
+            for (const [name, source, pubspecPath] of sources) {
+              // 2. ref 在遠端存在
+              try {
+                await github(`repos/${repoOf(source.url)}/commits/${source.ref}`)
+              }
+              catch (error) {
+                errors.push(`${where}.${name}.ref: ${error.message}`)
+                continue
+              }
+              // 3. 該 commit 的 pubspec 與 manifest 一致（yanked 的版本不再檢查）
+              if (release.status === 'yanked') {
+                continue
+              }
+              const pubspec = await fileAt(source.url, pubspecPath, source.ref)
+              const flutter = lowerBound(environmentValue(pubspec, 'flutter'))
+              if (flutter !== release.flutter.baseline) {
+                errors.push(`${where}: ${name} pubspec requires Flutter >=${flutter}, manifest baseline is ${release.flutter.baseline}`)
+              }
+              if (name === 'shell' && environmentValue(pubspec, 'sdk') !== release.dart) {
+                errors.push(`${where}: shell pubspec sdk is ${environmentValue(pubspec, 'sdk')}, manifest dart is ${release.dart}`)
+              }
+            }
+            // 4. client 的 github 依賴指向存在的 commit
+            const client = /^github:Aqutter\/aqutter#([0-9a-f]{40})&path:\/client$/.exec(release.client.spec)
+            if (client) {
+              try {
+                await github(`repos/Aqutter/aqutter/commits/${client[1]}`)
+              }
+              catch (error) {
+                errors.push(`${where}.client.spec: ${error.message}`)
+              }
+            }
+          }
+
+          if (errors.length > 0) {
+            console.error(errors.map((error) => `  - ${error}`).join('\n'))
+            process.exit(1)
+          }
+          console.log(`manifest ok (${Object.keys(manifest.releases).length} release(s), stable = ${manifest.channels.stable})`)
+          JS

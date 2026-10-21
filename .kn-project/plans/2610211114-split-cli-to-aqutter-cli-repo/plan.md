@@ -2,10 +2,10 @@
 # Plan: 2610211114 - split-cli-to-aqutter-cli-repo
 - Created: 2026-10-21
 - Branch: feature/2610211114-split-cli-to-aqutter-cli-repo（待核准後建立）
-- Issue: 待建立（Phase 2 核准後）
+- Issue: Aqutter/aqutter#2
 - Milestone: N/A（未指定）
 - Base Branch: main
-- Status: Planning
+- Status: In Progress
 - Completed: [Wait for Finish]
 
 ## Goals
@@ -41,7 +41,7 @@ CLI 取得知識的路徑：
 - **本計畫所屬 repo**: `Aqutter/aqutter`
 - **共用計畫 ID**: `2610211114-split-cli-to-aqutter-cli-repo`　**共用分支名**: `feature/2610211114-split-cli-to-aqutter-cli-repo`
 - **參與 repo 與職責**:
-  - `Aqutter/aqutter` — 契約提供方：發佈 manifest 與 schema、更新文件與治理檔、舊 `cli/` 的過渡處理（本計畫）。issue: `待建立`
+  - `Aqutter/aqutter` — 契約提供方：發佈 manifest 與 schema、更新文件與治理檔、舊 `cli/` 的過渡處理（本計畫）。issue: `Aqutter/aqutter#2`
   - `Aqutter/aqutter-cli`（**新 repo，尚未存在**）— 契約消費方：承接 `cli/`（含範本）的歷史與程式碼，改為讀 manifest，支援新舊兩種依賴語法的偵測與改寫，並在自己的 CI 檢查範本與 manifest 一致。issue: `待建立`
   - `Aqutter/aqutter-nuxt-app` — 下游：把 `package.json` 的 CLI 依賴改成新語法並用新版 CLI 跑 `aqutter upgrade`。issue: `待建立`
 - **執行順序相依**: 契約（manifest schema 與取得位置）凍結並於本 repo 發佈後，才能開始 `aqutter-cli` 的計畫；`aqutter-cli` 發佈新版後，才處理下游範本專案。契約提供方先，消費方後。
@@ -52,7 +52,7 @@ CLI 取得知識的路徑：
   - `aqutter-nuxt-app`：`package.json:62`（`@aqutter/aqutter-cli` 的依賴語法）。
 
 ## Contract / 介面契約
-- **契約正本 repo**: `Aqutter/aqutter`　**修訂號**: `rev 1`　**狀態**: `草擬`
+- **契約正本 repo**: `Aqutter/aqutter`　**修訂號**: `rev 1`　**狀態**: `凍結（核准日 2026-10-21）`
 
 > 本契約是 `aqutter`（提供方）與 `aqutter-cli`（消費方）之間唯一的介面：一份 JSON manifest。CLI 不得從 manifest 以外的地方推導版本相容性。
 
@@ -81,9 +81,9 @@ CLI 內建預設的 manifest 網址，可被環境變數 `AQUTTER_MANIFEST_URL` 
 | `status` | string | 是 | 否 | `supported`／`deprecated`／`yanked`。`yanked` 的版本 CLI 一律拒絕使用；`deprecated` 只警告 |
 | `flutter` | object | 是 | 否 | `{ "baseline": "X.Y.Z" }`。`baseline` 為框架建置與測試的 Flutter 確切版本；專案 `environment.flutter` 寫為 `>=<baseline>`（不設上限） |
 | `dart` | string | 是 | 否 | `environment.sdk` 的約束字串，例如 `>=3.13.0 <4.0.0` |
-| `shell` | object | 是 | 否 | `{ "url": "<git url>", "path": "shell", "ref": "<ref>" }`。`ref` 為 tag 或 40 位十六進位 commit sha；`url` 必須在 §4 的允許清單內 |
-| `core` | object | 是 | 否 | `{ "url": "<git url>", "ref": "<ref>" }`，規則同 `shell`；僅供 `doctor` 比對 lock，不寫入專案的 pubspec（由 shell 的 pubspec 帶入） |
-| `client` | object | 是 | 否 | `{ "spec": "<npm 依賴字串>" }`。目前為 `github:Aqutter/aqutter#<ref>&path:/client`；之後 client 發佈到 npm 時改為 npm 版本字串 |
+| `shell` | object | 是 | 否 | `{ "url": "<git url>", "path": "shell", "ref": "<40 位小寫十六進位 commit sha>" }`（Q4：不得是 tag）；`url` 必須在 §4 的允許清單內 |
+| `core` | object | 是 | 否 | `{ "url": "<git url>", "ref": "<40 位小寫十六進位 commit sha>" }`，規則同 `shell`；僅供 `doctor` 比對 lock，不寫入專案的 pubspec（由 shell 的 pubspec 帶入） |
+| `client` | object | 是 | 否 | `{ "spec": "<npm 依賴字串>" }`。目前為 `github:Aqutter/aqutter#<commit sha>&path:/client`；之後 client 發佈到 npm 時改為 npm 版本字串 |
 | `cli` | object | 是 | 否 | `{ "min": "X.Y.Z" }`：其內嵌範本與此 release 的 shell 相容的最低 CLI 版本。比 `min` 舊的 CLI 必須中止並提示升級 |
 | `notes` | string | 否 | 是 | 升級說明的網址（HTTPS）；`deprecated`／`yanked` 時建議提供 |
 
@@ -120,7 +120,7 @@ CLI 內建預設的 manifest 網址，可被環境變數 `AQUTTER_MANIFEST_URL` 
 ### 6. 狀態與規則
 - release 一旦發佈，既有版本的欄位不得改動（只可把 `status` 改為 `deprecated`／`yanked`）；要修正就新增版本。
 - `channels.stable` 只能指向 `status` 為 `supported` 的 release。
-- 開發階段的 `0.0.0`：允許 `shell.ref`／`core.ref` 為會移動的 tag `0.0.0`，或 commit sha（Open Questions Q4 決定）。
+- 開發階段的 `0.0.0`：git tag `0.0.0` 仍會隨 `main` 移動，但 manifest 的 `shell.ref`、`core.ref` 與 `client.spec` 一律寫 commit sha，不引用任何 tag（Q4）。
 
 ### 7. 相容性
 - 本契約是新增，不改動現有 client、shell、aqutter_core 的任何介面。
@@ -192,6 +192,10 @@ CLI 內建預設的 manifest 網址，可被環境變數 `AQUTTER_MANIFEST_URL` 
 - **[Q3]** 直接移除 `cli/`（選項 B，使用者選擇；建議是 A）— 理由：使用者選擇；**後果**：舊語法立即失效。**保護措施**：移除放在最後、需等 `aqutter-cli` 可安裝且下游已遷移（見 Cross-Repo Scope 的閘門與 Manual Follow-ups）；歷史以 `subtree split` 之類的方式在搬出時保留。
 - **[Q4]** 沿用 `0.0.0`，manifest 的 `shell.ref`／`core.ref` 寫 commit sha — 理由：與現行工作流程一致；固定在 sha 解決 tag 移動造成的 lock 過期。
 - **[Q5]** 現在就為 `aqutter-nuxt-app` 建立計畫，`aqutter-cli` 待新 repo 建立後再建（使用者選擇，未採納建議的僅一份）— 理由：使用者選擇；Rule 19 Fan-Out 逐 repo 一份計畫，共用同一組 `${ID}-${description}` 與分支名。
+- **[契約]** rev 1 凍結（核准日 2026-10-21）— 核准即凍結；`shell.ref`／`core.ref` 的型別由「tag 或 sha」收斂為「僅 sha」以符合 Q4，於凍結前完成。
+- **[執行模式]** 序列 — 依據：目前只有 `Aqutter/aqutter` 一個 repo 有可執行的工作，`aqutter-cli` 尚不存在、`aqutter-nuxt-app` 被上游阻擋，相依鏈是一條線；環境也未確認可派出獨立子 agent。
+- **[執行中]** README、getting-started、`docs/cli.md`、`AGENTS.md`、`project.md` 與 wiki 的改寫延後到 `aqutter-cli` 可安裝之後 — 理由：它們描述拆分後的世界（新安裝網址、讀 manifest 的 CLI 行為），而新 CLI 尚不存在；現在改寫會讓文件與目前的 `cli/` 行為矛盾。先做不依賴新 CLI 的 `docs/releases.md`（並在頁首註明「還沒有 CLI 讀取它」）。這些項目維持在 tasks.md 的 Phase 3。
+- **[執行中]** manifest 的交叉檢查邏輯寫在 workflow 內，不另建檔案 — 理由：避免動到 Impact Files 未列的檔案（Rule 18）；同一份程式已在本機對真實 repo 驗證通過，並以故意改壞的 manifest 驗證會失敗。
 - **[Q2]** 範本留在 CLI，本計畫不搬不下載；「建立新網頁專案」的範本為未來功能 — 理由：使用者表示範本現在可以不做；縮小範圍。**後果**：範本的 Flutter 版本與 env 鍵與 shell 的成對規則橫跨兩個 repo，改由 manifest 的 `flutter.baseline` 與 `aqutter-cli` 的 CI 檢查承接。
 - **[設計]** 升級與相容知識放在遠端 manifest，不寫死在 CLI — 理由：使用者要求 CLI 日後可透過網路資源判斷升級；且 CLI 與 shell 不再共用版本字串（對話 2026-10-21）。
 - **[設計]** manifest 只准宣告式欄位、不執行下載內容 — 理由：它會驅動檔案修改，是供應鏈風險點；遷移邏輯仍隨 CLI 發佈。
