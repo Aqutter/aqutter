@@ -10,12 +10,24 @@
 
 ## 1. 安裝
 
-CLI 與 client 以 GitHub 子目錄安裝（尚未發佈 npm）：
+尚未發佈 npm，兩者都以 GitHub 安裝。
+
+CLI 位於獨立 repo [`Aqutter/aqutter-cli`](https://github.com/Aqutter/aqutter-cli)，用 repo 根目錄安裝，四種套件管理器皆可：
 
 ```bash
-pnpm add -D "github:Aqutter/aqutter#0.0.0&path:/cli"
+npm i -D github:Aqutter/aqutter-cli#0.0.0
+pnpm add -D github:Aqutter/aqutter-cli#0.0.0
+yarn add -D github:Aqutter/aqutter-cli#0.0.0
+bun add -D github:Aqutter/aqutter-cli#0.0.0
+```
+
+client 在本 repo 的子目錄，`&path:` 語法目前只有 pnpm 支援：
+
+```bash
 pnpm add "github:Aqutter/aqutter#0.0.0&path:/client"
 ```
+
+npm / yarn / bun 專案目前無法直接安裝 client 子目錄，待 client 發佈或提供可用的安裝來源後再補上。
 
 ## 2. 初始化
 

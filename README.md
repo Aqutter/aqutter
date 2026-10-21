@@ -8,7 +8,7 @@
 |---|---|
 | [`shell/`](shell) | Dart 套件 `aqutter`：`runAqutter()`、本機 server、OTA 更新、bridge handlers、plugin 介面 |
 | [`client/`](client) | npm 套件 `@aqutter/aqutter`：網頁端呼叫 bridge、訂閱事件、plugin API 與跨層契約型別 |
-| [`cli/`](cli) | npm 套件 `@aqutter/aqutter-cli`（指令 `aqutter`）：`init` / `dev` / `seed` / `build` / `flavor add` / `android gen-jks` / `plugin …`；內含 Flutter App 與 plugin 範本 |
+| [`Aqutter/aqutter-cli`](https://github.com/Aqutter/aqutter-cli)（獨立 repo） | npm 套件 `@aqutter/aqutter-cli`（指令 `aqutter`）：`init` / `dev` / `seed` / `build` / `flavor add` / `android gen-jks` / `plugin …` / `doctor` / `upgrade`；內含 Flutter App 與 plugin 範本，版本相容資訊讀自 [release manifest](docs/releases.md) |
 | [`docs/`](docs) | 使用文件 |
 
 WebView 本身由 [`aqutter_core`](https://github.com/Aqutter/aqutter_core) 提供。
@@ -17,8 +17,10 @@ WebView 本身由 [`aqutter_core`](https://github.com/Aqutter/aqutter_core) 提�
 
 ```bash
 # 在既有網頁專案（Nuxt / Vite / Next / 自訂）內
-pnpm add -D github:Aqutter/aqutter#0.0.0&path:/cli
-pnpm add github:Aqutter/aqutter#0.0.0&path:/client
+# CLI 以 repo 根目錄安裝，npm / pnpm / yarn / bun 皆可
+pnpm add -D github:Aqutter/aqutter-cli#0.0.0
+# client 為子目錄，目前需要 pnpm 的 &path: 語法
+pnpm add "github:Aqutter/aqutter#0.0.0&path:/client"
 
 pnpm exec aqutter init --org=com.example
 cp .env/.env.example .env/.env.dev

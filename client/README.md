@@ -8,7 +8,7 @@ Aqutter 殼的網頁端 client：框架中立（不依賴 Nuxt / Vite 等），�
 - Native view 鏡像：`import '@aqutter/aqutter/native'` 註冊 `<aqutter-native>`，或用 `AqutterNative` 自行繪製（見 [docs/nativeview.md](../docs/nativeview.md)）
 - `@aqutter/aqutter/contract`：handler / 事件名稱與 payload 型別（與 `shell` 的 `bridge_names.dart` 成對）
 
-以 TypeScript 原始碼發佈，由使用端打包器編譯。安裝：
+以 TypeScript 原始碼發佈，由使用端打包器編譯。安裝（子目錄語法目前只有 pnpm 支援；CLI 已拆到 [`Aqutter/aqutter-cli`](https://github.com/Aqutter/aqutter-cli)，四種套件管理器皆可安裝）：
 
 ```bash
 pnpm add "github:Aqutter/aqutter#0.0.0&path:/client"
