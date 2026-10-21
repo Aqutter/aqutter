@@ -17,7 +17,7 @@ WebView 本身由 [`aqutter_core`](https://github.com/Aqutter/aqutter_core) 提�
 
 ```bash
 # 在既有網頁專案（Nuxt / Vite / Next / 自訂）內
-# CLI 以 repo 根目錄安裝，npm / pnpm / yarn / bun 皆可
+# CLI 以 repo 根目錄安裝，npm / pnpm / yarn 皆可（bun 尚未驗證）
 pnpm add -D github:Aqutter/aqutter-cli#0.0.0
 # client 為子目錄，目前需要 pnpm 的 &path: 語法
 pnpm add "github:Aqutter/aqutter#0.0.0&path:/client"

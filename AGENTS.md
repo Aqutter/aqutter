@@ -7,7 +7,7 @@
 1. **名稱定案**：npm 套件 `@aqutter/aqutter`（client）、`@aqutter/aqutter-cli`（CLI，指令 `aqutter`）；Dart 套件 `aqutter`（shell）；環境變數前綴 `AQUTTER_`；JS 全域 `window.aqutter`；channel 前綴 `com.github.aqutter/`。改名須同步 Dart、TS、範本、文件。
 2. **跨語言名稱成對**：handler / 事件名稱存在於 `shell/lib/src/bridge/bridge_names.dart` 與 `client/src/contract/bridge.ts`，plugin 命名規則存在於 `shell/lib/src/plugin/aqutter_plugin.dart` 與 `client/src/index.ts`；只改一邊就是錯。
 2.1. **鏡像協定兩端成對**：`aqutter_core` 的 `native_frame.dart`（幀標頭、訊息欄位）與 `client/src/nativeview/{frame,gestures}.ts`。
-3. **env 鍵三處成對（跨 repo）**：Dart `fromEnvironment` 鍵（本 repo）、`aqutter-cli` 的 `template/env/.env.example`、`docs/environment.md`。改任一處要同步另一個 repo；目前沒有自動檢查，只靠這條規則。
+3. **env 鍵三處成對（跨 repo）**：Dart `fromEnvironment` 鍵（本 repo）、`aqutter-cli` 的 `template/env/.env.example`、`docs/environment.md`，另有 `docs/env.example` 是 aqutter-cli 範本的快照（wiki 環境變數頁的生成來源），改範本後要手動同步。改任一處要同步另一個 repo；目前沒有自動檢查，只靠這條規則。
 4. **CLI 在獨立 repo**：`Aqutter/aqutter-cli`（含範本與 `dist/`）。本 repo 不放 CLI 程式碼；框架版本相容性以 `manifest/releases.json` 為準（見 `docs/releases.md`），shell 或 aqutter_core 有變更要同步更新清單。
 4.1. **Flutter 版本成對**：`shell/pubspec.yaml`、`aqutter-cli` 範本 `template/app|plugin/pubspec.yaml` 的 `environment.flutter`（另一個 repo）、`docs/getting-started.md` 的需求表，以及 `aqutter_core` 的 `pubspec.yaml`、`manifest/releases.json` 的 `flutter.baseline`，必須指向同一個 Flutter 基準版本（下限）；**不設上限**，較新的版本由 `aqutter doctor` 以警告提示；升 Flutter 時一次同步。`aqutter doctor` / `upgrade` 以 manifest 的 `flutter.baseline` 作為基準版本（CI 會比對它與 shell、aqutter_core）。`shell/.fvmrc` 與 `aqutter_core/.fvmrc` 只是給本 repo 貢獻者的便利檔，需一併更新；**專案端不產生、不要求 `.fvmrc`**（FVM 是選配，不強迫使用者用任何版本管理工具）。
 5. **範本變數**屬 `aqutter-cli` repo：範本內只能使用該 repo 的 `src/commands/init.ts` / `plugin.ts` 提供的 `{{變數}}`，由它的測試檢查。

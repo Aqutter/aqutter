@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-  原生 splash 的底色，對齊 Flutter 端的 surface（lib/main.dart 的 _kSurfaceLight）
-  與網頁端的 bg-surface。三者一致，啟動過程才不會出現色階跳動。
--->
-<resources>
-    <color name="launch_background">#F4FBFA</color>
-</resources>

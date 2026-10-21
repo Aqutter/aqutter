@@ -19,7 +19,7 @@
 | `AQUTTER_UPDATE_CONNECT_TIMEOUT_SECONDS` | 更新伺服器的連線逾時（秒）。留空＝30 | — | `30` |
 | `AQUTTER_UPDATE_RECEIVE_TIMEOUT_SECONDS` | 網頁包下載的接收逾時（秒）。留空＝600 | — | `600` |
 
-來源：1. [.env.example](../../cli/template/env/.env.example)
+來源：1. [env.example](../../docs/env.example)
 
 ## 來源與載入順序
 1. 平台環境變數（CI／容器）最先。
@@ -31,4 +31,4 @@
 
 ---
 [🏠 Wiki](index.md)
-<!-- generated: wiki-env-page.py 406d872d3601bc13df8323782e01897cb1265e88cff7b2f4380b6434494cddd6 -->
+<!-- generated: wiki-env-page.py 331175c0ceee256e727a2f4c71fa16ba3061e3dd251a7f44c6aa25f75a6507c7 -->

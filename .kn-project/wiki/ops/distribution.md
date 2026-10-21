@@ -15,7 +15,7 @@
 
 ### 安裝 cli
 
-npm、pnpm、yarn、bun 皆可，語法相同：
+npm、pnpm、yarn 皆可，語法相同；bun 尚未驗證，暫不支援：
 
 ```bash
 pnpm add -D github:Aqutter/aqutter-cli#0.0.0
@@ -32,7 +32,7 @@ pnpm add "github:Aqutter/aqutter#0.0.0&path:/client"
 ## 限制
 | 項目 | 說明 |
 |---|---|
-| 套件管理器 | cli 四種都能安裝；client 的子目錄寫法目前只有 pnpm 支援 |
+| 套件管理器 | cli 的 npm、pnpm、yarn 能安裝；client 的子目錄寫法目前只有 pnpm 支援 |
 | 版本標記 | 0.0.0 會被移動，專案的 pubspec.lock 與套件管理器的 lock 可能落後遠端 |
 | 版本檢查 | aqutter doctor 比對 lock 與遠端標記，aqutter upgrade 把專案對齊目前的框架版本 |
 | 版本對應 | 框架版本的對應關係另由[發佈清單](release-manifest.md)記錄；aqutter doctor 與 aqutter upgrade 會讀它 |

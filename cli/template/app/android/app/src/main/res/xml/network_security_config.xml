@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 本機 shelf server 為 http（loopback）；Android 9+ 預設封鎖 cleartext，這裡僅放行 loopback。
-     dev（連 PC IP 的 dev server）時，另把該 IP 加入下方 domain-config。 -->
-<network-security-config>
-  <domain-config cleartextTrafficPermitted="true">
-    <domain includeSubdomains="false">127.0.0.1</domain>
-    <domain includeSubdomains="false">localhost</domain>
-  </domain-config>
-</network-security-config>
