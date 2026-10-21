@@ -31,7 +31,7 @@
 | `dart` | `environment.sdk` 的約束 |
 | `shell` | 殼的 git 位置與 `ref`（commit sha） |
 | `core` | aqutter_core 的 git 位置與 `ref`（commit sha） |
-| `client` | client 的安裝字串 |
+| `client` | client 的安裝字串，格式 `github:Aqutter/aqutter-js#<commit sha>` |
 | `cli` | `min`：能正確處理此版本的最低 CLI 版本 |
 | `notes` | 升級說明的網址（選填） |
 
@@ -49,7 +49,7 @@
 shell 或 aqutter_core 有變更並推送後：
 
 1. 取得要採用的 commit sha。
-2. 修改清單中對應的 `ref`（以及 `client.spec`），更新 `generatedAt`。
+2. 修改清單中對應的 `ref`（以及 `client.spec`，其 sha 取自 `Aqutter/aqutter-js`），更新 `generatedAt`。
 3. 在本機驗證格式。
 4. 開 PR；CI 會再檢查各 ref 是否存在、Flutter 基準是否與 shell、aqutter_core 的 `pubspec.yaml` 一致。
 

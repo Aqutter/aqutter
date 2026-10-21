@@ -1,4 +1,4 @@
-/// 橋接名稱常數。BridgeHandler / BridgeEvent 對映前端 `client/src/contract/bridge.ts`；
+/// 橋接名稱常數。BridgeHandler / BridgeEvent 對映前端 `Aqutter/aqutter-js` 的 `src/contract/bridge.ts`；
 /// HostMethod 對映 Android `MainActivity.kt`。凡「兩端必須一致」的名稱一律集中於此，
 /// 避免魔法字串散落。
 library;

@@ -1,13 +1,12 @@
 # 驗證指令
 
 ## Summary
-修改框架後，依改動的部分分別在 shell、client 兩個目錄執行驗證。cli 已拆到 aqutter-cli repo，在該 repo 驗證。
+修改框架後，修改 shell 後在 shell 目錄執行驗證。client 在 aqutter-js repo、cli 在 aqutter-cli repo，各在自己的 repo 驗證。
 
 ## 各部分的驗證
 | 部分 | 驗證內容 |
 |---|---|
 | shell | 靜態分析與單元測試 |
-| client | 型別檢查與單元測試 |
 
 來源：1. [project.md](../../project.md#L31-L36)　2. [AGENTS.md](../../../AGENTS.md#L15-L20)
 
@@ -15,12 +14,6 @@
 
 ```bash
 cd shell && flutter analyze && flutter test
-```
-
-### 驗證 client
-
-```bash
-cd client && pnpm typecheck && pnpm test
 ```
 
 ## 規則

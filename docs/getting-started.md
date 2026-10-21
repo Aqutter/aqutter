@@ -10,9 +10,9 @@
 
 ## 1. 安裝
 
-尚未發佈 npm，兩者都以 GitHub 安裝。
+尚未發佈 npm，CLI 與 client 都以 GitHub 安裝，各自在獨立 repo。
 
-CLI 位於獨立 repo [`Aqutter/aqutter-cli`](https://github.com/Aqutter/aqutter-cli)，用 repo 根目錄安裝，npm、pnpm、yarn 皆可（bun 尚未驗證，暫不支援）：
+CLI 在 [`Aqutter/aqutter-cli`](https://github.com/Aqutter/aqutter-cli)，npm、pnpm、yarn 皆可（bun 尚未驗證，暫不支援）：
 
 ```bash
 npm i -D github:Aqutter/aqutter-cli#0.0.0
@@ -20,13 +20,13 @@ pnpm add -D github:Aqutter/aqutter-cli#0.0.0
 yarn add -D github:Aqutter/aqutter-cli#0.0.0
 ```
 
-client 在本 repo 的子目錄，`&path:` 語法目前只有 pnpm 支援：
+client 在 [`Aqutter/aqutter-js`](https://github.com/Aqutter/aqutter-js)，同樣用 repo 根目錄安裝：
 
 ```bash
-pnpm add "github:Aqutter/aqutter#0.0.0&path:/client"
+npm i github:Aqutter/aqutter-js#0.0.0
+pnpm add github:Aqutter/aqutter-js#0.0.0
+yarn add github:Aqutter/aqutter-js#0.0.0
 ```
-
-npm / yarn 專案目前無法直接安裝 client 子目錄，待 client 發佈或提供可用的安裝來源後再補上。
 
 ## 2. 初始化
 

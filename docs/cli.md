@@ -125,7 +125,7 @@
 
 - `<appDir>/pubspec.yaml`：`environment.sdk`、`environment.flutter`，以及殼依賴的 git `ref`（本機路徑依賴不動）。
 - `<appDir>/.fvmrc`：只在專案已有這個檔案時才更新 Flutter 版本（不會替沒有的專案建立；內容不是合法 JSON 時略過並提示，不覆寫）。
-- `package.json`：`@aqutter/aqutter` 改為清單的 client 安裝字串；`@aqutter/aqutter-cli` 若仍是舊的 `…aqutter#…&path:/cli` 語法，改為 `github:Aqutter/aqutter-cli#<版本>`。
+- `package.json`：`@aqutter/aqutter` 若是 `github:Aqutter/aqutter-js#…` 形態，改為清單的 client 安裝字串（其他寫法視為使用者自管，不動）；`@aqutter/aqutter-cli` 若仍是舊的 `…aqutter#…&path:/cli` 語法，改為 `github:Aqutter/aqutter-cli#<版本>`。
 
 接著在 `<appDir>` 執行 `flutter pub upgrade aqutter aqutter_core`，讓 `pubspec.lock` 跟上。
 

@@ -2,10 +2,10 @@
 # Plan: 2610211529 - move-client-to-aqutter-js
 - Created: 2026-10-21
 - Branch: feature/2610211529-move-client-to-aqutter-js
-- Issue: 待建立（Phase 2 核准後）
+- Issue: Aqutter/aqutter#7
 - Milestone: N/A（未指定）
 - Base Branch: main
-- Status: Planning
+- Status: In Progress
 - Completed: [Wait for Finish]
 
 ## Goals
@@ -30,7 +30,7 @@ client 原本在本 repo 子目錄，只有 pnpm 支援 `github:Aqutter/aqutter#
 - **本計畫所屬 repo**: `Aqutter/aqutter`
 
 ## Contract / 介面契約
-- **契約正本 repo**: `Aqutter/aqutter`　**修訂號**: `rev 1`　**狀態**: `草擬`
+- **契約正本 repo**: `Aqutter/aqutter`　**修訂號**: `rev 1`　**狀態**: `凍結（核准日 2026-10-21）`
 
 ### 1. aqutter-js 套件
 | 項目 | 值 |
@@ -101,6 +101,8 @@ client 原本在本 repo 子目錄，只有 pnpm 支援 `github:Aqutter/aqutter#
 - **[歷史]** aqutter-js 不保留 `client/` 的 git 歷史，全新起點 — 來源：使用者選擇。
 - **[manifest]** 原地修改 release `0.0.0` 的 `client.spec`，不新增版本 — 來源：使用者選擇；已知例外於 `docs/releases.md`「已發佈版本不改欄位」規則，開發階段 `0.0.0` 本就隨 `main` 移動。
 - **[破壞式移動]** 開發階段不考慮既有程式、不留過渡相容層，改完同步修改 `aqutter-nuxt-app` 與四個 plugin repo — 來源：使用者指示（2026-10-21）。
+- **[契約]** rev 1 凍結（核准日 2026-10-21）。
+- **[完成後]** commit + 開 PR（併回 `main`）。
 - **[執行模式]** 序列（相依鏈是一條線）；**[完成後]** 待核准閘決定。
 - **[client/ 處理]** 直接移除，放最後一步 — 來源：使用者「破壞式移動」指示；沿用先前移除 `cli/` 的作法。
 
@@ -111,3 +113,7 @@ client 原本在本 repo 子目錄，只有 pnpm 支援 `github:Aqutter/aqutter#
 
 ## References
 - `Aqutter/aqutter#4`、`Aqutter/aqutter-cli#1`、`Aqutter/aqutter-nuxt-app#1`（前置的 cli 拆分）
+
+## Deviations
+- aqutter-js 已建立（`Aqutter/aqutter-js`，初始 commit `ac7c23b`，tag `0.0.0`），npm／yarn／pnpm 皆已用該 sha 實測可安裝。
+- 移除 `client/` 與其他修改在同一個 PR，而非「下游遷移完成後」：下游（CLI、範本專案、plugin）必須先有合併後的 manifest 才能遷移，破壞式移動不留相容層（使用者指示）。
