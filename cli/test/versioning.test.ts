@@ -17,7 +17,7 @@ import {
 
 const EXPECTED = {
   sdk: '>=3.13.0 <4.0.0',
-  flutter: '>=3.47.4 <3.48.0',
+  flutter: '>=3.47.4',
   flutterVersion: '3.47.4',
   shellRef: '0.1.0',
 }
@@ -80,12 +80,12 @@ describe('rewritePubspec', () => {
   it('updates flutter and the shell ref, and leaves everything else untouched', () => {
     const { text, changes } = rewritePubspec(OLD_PUBSPEC, target)
     expect(changes).toEqual([
-      'environment.flutter: >=3.47.0 → >=3.47.4 <3.48.0',
+      'environment.flutter: >=3.47.0 → >=3.47.4',
       'aqutter ref: 0.0.0 → 0.1.0',
     ])
     expect(text).toBe(
       OLD_PUBSPEC
-        .replace('flutter: \'>=3.47.0\'', 'flutter: \'>=3.47.4 <3.48.0\'')
+        .replace('flutter: \'>=3.47.0\'', 'flutter: \'>=3.47.4\'')
         .replace('ref: 0.0.0', 'ref: 0.1.0'),
     )
   })
@@ -105,7 +105,7 @@ describe('rewritePubspec', () => {
 
   it('adds a missing environment.flutter after the last entry', () => {
     const { text } = rewritePubspec('environment:\n  sdk: \'>=3.13.0 <4.0.0\'\n\ndependencies:\n  flutter:\n    sdk: flutter\n', target)
-    expect(text).toContain('environment:\n  sdk: \'>=3.13.0 <4.0.0\'\n  flutter: \'>=3.47.4 <3.48.0\'\n')
+    expect(text).toContain('environment:\n  sdk: \'>=3.13.0 <4.0.0\'\n  flutter: \'>=3.47.4\'\n')
   })
 
   it('preserves CRLF line endings', () => {
@@ -252,8 +252,12 @@ describe('diagnose', () => {
     expect(levels({ ...goodFacts(), installedFlutter: '3.38.6' })[0]).toMatch(/^error:Flutter 版本不符/)
   })
 
-  it('warns when Flutter is inside the range but not the reference version', () => {
-    expect(levels({ ...goodFacts(), installedFlutter: '3.47.9' })[0]).toMatch(/^warn:/)
+  it('warns, without blocking, when Flutter is newer than the reference version', () => {
+    for (const version of ['3.47.9', '3.48.0', '4.0.0']) {
+      const found = levels({ ...goodFacts(), installedFlutter: version })
+      expect(found).toHaveLength(1)
+      expect(found[0]).toMatch(new RegExp(`^warn:Flutter ${version.replace(/\./g, '\\.')} 比框架驗證過的版本`))
+    }
   })
 
   it('warns about an old pubspec, a stale ref and old npm refs', () => {
@@ -292,7 +296,7 @@ describe('diagnose', () => {
   })
 
   it('skips the ref check for a path dependency', () => {
-    const pubspec = parsePubspec('environment:\n  sdk: \'>=3.13.0 <4.0.0\'\n  flutter: \'>=3.47.4 <3.48.0\'\n\ndependencies:\n  aqutter:\n    path: ../shell\n')
+    const pubspec = parsePubspec('environment:\n  sdk: \'>=3.13.0 <4.0.0\'\n  flutter: \'>=3.47.4\'\n\ndependencies:\n  aqutter:\n    path: ../shell\n')
     expect(levels({ ...goodFacts(), pubspec })).toEqual([])
   })
 })
@@ -310,7 +314,7 @@ describe('planUpgrade', () => {
 
   it('keeps the shell ref when the config points the shell at a local path', () => {
     const plan = planUpgrade({ pubspec: OLD_PUBSPEC, fvmrc: null, packageJson: null, keepShellRef: true }, EXPECTED)
-    expect(plan.pubspec.changes).toEqual(['environment.flutter: >=3.47.0 → >=3.47.4 <3.48.0'])
+    expect(plan.pubspec.changes).toEqual(['environment.flutter: >=3.47.0 → >=3.47.4'])
     expect(plan.packageJson).toBeNull()
   })
 
@@ -326,7 +330,7 @@ describe('planUpgrade', () => {
   })
 
   it('does not request a pub upgrade for a path dependency', () => {
-    const pubspec = 'environment:\n  sdk: \'>=3.13.0 <4.0.0\'\n  flutter: \'>=3.47.4 <3.48.0\'\n\ndependencies:\n  aqutter:\n    path: ../shell\n'
+    const pubspec = 'environment:\n  sdk: \'>=3.13.0 <4.0.0\'\n  flutter: \'>=3.47.4\'\n\ndependencies:\n  aqutter:\n    path: ../shell\n'
     expect(planUpgrade({ pubspec, fvmrc: null, packageJson: null, keepShellRef: false }, EXPECTED).needsPubUpgrade).toBe(false)
   })
 })

@@ -38,7 +38,7 @@ const TAG = 'doctor'
 export interface ExpectedProfile {
   sdk: string
   flutter: string
-  /** 框架基準的確切 Flutter 版本：取 `flutter` 約束的下限（例如 `>=3.47.4 <3.48.0` → 3.47.4）。 */
+  /** 框架基準的確切 Flutter 版本：取 `flutter` 約束的下限（例如 `>=3.47.4` → 3.47.4）。 */
   flutterVersion: string
   shellRef: string
 }
@@ -101,10 +101,11 @@ export const diagnose = (facts: Facts): Finding[] => {
       })
     }
     else if (facts.installedFlutter !== expected.flutterVersion) {
+      // pubspec 只有下限、沒有上限：比基準新的版本不會被 pub 擋下，由這裡提醒
       add({
         level: 'warn',
-        title: `Flutter ${facts.installedFlutter} 在允許範圍內，但框架基準是 ${expected.flutterVersion}`,
-        fix: `建議切換到 ${expected.flutterVersion}，與團隊一致。`,
+        title: `Flutter ${facts.installedFlutter} 比框架驗證過的版本（${expected.flutterVersion}）新`,
+        detail: '框架尚未在此版本上驗證，可以嘗試；遇到編譯錯誤時，先改回基準版本確認是否為版本差異造成。',
       })
     }
     else {

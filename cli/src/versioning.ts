@@ -60,7 +60,7 @@ const findLine = (lines: string[], pattern: RegExp, from = 0, to = lines.length)
   return -1
 }
 
-/** 去掉行尾註解與引號：`'>=3.47.4 <3.48.0'  # note` → `>=3.47.4 <3.48.0`。 */
+/** 去掉行尾註解與引號：`'>=3.47.4'  # note` → `>=3.47.4`。 */
 const scalar = (raw: string): string => {
   const noComment = raw.replace(/\s+#.*$/, '').trim()
   return noComment.replace(/^(['"])(.*)\1$/, '$2')

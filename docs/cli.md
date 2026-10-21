@@ -97,7 +97,7 @@
 
 | 檢查 | 說明 |
 |---|---|
-| Flutter 版本 | 本機 `flutter` 是否落在框架允許的範圍（不在範圍內為**錯誤**；在範圍內但不是基準版本為警告） |
+| Flutter 版本 | 本機 `flutter` 低於框架要求的下限為**錯誤**；高於基準版本（框架尚未驗證）為警告，不阻擋；等於基準版本通過。pubspec 沒有設上限，所以較新的 Flutter 不會被 pub 擋下，由這裡提醒 |
 | pubspec `environment` | `sdk` / `flutter` 約束是否與框架一致 |
 | 殼 ref | `<appDir>/pubspec.yaml` 的 `aqutter` git ref 是否等於 CLI 版本；殼依賴是本機路徑時略過 |
 | `.fvmrc`（選配） | 只在 `<appDir>/.fvmrc` 已存在時才檢查版本是否為框架基準；沒有這個檔案不會有任何提示（框架不要求使用 FVM） |

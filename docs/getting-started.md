@@ -5,7 +5,7 @@
 | 項目 | 版本 |
 |---|---|
 | Node.js | ≥ 20 |
-| Flutter | 3.47.4（Dart 3.13.x）。框架固定此版本：App 的 `pubspec.yaml` 限制為 3.47.4 以上、3.48.0 以下，不符時 `flutter pub get` 會直接報錯。用什麼方式安裝與切換 Flutter 版本由你決定（官方安裝、[FVM](https://fvm.app) 等都可以，框架不要求任何特定工具） |
+| Flutter | 3.47.4（Dart 3.13.x）。這是框架建置與測試用的基準版本：App 的 `pubspec.yaml` 要求 3.47.4 以上（低於此版本 `flutter pub get` 會直接報錯），不設上限——較新的 Flutter 可以嘗試，但框架尚未驗證，`aqutter doctor` 會提示。用什麼方式安裝與切換 Flutter 版本由你決定（官方安裝、[FVM](https://fvm.app) 等都可以，框架不要求任何特定工具） |
 | 目標平台工具鏈 | iOS / macOS：Xcode；Android：Android SDK；Windows：Visual Studio |
 
 ## 1. 安裝

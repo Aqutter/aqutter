@@ -3492,8 +3492,8 @@ var init_doctor = __esm({
         } else if (facts.installedFlutter !== expected.flutterVersion) {
           add2({
             level: "warn",
-            title: `Flutter ${facts.installedFlutter} \u5728\u5141\u8A31\u7BC4\u570D\u5167\uFF0C\u4F46\u6846\u67B6\u57FA\u6E96\u662F ${expected.flutterVersion}`,
-            fix: `\u5EFA\u8B70\u5207\u63DB\u5230 ${expected.flutterVersion}\uFF0C\u8207\u5718\u968A\u4E00\u81F4\u3002`
+            title: `Flutter ${facts.installedFlutter} \u6BD4\u6846\u67B6\u9A57\u8B49\u904E\u7684\u7248\u672C\uFF08${expected.flutterVersion}\uFF09\u65B0`,
+            detail: "\u6846\u67B6\u5C1A\u672A\u5728\u6B64\u7248\u672C\u4E0A\u9A57\u8B49\uFF0C\u53EF\u4EE5\u5617\u8A66\uFF1B\u9047\u5230\u7DE8\u8B6F\u932F\u8AA4\u6642\uFF0C\u5148\u6539\u56DE\u57FA\u6E96\u7248\u672C\u78BA\u8A8D\u662F\u5426\u70BA\u7248\u672C\u5DEE\u7570\u9020\u6210\u3002"
           });
         } else {
           add2({ level: "ok", title: `Flutter ${facts.installedFlutter}` });

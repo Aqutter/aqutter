@@ -5,9 +5,11 @@ version: 1.0.0+1
 
 environment:
   sdk: '>=3.13.0 <4.0.0'
-  # Flutter is pinned to the 3.47 line; 3.47.4 (the lower bound) is the reference version.
-  # Bump this together with docs/getting-started.md when the framework upgrades Flutter.
-  flutter: '>=3.47.4 <3.48.0'
+  # 3.47.4 is the reference Flutter version the framework is built and tested on.
+  # There is deliberately no upper bound: newer Flutter versions can be tried, and `aqutter doctor`
+  # warns when the installed Flutter is newer than the reference.
+  # `aqutter upgrade` keeps this line in sync with the installed CLI.
+  flutter: '>=3.47.4'
 
 dependencies:
   flutter:
