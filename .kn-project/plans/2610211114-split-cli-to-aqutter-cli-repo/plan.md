@@ -5,14 +5,14 @@
 - Issue: Aqutter/aqutter#2
 - Milestone: N/A（未指定）
 - Base Branch: main
-- Status: In Progress
-- Completed: [Wait for Finish]
+- Status: Awaiting Archive
+- Completed: 2026-10-21
 
 ## Goals
 1. 把 `cli/`（npm 套件 `@aqutter/aqutter-cli`）拆成獨立 repo `Aqutter/aqutter-cli`，`client/` 與 `shell/` 留在本 repo。拆出後 CLI 可用 `github:Aqutter/aqutter-cli#<ref>` 安裝，npm、yarn、bun、pnpm 皆可（現在的 `&path:/cli` 子目錄語法只有 pnpm 支援，npm 與 yarn 已實測失敗）。
 2. CLI 不再把「升級與相容性的知識」寫死在自己裡面：`init`、`doctor`、`upgrade` 改讀一份公開的 **release manifest**，由它決定這個框架版本該搭配哪個 shell／aqutter_core／範本／Flutter 基準。
 3. 專案範本（`cli/template/`，Flutter App 與 plugin 的骨架）**維持在 CLI 內**，隨 CLI 一起搬到新 repo；本計畫不搬遷、不做範本下載。（日後若要提供「建立新網頁專案」的範本，另案處理，manifest 格式保留擴充空間。）
-4. 本計畫**只交付本 repo（`Aqutter/aqutter`）這一側**：manifest 與其 schema、文件與治理檔更新、舊 `cli/` 的過渡處理。`aqutter-cli` 新 repo 與下游範本專案各有自己的計畫（見 Cross-Repo Scope）。
+4. 本計畫**只交付本 repo（`Aqutter/aqutter`）這一側的第一階段**：manifest 與其 schema、驗證它的 CI、說明頁 `docs/releases.md`，讓 manifest 先合併上線。文件與治理檔的改寫、最後移除舊 `cli/` 依賴 `aqutter-cli` 先可安裝，**移到後續計畫**（見 `tasks.md` 的「移到後續計畫」）。`aqutter-cli` 新 repo 與下游範本專案各有自己的計畫（見 Cross-Repo Scope）。
 
 ## Architecture
 拆分前後的責任：
@@ -42,10 +42,10 @@ CLI 取得知識的路徑：
 - **共用計畫 ID**: `2610211114-split-cli-to-aqutter-cli-repo`　**共用分支名**: `feature/2610211114-split-cli-to-aqutter-cli-repo`
 - **參與 repo 與職責**:
   - `Aqutter/aqutter` — 契約提供方：發佈 manifest 與 schema、更新文件與治理檔、舊 `cli/` 的過渡處理（本計畫）。issue: `Aqutter/aqutter#2`
-  - `Aqutter/aqutter-cli`（**新 repo，尚未存在**）— 契約消費方：承接 `cli/`（含範本）的歷史與程式碼，改為讀 manifest，支援新舊兩種依賴語法的偵測與改寫，並在自己的 CI 檢查範本與 manifest 一致。issue: `待建立`
+  - `Aqutter/aqutter-cli`（新 repo，已建立）— 契約消費方：承接 `cli/`（含範本）的歷史與程式碼，改為讀 manifest，支援新舊兩種依賴語法的偵測與改寫，並在自己的 CI 檢查範本與 manifest 一致。issue: `Aqutter/aqutter-cli#1`
   - `Aqutter/aqutter-nuxt-app` — 下游：把 `package.json` 的 CLI 依賴改成新語法並用新版 CLI 跑 `aqutter upgrade`。issue: `待建立`
 - **執行順序相依**: 契約（manifest schema 與取得位置）凍結並於本 repo 發佈後，才能開始 `aqutter-cli` 的計畫；`aqutter-cli` 發佈新版後，才處理下游範本專案。契約提供方先，消費方後。
-- **移除 `cli/` 的閘門（Q3 選 B）**: 本 repo 移除 `cli/` 這一步（tasks.md Phase 5）**必須最後做**，且須等 `aqutter-cli` 已建立、完整保留歷史、可用新語法在 npm／yarn／pnpm 安裝並跑通 `aqutter --version`（bun 見 Manual Follow-ups）、下游範本專案已改用新語法。移除後，所有仍用 `github:Aqutter/aqutter#…&path:/cli` 的專案下次安裝會立即失敗。
+- **移除 `cli/` 的閘門（Q3 選 B）**: 移除 `cli/` **已移到後續計畫**，必須最後做，且須等 `aqutter-cli` 已建立、完整保留歷史、可用新語法在 npm／yarn／pnpm 安裝並跑通 `aqutter --version`（bun 需人工驗證）、下游範本專案已改用新語法。移除後，所有仍用 `github:Aqutter/aqutter#…&path:/cli` 的專案下次安裝會立即失敗。本計畫不動 `cli/`。
 - **他 repo 的計畫何時建立**: `aqutter-cli` 尚不存在，無法放置 `.kn-project/`，其計畫待新 repo 建立並完成治理初始化後，沿用同一組 `${ID}-${description}` 與同一個分支名建立。下游範本專案 `aqutter-nuxt-app` 的計畫已隨本計畫一同建立（Q5 選 B），位於該 repo 的 `.kn-project/plans/2610211114-split-cli-to-aqutter-cli-repo/`。
 - **跨 repo 檔案指涉**:
   - `aqutter-cli`：現有的 `cli/src/commands/init.ts:112`、`plugin.ts:85-86`、`doctor.ts:46-52`、`template.ts:33-43`、`versioning.ts:209`、`versioning.ts:235`、`main.ts:2-4` 需要改寫（內容見 Contract §5）；`cli/test/plugins.test.ts:80` 的範本測試隨範本一起搬走，維持不變。
@@ -131,19 +131,16 @@ CLI 內建預設的 manifest 網址，可被環境變數 `AQUTTER_MANIFEST_URL` 
 - _(尚無)_
 
 ## Impact Files
-- `cli/` (整個目錄，含 `cli/package.json:2`、`cli/src/`、`cli/test/`、`cli/template/`、`cli/scripts/build.mjs:2`、`cli/dist/aqutter.mjs`) — 內容（含範本）先以保留歷史的方式搬到 `aqutter-cli`（`git subtree split --prefix=cli` 之類，在 `aqutter-cli` 計畫內執行），確認新 repo 可安裝後，本 repo 以 `git rm` 移除整個 `cli/`（Q3 選 B）。
-- `AGENTS.md:10-13` — 紅線 3（env 鍵三處成對，其中 `cli/template/env/.env.example` 將在別的 repo）、4（`cli/dist/` 規則移到新 repo）、4.1（Flutter 版本成對：範本改在新 repo，基準另由 manifest 的 `flutter.baseline` 表達）、5（範本變數）需改寫；同時 `AGENTS.md:7` 的名稱定案與 `AGENTS.md:15-20` 的驗證指令（含 `cd cli …`）要隨 `cli/` 的去留更新。
-- `README.md:20-21` — 安裝 CLI 的指令改為新語法，並列出四種套件管理器。
-- `docs/getting-started.md:16-17` — 同上；補「各套件管理器的安裝方式」。
-- `client/README.md:14` — client 的安裝說明（子目錄語法仍適用 pnpm，補其他管理器的現況與限制）。
-- `docs/cli.md:94`（`## aqutter doctor`）、`docs/cli.md:113`（`## aqutter upgrade`）— 改寫為讀 manifest 的行為，並補 `--offline`、`AQUTTER_MANIFEST_URL`。
-- `.kn-project/project.md:12`、`:20`、`:22` — 組成表（`cli/` 一列）、「以 git 依賴發佈」一段與「CLI 不寫死框架」一段，需改為拆分後的描述。
-- `.kn-project/wiki/ops/distribution.md` — 發佈與安裝頁（本次 bootstrap 建立）要隨安裝方式更新。
-- `.kn-project/wiki/platform/architecture.md` — 架構總覽的組成表要改。
+> 範圍已縮小（見 Key Decisions 的 [範圍調整]）：只列本計畫實際交付的檔案；被移到後續計畫的項目記在 `tasks.md`。
+
 - `manifest/releases.json` (new) — release manifest 的正本，Contract §2。
 - `manifest/schema.json` (new) — manifest 的 JSON Schema，Contract §1。
 - `.github/workflows/manifest-check.yml` (new) — 驗證 manifest 符合 schema、各 ref 在遠端存在、`flutter.baseline` 與本 repo 的 `shell/pubspec.yaml`、`aqutter_core` 的 Flutter 下限一致、`channels.stable` 指向 `supported`。
-- `docs/releases.md` (new) — 給使用者看的 manifest 與升級說明頁。
+- `docs/releases.md` (new) — 給使用者看的 manifest 與更新說明頁。
+- `shell/pubspec.yaml:7-11`（`environment`，只讀）— manifest 的 `flutter.baseline` 與 `dart` 以它為準，CI 逐版比對；不修改。
+- `.kn-project/wiki/ops/release-manifest.md` (new) — 發佈清單的 wiki 頁（本計畫新增的知識）。
+- `.kn-project/wiki/ops/distribution.md` — 發佈與安裝頁補上 manifest 的位置（其餘安裝語法的描述等 `aqutter-cli` 可安裝後再改，屬後續計畫）。
+- `.kn-project/wiki/index.md` — 新增頁面的索引。
 
 ## App-Flow Screens
 - （本 repo 無 `.kn-project/app-flow.json`，刪除本節）
@@ -178,9 +175,8 @@ CLI 內建預設的 manifest 網址，可被環境變數 `AQUTTER_MANIFEST_URL` 
 - **決議**：選項 B（使用者選擇，未採納建議的 A）　狀態：✅ 已確認。`aqutter-nuxt-app` 的計畫於本次同步建立；`aqutter-cli` 仍待新 repo 建立。
 
 ## Manual Follow-ups / 人工收尾事項
-- **[合併後]** 通知既有使用者（含外部使用者）把 `package.json` 的 CLI 依賴改成新語法 — 在專案內執行 `aqutter upgrade`，或手動改寫依賴字串後重新安裝 — 舊語法在其他套件管理器本來就裝不起來，且是否還有外部使用者只有你知道，agent 無法通知
-- **[合併前]** 在有 bun 的環境驗證 `github:Aqutter/aqutter-cli#<ref>` 可以安裝並執行 `aqutter --version` — 在該環境執行 `bun add -d "github:Aqutter/aqutter-cli#<ref>"` — agent 的環境沒有 bun，無法代測；`cli/` 移除後無法回復舊語法，所以需要先確認
-- **[合併前]** 確認 `aqutter-cli` 已發佈且 `aqutter-nuxt-app` 已改用新語法，才合併移除 `cli/` 的變更 — 見 Cross-Repo Scope 的閘門 — 跨 repo 的先後只有人能最後把關
+- **[合併後]** 確認 `manifest-check` workflow 在 `main` 上通過 — 到 GitHub 的 Actions 頁面（`Aqutter/aqutter` → Actions → manifest-check）檢視第一次執行；失敗則回報 — workflow 要合併進 `main` 才會執行，agent 在合併前無法驗證它在 GitHub 上的實際結果
+- **[合併後]** 確認 manifest 的 raw 網址可取得並可被解析 — 執行 `curl -s https://raw.githubusercontent.com/Aqutter/aqutter/main/manifest/releases.json` 並看輸出是 JSON — 網址要等 `main` 上有該檔才存在；`aqutter-cli` 的端到端驗證依賴它
 
 ## Key Decisions
 - **[Phase 0]** 目標 repo 為 `Aqutter/aqutter`（依據：請求指名此 repo；`cli/` 與 `cli/template/` 皆在其中）— 理由：對話明確指名。
@@ -196,6 +192,7 @@ CLI 內建預設的 manifest 網址，可被環境變數 `AQUTTER_MANIFEST_URL` 
 - **[執行模式]** 序列 — 依據：目前只有 `Aqutter/aqutter` 一個 repo 有可執行的工作，`aqutter-cli` 尚不存在、`aqutter-nuxt-app` 被上游阻擋，相依鏈是一條線；環境也未確認可派出獨立子 agent。
 - **[執行中]** README、getting-started、`docs/cli.md`、`AGENTS.md`、`project.md` 與 wiki 的改寫延後到 `aqutter-cli` 可安裝之後 — 理由：它們描述拆分後的世界（新安裝網址、讀 manifest 的 CLI 行為），而新 CLI 尚不存在；現在改寫會讓文件與目前的 `cli/` 行為矛盾。先做不依賴新 CLI 的 `docs/releases.md`（並在頁首註明「還沒有 CLI 讀取它」）。這些項目維持在 tasks.md 的 Phase 3。
 - **[執行中]** manifest 的交叉檢查邏輯寫在 workflow 內，不另建檔案 — 理由：避免動到 Impact Files 未列的檔案（Rule 18）；同一份程式已在本機對真實 repo 驗證通過，並以故意改壞的 manifest 驗證會失敗。
+- **[範圍調整]** 本計畫縮小為第一階段（manifest、schema、CI、`docs/releases.md`），其餘移到後續計畫 — 理由：剩下的項目（README／getting-started／`docs/cli.md`／`AGENTS.md`／`project.md`／wiki 的改寫、移除 `cli/`）都要等 `aqutter-cli` 可安裝，無法在近期完成；而 `aqutter-cli` 的開發與端到端驗證需要 manifest 先合併上線，且 PR 的 `Closes #2` 不應在工作未完成時提前關閉 issue。使用者於核准閘選擇此走法（2026-10-21）。issue #2 的內文一併調整為前半範圍。
 - **[Q2]** 範本留在 CLI，本計畫不搬不下載；「建立新網頁專案」的範本為未來功能 — 理由：使用者表示範本現在可以不做；縮小範圍。**後果**：範本的 Flutter 版本與 env 鍵與 shell 的成對規則橫跨兩個 repo，改由 manifest 的 `flutter.baseline` 與 `aqutter-cli` 的 CI 檢查承接。
 - **[設計]** 升級與相容知識放在遠端 manifest，不寫死在 CLI — 理由：使用者要求 CLI 日後可透過網路資源判斷升級；且 CLI 與 shell 不再共用版本字串（對話 2026-10-21）。
 - **[設計]** manifest 只准宣告式欄位、不執行下載內容 — 理由：它會驅動檔案修改，是供應鏈風險點；遷移邏輯仍隨 CLI 發佈。
