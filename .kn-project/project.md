@@ -18,7 +18,7 @@ WebView 由獨立 repo `Aqutter/aqutter_core`（以 git tag 依賴）提供。
 ## 保留鐵則
 
 - **名稱定案**：見 `AGENTS.md` 第 1 條；channel、handler、env 鍵、plugin 命名規則都是「兩種語言各存一份」的字串，只改一邊就是錯。
-- **以 git 依賴發佈，不上 pub.dev / npm**：shell 與 plugin 都用 `git:`（`path: shell`、`ref: <tag>`）；client 以 `github:Aqutter/aqutter#<tag>&path:/client` 安裝（子目錄語法目前只有 pnpm 支援）；CLI 以 `github:Aqutter/aqutter-cli#<tag>` 安裝（四種套件管理器皆可）。shell、client 共用本 repo 的版本 tag；開發階段版本固定為 `0.0.0`（tag `0.0.0` 隨 `main` 前進）。版本相容性以 `manifest/releases.json` 為準，其 ref 一律是 commit sha。
+- **以 git 依賴發佈，不上 pub.dev / npm**：shell 與 plugin 都用 `git:`（`path: shell`、`ref: <tag>`）；client 以 `github:Aqutter/aqutter#<tag>&path:/client` 安裝（子目錄語法目前只有 pnpm 支援）；CLI 以 `github:Aqutter/aqutter-cli#<tag>` 安裝（npm、pnpm、yarn 皆可；bun 尚未驗證）。shell、client 共用本 repo 的版本 tag；開發階段版本固定為 `0.0.0`（tag `0.0.0` 隨 `main` 前進）。版本相容性以 `manifest/releases.json` 為準，其 ref 一律是 commit sha。
 - **CLI 在 `Aqutter/aqutter-cli`**：其 `dist/` 必須與 `src/`、`template/` 同步提交；CLI 不寫死任何網頁框架，只認 `aqutter.config.json`。跨 repo 的成對規則（env 鍵、Flutter 版本、範本變數）見 `AGENTS.md`，目前只靠文件約束，沒有跨 repo CI。
 - **env 範圍**：`AQUTTER_*` 只有殼讀；dev 連線位址 `AQUTTER_DEV_URL` 由 `aqutter dev` 依平台注入。
 - **Native view 鏡像**：原生端在 `aqutter_core`（`AqutterNative`，以 tag 依賴），網頁端在 client（`<aqutter-native>`、`AqutterNative`）；幀格式與訊息格式兩端各存一份（`native_frame.dart` ↔ `client/src/nativeview/frame.ts`、`gestures.ts`），改一邊必改另一邊。`import '@aqutter/aqutter'` 必須在伺服端渲染下安全，故元素類別只在 `defineAqutterNative()` 內建立。
