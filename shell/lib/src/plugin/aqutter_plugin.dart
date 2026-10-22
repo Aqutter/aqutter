@@ -17,6 +17,26 @@ String aqutterPluginEventChannel(String pluginId, String event) => '$pluginId.$e
 /// 不含 `.`——點號是 id 與方法名的分隔符，也避免與殼內建的 handler（無點號）撞名。
 final RegExp aqutterPluginIdPattern = RegExp(r'^[a-z][a-z0-9-]*$');
 
+/// 殼對 plugin 呼叫失敗時回傳的錯誤資料所用的欄位名（保留欄位，plugin 自己的回傳不得使用）。
+///
+/// 用資料而不是例外回報：例外如何傳回網頁取決於各原生平台的實作，無法逐一保證 Promise 會 reject。
+/// 網頁端（`@aqutter/aqutter` 的 `callPlugin`）看到這個欄位就轉成拋出的 `AqutterPluginError`。
+const String aqutterErrorKey = 'aqutterError';
+
+/// plugin 不支援目前平台時的錯誤碼（見 [AqutterPlugin.supportedPlatforms]）。
+const String aqutterUnsupportedPlatform = 'UNSUPPORTED_PLATFORM';
+
+/// 組出殼的錯誤資料：`{ aqutterError: { code, message } }`。
+Map<String, dynamic> aqutterErrorPayload(String code, String message) => {
+      aqutterErrorKey: {'code': code, 'message': message},
+    };
+
+/// [plugin] 是否支援 [platform]：[AqutterPlugin.supportedPlatforms] 為 null 代表所有平台。
+bool aqutterPluginSupports(AqutterPlugin plugin, TargetPlatform platform) {
+  final supported = plugin.supportedPlatforms;
+  return supported == null || supported.contains(platform);
+}
+
 /// plugin 與殼互動的入口，於 [AqutterPlugin.attach] 交給 plugin。
 abstract class AqutterPluginContext {
   /// 對網頁派送事件；頻道自動加上 `<pluginId>.` 前綴。
@@ -35,6 +55,16 @@ abstract class AqutterPluginContext {
 abstract class AqutterPlugin {
   /// plugin 識別字，須符合 [aqutterPluginIdPattern]，並與網頁端套件使用的 id 一致。
   String get id;
+
+  /// 這個 plugin 支援的平台；`null`（預設）代表所有平台，現有 plugin 行為不變。
+  ///
+  /// 目前平台不在集合內時：
+  ///   - [handlers] 仍會註冊（網頁呼叫不會是 handler not found），但**不列入**能力表，
+  ///     網頁以同步的 `isPluginSupported(id, method)` 即可得知並改走替代方案；
+  ///   - 被呼叫時殼**不執行** handler，回傳 `{ aqutterError: { code: UNSUPPORTED_PLATFORM, … } }`，
+  ///     網頁端的 `callPlugin` 會把它轉成拋出的 `AqutterPluginError`（不會卡住）；
+  ///   - 殼不呼叫 [attach]、[buildUnderlay]、[buildOverlay]；[dispose] 仍會呼叫（必須可安全呼叫）。
+  Set<TargetPlatform>? get supportedPlatforms => null;
 
   /// 暴露給網頁的方法，鍵為方法名（不含 id 前綴）。
   Map<String, AqutterPluginHandler> get handlers => const {};

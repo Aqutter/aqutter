@@ -6,6 +6,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:aqutter_core/aqutter_core.dart';
 import 'package:path/path.dart' as p;
@@ -148,6 +149,9 @@ class BridgeRegistry {
 
   /// 掛上各 plugin 的 handler（名稱 `<id>.<method>`，列入 capabilities），並於首次呼叫時 attach。
   ///
+  /// plugin 宣告了 `supportedPlatforms` 且不含目前平台時：handler 仍註冊但不列入 capabilities，被呼叫時
+  /// 回傳 `aqutterError`（`UNSUPPORTED_PLATFORM`）而不執行 plugin 的函式，也不呼叫 `attach`。
+  ///
   /// id 不合法或兩個 plugin 同 id 會直接拋錯：這是 App 組裝期的程式錯誤，不該拖到網頁呼叫時才發現。
   void _registerPlugins(AqutterWebViewController controller) {
     final seen = <String>{};
@@ -158,8 +162,23 @@ class BridgeRegistry {
       if (!seen.add(plugin.id)) {
         throw ArgumentError.value(plugin.id, 'AqutterPlugin.id', 'Duplicate plugin id');
       }
+      final supported = aqutterPluginSupports(plugin, defaultTargetPlatform);
       for (final entry in plugin.handlers.entries) {
-        _handle(controller, aqutterPluginHandlerName(plugin.id, entry.key), entry.value);
+        final name = aqutterPluginHandlerName(plugin.id, entry.key);
+        if (supported) {
+          _handle(controller, name, entry.value);
+        }
+        else {
+          _handle(
+            controller,
+            name,
+            supported: false,
+            (_) async => aqutterErrorPayload(
+              aqutterUnsupportedPlatform,
+              '$name is not supported on ${_currentPlatform()}',
+            ),
+          );
+        }
       }
     }
     if (_pluginsAttached) {
@@ -167,7 +186,9 @@ class BridgeRegistry {
     }
     _pluginsAttached = true;
     for (final plugin in plugins) {
-      plugin.attach(_PluginContext(plugin.id, emitter));
+      if (aqutterPluginSupports(plugin, defaultTargetPlatform)) {
+        plugin.attach(_PluginContext(plugin.id, emitter));
+      }
     }
   }
 
