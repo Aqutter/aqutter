@@ -101,3 +101,20 @@ aqutter plugin add file:../aqutter-plugin-haptics   # 本機開發
 ## 版本相容
 
 App 與 plugin 的 `aqutter` 殼依賴必須使用相同的 git ref，否則 pub 解不出相依；發佈 plugin 時請在 README 註明對應的殼版本。
+
+## 呼叫可能永遠不回應
+
+plugin 的 handler 與它相依的系統套件有時**不會回應也不會報錯**：例如 `battery` 在沒有 UPower 服務的 Linux（WSL）上，套件在內部非同步串流裡拋出的例外不會傳回呼叫端，Dart 的 `await` 就永遠不會結束，網頁端的 `callPlugin` 也因此一直等下去。
+
+網頁端不要假設呼叫一定會回來，尤其不要在頁面初始化的關鍵路徑上 `await` plugin：
+
+```ts
+const withTimeout = <T>(promise: Promise<T>, ms = 3000): Promise<T> => Promise.race([
+  promise,
+  new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+])
+
+const level = await withTimeout(battery.level()).catch(() => null)
+```
+
+範本專案的 `/plugins` 頁就是因為先 `await` battery 再建立鏡像元素，在 Linux 上鏡像整塊空白（見 [Linux](linux.md)）。

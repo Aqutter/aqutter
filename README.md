@@ -38,7 +38,7 @@ pnpm exec aqutter dev macos
 - [Native view 鏡像](docs/nativeview.md)
 - [建置、flavor 與簽章](docs/build-and-signing.md)
 - [熱更新（OTA）](docs/hot-update.md)
-- 平台：[Android](docs/android.md)、[iOS](docs/ios.md)、[macOS](docs/macos.md)、[Windows](docs/windows.md)
+- 平台：[Android](docs/android.md)、[iOS](docs/ios.md)、[macOS](docs/macos.md)、[Windows](docs/windows.md)、[Linux](docs/linux.md)
 
 ## 授權
 

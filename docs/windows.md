@@ -66,3 +66,16 @@ aqutter build windows        # 或 aqutter dev windows
 | 安裝階段報 `file cannot create directory: C:/Program Files/<appName>` 或編譯報 `C1041`（PDB 被占用） | 先前被中斷的建置留下了錯誤的 CMake 快取或殘留的 `cl.exe` / `MSBuild`。結束殘留程序後刪除 `aqutter/build/windows` 重建。 |
 
 **Code signing（選配）**：Windows 以 Authenticode 對 `.exe` 簽章（`signtool sign /fd SHA256 /a <appName>.exe`，需 EV/OV 憑證），非建置必要步驟，發佈給外部使用者時再處理。企業散佈亦可打包為 MSIX（`msix` 套件）另行評估。亦可用 `aqutter build --signing=…` 自動簽章，見 [build-and-signing.md](build-and-signing.md)。
+
+## 鏡像效能（量測）
+
+`<aqutter-native>` 在 Windows 的幀率低於 macOS、iOS（Windows 11、Impeller 的 OpenGL ES 後端，`aqutter_core` `dcf20ea`）：
+
+| 版本 | 拖動鏡像時網頁端幀率 | 擷取耗時 |
+|---|---|---|
+| debug（`aqutter dev`） | 14 到 23 fps | `toImage` 約 9 到 11 ms ＋ `toByteData` 約 13 到 17 ms，合計 22 到 28 ms |
+| release | 約 26 fps | 未量（release 版沒有統計輸出） |
+
+- 瓶頸在「把畫面從 GPU 讀回」（`toImage` 加 `toByteData`），不在傳輸（`send` 約 0.1 ms）或資料量；aqutter_core 文件裡 macOS release 的範例輸出，擷取合計約 4.7 ms。
+- 閒置時 CPU 約 0%；持續拖動時 App 行程約用掉 1.1 到 1.3 個核心（22 核心的機器上約 5%）。
+- 這是單機、單次、單指拖動的量測，數字僅供量級參考。想看各階段耗時：用 `--dart-define=AQUTTER_NATIVE_STATS=true` 建置（見 [aqutter_core 的 doc/nativeview.md](https://github.com/Aqutter/aqutter_core/blob/main/doc/nativeview.md) 的「量測」一節）。
