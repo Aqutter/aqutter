@@ -10,9 +10,13 @@ export 'src/plugin/aqutter_plugin.dart'
         AqutterPlugin,
         AqutterPluginContext,
         AqutterPluginHandler,
+        aqutterErrorKey,
+        aqutterErrorPayload,
         aqutterPluginEventChannel,
         aqutterPluginHandlerName,
-        aqutterPluginIdPattern;
+        aqutterPluginIdPattern,
+        aqutterPluginSupports,
+        aqutterUnsupportedPlatform;
 export 'package:aqutter_core/aqutter_core.dart'
     show
         AqutterNative,

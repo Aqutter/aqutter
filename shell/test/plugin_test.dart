@@ -1,4 +1,5 @@
 import 'package:aqutter/aqutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -15,4 +16,46 @@ void main() {
       expect(aqutterPluginIdPattern.hasMatch(bad), isFalse, reason: bad);
     }
   });
+
+  group('supported platforms', () {
+    test('a plugin that declares nothing supports every platform', () {
+      final plugin = _Plugin(null);
+      for (final platform in TargetPlatform.values) {
+        expect(aqutterPluginSupports(plugin, platform), isTrue, reason: '$platform');
+      }
+    });
+
+    test('a plugin that declares platforms supports only those', () {
+      final plugin = _Plugin({TargetPlatform.android, TargetPlatform.iOS});
+      expect(aqutterPluginSupports(plugin, TargetPlatform.android), isTrue);
+      expect(aqutterPluginSupports(plugin, TargetPlatform.iOS), isTrue);
+      for (final platform in [TargetPlatform.windows, TargetPlatform.macOS, TargetPlatform.linux, TargetPlatform.fuchsia]) {
+        expect(aqutterPluginSupports(plugin, platform), isFalse, reason: '$platform');
+      }
+    });
+
+    test('an empty set supports no platform', () {
+      expect(aqutterPluginSupports(_Plugin(const {}), TargetPlatform.android), isFalse);
+    });
+
+    test('the error payload uses the reserved key with a code and a message', () {
+      final payload = aqutterErrorPayload(aqutterUnsupportedPlatform, 'maps.moveTo is not supported on linux');
+      expect(aqutterErrorKey, 'aqutterError');
+      expect(payload, {
+        'aqutterError': {'code': 'UNSUPPORTED_PLATFORM', 'message': 'maps.moveTo is not supported on linux'},
+      });
+    });
+  });
+}
+
+class _Plugin extends AqutterPlugin {
+  _Plugin(this._platforms);
+
+  final Set<TargetPlatform>? _platforms;
+
+  @override
+  String get id => 'maps';
+
+  @override
+  Set<TargetPlatform>? get supportedPlatforms => _platforms;
 }

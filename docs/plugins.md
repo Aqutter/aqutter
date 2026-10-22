@@ -52,6 +52,7 @@ class HapticsPlugin extends AqutterPlugin {
 | 成員 | 說明 |
 |---|---|
 | `id` | 必填 |
+| `supportedPlatforms` | 選填；`Set<TargetPlatform>?`，`null`（預設）代表所有平台。見下方「宣告支援的平台」 |
 | `handlers` | 暴露給網頁的方法；回傳值須可 JSON 序列化 |
 | `attach(context)` | 殼就緒後呼叫一次；以 `context.emit(event, payload)` 派送事件 |
 | `buildOverlay(context)` | 疊在 WebView 之上、啟動過場之下的 UI；需要吃觸控請自行限定範圍 |
@@ -59,6 +60,42 @@ class HapticsPlugin extends AqutterPlugin {
 | `dispose()` | 殼結束時釋放資源 |
 
 Plugin 的 handler 會列入 `platform_info` 的 `capabilities`，網頁以 `isPluginSupported(id, method)` 查詢（沒裝該 plugin 的 App 為 `false`）。
+
+### 宣告支援的平台
+
+有些 plugin 只在部分平台有實作（例如地圖只有 iOS、Android 有原生版本）。覆寫 `supportedPlatforms` 即可宣告：
+
+```dart
+class MapsPlugin extends AqutterPlugin {
+  @override
+  String get id => 'maps';
+
+  @override
+  Set<TargetPlatform>? get supportedPlatforms => {TargetPlatform.android, TargetPlatform.iOS};
+}
+```
+
+目前平台不在集合內時：
+
+| 項目 | 行為 |
+|---|---|
+| handler | 仍註冊（呼叫不會是 handler not found），但**不列入** `capabilities`，所以 `isPluginSupported(id, method)` 回 `false` |
+| 被呼叫時 | 殼**不執行**你的 handler，回傳 `{ aqutterError: { code: 'UNSUPPORTED_PLATFORM', message } }`；網頁端 `callPlugin` 把它轉成拋出的 `AqutterPluginError`（`error.code === 'UNSUPPORTED_PLATFORM'`），不會卡住 |
+| `attach`、`buildUnderlay`、`buildOverlay` | 殼不呼叫 |
+| `dispose` | 仍會呼叫，必須可安全呼叫 |
+
+網頁用同步的 `isPluginSupported` 就能分支，不必再多設計一個 `isSupported` 方法往返一次：
+
+```ts
+if (isPluginSupported('maps', 'moveTo')) {
+  // 原生實作
+}
+else {
+  // 替代方案，例如純網頁的實作
+}
+```
+
+`aqutterError` 是殼的保留欄位，plugin 自己的回傳不得使用這個名稱。
 
 ## 網頁端與型別
 
@@ -106,7 +143,7 @@ App 與 plugin 的 `aqutter` 殼依賴必須使用相同的 git ref，否則 pub
 
 plugin 的 handler 與它相依的系統套件有時**不會回應也不會報錯**：例如 `battery` 在沒有 UPower 服務的 Linux（WSL）上，套件在內部非同步串流裡拋出的例外不會傳回呼叫端，Dart 的 `await` 就永遠不會結束，網頁端的 `callPlugin` 也因此一直等下去。
 
-網頁端不要假設呼叫一定會回來，尤其不要在頁面初始化的關鍵路徑上 `await` plugin：
+宣告了 `supportedPlatforms` 的 plugin，在不支援的平台上呼叫會明確失敗（見上）；但「系統套件在支援的平台上卡住」這類情況仍然存在，網頁端不要假設呼叫一定會回來，尤其不要在頁面初始化的關鍵路徑上 `await` plugin：
 
 ```ts
 const withTimeout = <T>(promise: Promise<T>, ms = 3000): Promise<T> => Promise.race([

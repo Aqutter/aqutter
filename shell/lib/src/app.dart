@@ -754,12 +754,13 @@ class _AqutterPageState extends State<AqutterPage> {
         fit: StackFit.expand,
         children: [
           // plugin 的墊底內容：被網頁蓋住但仍在 Flutter 裡渲染（供鏡像擷取）
-          for (final plugin in widget.plugins) ?plugin.buildUnderlay(context),
+          for (final plugin in widget.plugins)
+            if (aqutterPluginSupports(plugin, defaultTargetPlatform)) ?plugin.buildUnderlay(context),
           if (baseUrl != null) _buildWebView(baseUrl),
           // plugin 的原生 UI：在 WebView 之上、啟動過場之下
           if (baseUrl != null)
             for (final plugin in widget.plugins)
-              ?plugin.buildOverlay(context),
+              if (aqutterPluginSupports(plugin, defaultTargetPlatform)) ?plugin.buildOverlay(context),
           if (_overlayMounted)
             StartupOverlay(
               stage: _stage,
