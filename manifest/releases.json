@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-21T08:00:00Z",
+  "generatedAt": "2026-10-22T02:30:00Z",
   "channels": {
     "stable": "0.0.0"
   },
@@ -14,7 +14,7 @@
       "shell": {
         "url": "https://github.com/Aqutter/aqutter.git",
         "path": "shell",
-        "ref": "48d58e205967680f1ab1fffab02520014854ae4b"
+        "ref": "a531fb68a024b8fffd2295d9c6a79693cb64735c"
       },
       "core": {
         "url": "https://github.com/Aqutter/aqutter_core.git",
