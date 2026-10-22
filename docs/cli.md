@@ -21,7 +21,7 @@
 
 ## aqutter dev [target]
 
-同時啟動網頁 dev server 與 `flutter run`。
+先啟動網頁 dev server，等它回應（任一回應非 5xx，最長 180 秒）後才啟動 `flutter run`，避免 App 先起來而拿到 dev server 還在編譯時的 5xx。dev 模式下殼遇到載入錯誤或 5xx 也會自動重試（每秒一次、最多 60 次，期間維持啟動畫面），用盡才顯示「啟動失敗」。
 
 `target`：省略 / `pick`（互動選單，全平台）、`ios`、`android`（互動，限該平台範圍）、`macos`、`windows`、`linux`、`ios-device`、`<flutter device id>`。
 

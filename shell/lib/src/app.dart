@@ -224,6 +224,16 @@ class _AqutterPageState extends State<AqutterPage> {
     seconds: int.fromEnvironment('AQUTTER_WEB_READY_TIMEOUT_SECONDS', defaultValue: 300),
   );
 
+  /// dev 模式載入 dev server 失敗後的重試。
+  ///
+  /// dev server 剛啟動、正在編譯或因設定變更而重啟的那幾秒會回 5xx 或拒絕連線；
+  /// 這不是「壞了」，等一下就好，所以 dev 模式重試並維持啟動畫面，而不是立刻顯示錯誤。
+  /// 次數用盡才落到錯誤畫面。收到 `app_ready` 即歸零。release 與 OTA 的失敗處理不受影響。
+  int _devLoadRetries = 0;
+  static const int _devLoadRetryLimit = 60;
+  static const Duration _devLoadRetryDelay = Duration(seconds: 1);
+  Timer? _devLoadRetryTimer;
+
   /// 上次套用的狀態列樣式依據；相同則不重複呼叫平台通道。
   Brightness? _lastBrightness;
 
@@ -443,6 +453,8 @@ class _AqutterPageState extends State<AqutterPage> {
   /// 會隨 WebView 每次重掛而再次觸發（套用網頁包更新後），故必須可重入。
   void _onWebReady() {
     _readyWindow?.cancel();
+    _devLoadRetryTimer?.cancel();
+    _devLoadRetries = 0;
     _webReady = true;
     _recovering = false;
     _dismissOverlay();
@@ -478,10 +490,16 @@ class _AqutterPageState extends State<AqutterPage> {
     _readyWindow?.cancel();
     debugPrint('[Aqutter] web failed to become ready: $reason');
 
-    // dev 模式載入的是 dev server，沒有網頁包可退。能走到這裡的只剩載入層級的錯誤
-    // （dev server 沒開、位址不通），那正是開發者需要立刻看到的東西。
+    // dev 模式載入的是 dev server，沒有網頁包可退。先重試一段時間（dev server 可能還在編譯或重啟），
+    // 次數用盡才顯示錯誤——那時 dev server 真的沒開或位址不通，正是開發者需要立刻看到的東西。
     if (kDevUrl.isNotEmpty) {
-      setState(() => _error = 'dev server 載入失敗\n$reason');
+      if (_devLoadRetries < _devLoadRetryLimit) {
+        _devLoadRetries++;
+        _devLoadRetryTimer?.cancel();
+        _devLoadRetryTimer = Timer(_devLoadRetryDelay, () => _mountWebView(Uri.parse(kDevUrl)));
+        return;
+      }
+      setState(() => _error = 'dev server 載入失敗（已重試 $_devLoadRetryLimit 次）\n$reason');
       return;
     }
 
@@ -684,6 +702,7 @@ class _AqutterPageState extends State<AqutterPage> {
   void dispose() {
     SystemBars.appBrightness.removeListener(_onAppBrightnessChanged);
     _readyWindow?.cancel();
+    _devLoadRetryTimer?.cancel();
     _registry?.disposePlugins();
     _server.stop();
     super.dispose();
