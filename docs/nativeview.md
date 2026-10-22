@@ -92,6 +92,20 @@ PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains:
 
 網頁若設定 Content-Security-Policy，`connect-src` 需允許 `ws://127.0.0.1:*`。
 
+**沒放行的症狀**：`<aqutter-native>` 的區塊整個是空白（canvas 沒有任何內容），而且**沒有任何錯誤訊息**——瀏覽器把連線靜默擋掉。連續失敗幾次後，元素會在 console 印一則提示（`[aqutterNative] 連線 ws://127.0.0.1:… 連續失敗 …`）；看到它就先檢查 CSP。
+
+網頁連的是殼本機的 WebSocket（`ws://127.0.0.1:<隨機埠>/native/<session>`），埠每次不同，所以要用 `:*`。
+
+標頭寫法：
+
+```
+Content-Security-Policy: connect-src 'self' ws://127.0.0.1:*
+```
+
+範本專案（`aqutter-nuxt-app`）的做法是在 `nuxt.config.ts` 的 CSP `connect` 清單加上 `'ws://127.0.0.1:*'`。
+
+release 版由殼的本機 server 供應網頁包，不送 CSP 標頭，所以通常只有 dev（dev server 自己送 CSP）與瀏覽器情境會遇到。
+
 ## 限制
 
 - 傳輸為未壓縮 RGBA（預設，所有平台）或 JPEG（只用於原生擷取，`nativeJpegQuality`）；PNG、WebP、H.264 實驗過、已移除（實測見 aqutter_core 的 doc/nativeview.md）。
