@@ -12,7 +12,7 @@
 | 事件（Flutter → 網頁） | `evaluateJavascript("window.__flutterBridgeEmit(頻道, payload)")`：每個事件組成一段 JS 字串去執行 | 低頻通知 |
 | 大型二進位 | 放進 JSON，用 base64 | 偶爾的小檔案 |
 | 本機 WebSocket | 殼內的 `AqutterNativeHost`（鏡像使用）；二進位訊息、關閉壓縮 | 鏡像的幀；大量二進位 |
-| 二進位通道 | plugin 宣告 `channels`，網頁以 `openBinaryChannel` 連上同一個伺服器（見 [plugins](plugins.md)） | plugin 與網頁之間的大量二進位 |
+| 統一傳輸（現行） | 呼叫、回應、事件與二進位共用一條本機 WebSocket（`aqutter.rpc`）；酬載可直接帶 `Uint8List`／`Uint8Array`（見 [plugins](plugins.md)） | 全部 |
 
 ## 結果（release，各一次）
 
@@ -75,19 +75,58 @@ Windows 上 WebSocket 下行明顯比 Android 慢（1MB：44 對 263 MB/s；64B 
 
 所以 Windows 上的鏡像在 `auto` 約 30 fps、`smooth` 約 36 fps；想更高就要同時降低每幀位元組與擷取成本。移動中降解析度是刻意的設計（見 [Native view 鏡像](nativeview.md)）。
 
-## 通用二進位通道（Android 實機）
+## 統一傳輸（Android 實機）
 
-通道實作後在同一支 Android 手機（release）驗證：網頁以 WebSocket 連 `/channel/bench.bin`，Dart 端用 `registerChannel` 處理。**這次是直接連通道，尚未經過 `openBinaryChannel`（網頁端 API 還沒做完）**；原始結果與測試程式在 `tools/channel-bench/results/android-asus-i006d-binary-channel-2026-10-27.json`、`app/zzchan.client.ts`、`app/channel_bench_plugin.dart`。
+呼叫與事件改走同一條多工連線後，在同一支 Android 手機（release）以真實的 plugin 與 `callPlugin` 量測。原始結果與測試程式在 `tools/channel-bench/results/android-asus-i006d-unified-transport-2026-10-28.json`、`app/zzchan.client.ts`、`app/channel_bench_plugin.dart`。
 
 | 項目 | 結果 |
 |---|---|
-| 令牌錯誤／通道名稱未註冊 | 皆被拒絕 |
-| 2MB 資料來回 | 內容一致 |
-| 小訊息往返（300 次） | 平均 0.29 ms，p95 0.5 ms |
-| 1MB 下行 × 100 | 287 MB/s |
-| 1MB 上行 × 100 | 194 MB/s（Dart 端收到 100 則、104,857,600 位元組） |
+| 小呼叫往返（300 次） | 平均 0.57 ms，p95 1.1 ms（改版前 `callHandler` 約 0.5 ms） |
+| 2MB 二進位來回 | 內容一致 |
+| **1MB 往返：二進位對 base64（同一條傳輸）** | **15.5 ms 對 100.1 ms，約 6.5 倍** |
+| 1MB 下行 × 100（逐一呼叫） | 134 MB/s |
+| 1MB 上行 × 100（逐一呼叫） | 121 MB/s（Dart 端收到 104,857,600 位元組） |
+| 事件帶 100KB 二進位 × 200 | 200 個全數收到，114 ms |
+| 錯誤碼 | `HANDLER_NOT_FOUND`、`HANDLER_FAILED`、plugin 自訂 `DENIED` 皆正確 |
+| 殼重啟伺服器 | 進行中的呼叫 `TRANSPORT_CLOSED`，狀態 closed → connecting → open，約 217 ms 後呼叫恢復 |
 
-與 JSON／base64 相比（同一支手機）：1MB 往返約 52／133 ms，通道下行約 287 MB/s（約 3.5 ms／MB），與先前的 WebSocket 量測同量級，通道這一層沒有額外開銷。Windows 沒有用通道重量；預期受同一個約 50 MB/s 的下行上限限制。
+- Android：小呼叫沒有變慢（0.57 對 0.5 ms，量測誤差內）；大資料的好處是實測的。
+- 下行／上行的吞吐低於先前直接用 WebSocket 量到的數字（約 260／190 MB/s）：這裡每次是一個完整的呼叫往返（編碼、分派、回應），不是連續串流。
+- 只在這一支 Android 手機、一台 Windows 桌機與 WSL2 的 Linux 量過各一次；iOS、macOS 追蹤於 Aqutter/aqutter#21。
+- 另外用 70 MiB 的呼叫來回（內容一致，902 ms）、66 MiB 的事件（收到）、超過 512 MiB（`PAYLOAD_TOO_LARGE`）驗證自動分段。
+
+### Windows（同一套測試）
+
+原始結果：`tools/channel-bench/results/windows-unified-transport-2026-10-28.json`。
+
+| 項目 | 結果 |
+|---|---|
+| 小呼叫往返（300 次） | 平均 0.79 ms，p95 1.2 ms（改版前 `callHandler` 約 0.48 ms，**慢了約 0.3 ms**） |
+| 1MB 往返：二進位對 base64（同一條傳輸） | 45.3 ms 對 121.9 ms（約 2.7 倍） |
+| 1MB 下行／上行 × 100（逐一呼叫） | 57／46 MB/s |
+| 事件帶 100KB 二進位 × 200 | 全數收到，369 ms |
+| 70 MiB 呼叫來回／66 MiB 事件／超過 512 MiB | 內容一致（2.66 秒）／收到／`PAYLOAD_TOO_LARGE` |
+| 錯誤碼、殼重啟後的重連 | 皆正確；約 216 ms 後呼叫恢復 |
+
+- Windows 的好處比 Android 小（2.7 倍對 6.5 倍），因為 Chromium 的 WebSocket 下行上限約 50 MB/s（見上方「Windows 的 WebSocket 下行上限」），這條傳輸同樣受限。
+- 小呼叫在 Windows 慢了約 0.3 ms：一般呼叫不受影響，但每次呼叫都有這個固定成本。
+- 只在這一台 Windows 桌機量過一次。
+
+### Linux（WSL2 Debian 13，WPE WebKit 2.48.3）
+
+原始結果：`tools/channel-bench/results/linux-wsl2-debian13-unified-transport-2026-10-28.json`。
+
+| 項目 | 結果 |
+|---|---|
+| 小呼叫往返（300 次） | 平均 3.57 ms，p95 12 ms（比 Android、Windows 高很多） |
+| 1MB 往返：二進位對 base64（同一條傳輸） | 18.9 ms 對 148.8 ms（約 7.9 倍） |
+| 1MB 下行／上行 × 100（逐一呼叫） | 112／117 MB/s |
+| 事件帶 100KB 二進位 × 200 | 全數收到，52 ms |
+| 70 MiB 呼叫來回／66 MiB 事件／超過 512 MiB | 內容一致（0.99 秒）／收到／`PAYLOAD_TOO_LARGE` |
+| 錯誤碼、殼重啟後的重連 | 皆正確；約 212 ms 後呼叫恢復 |
+
+- 功能全部通過。小呼叫的延遲高是在 WSL2 + WPE WebKit 環境量到的，沒有與改版前的 `callHandler` 對照過，不能說是統一傳輸造成的；真實的 Linux 桌機沒有量。
+- 只量過這一個環境一次。
 
 ## 限制
 

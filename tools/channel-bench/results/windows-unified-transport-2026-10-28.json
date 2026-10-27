@@ -1,0 +1,52 @@
+{
+  "platform": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+  "smallRtt": {
+    "meanMs": 0.79,
+    "p95Ms": 1.2
+  },
+  "echo2MBIntact": true,
+  "roundTrip1MB": {
+    "binaryMs": 45.34,
+    "base64Ms": 121.94,
+    "speedup": 2.69
+  },
+  "down1MB": {
+    "mbPerSec": 56.58
+  },
+  "up1MB": {
+    "mbPerSec": 45.98,
+    "receivedBytes": 104857600
+  },
+  "events": {
+    "sent": 200,
+    "received": 200,
+    "receivedBytes": 20480000,
+    "ms": 368.5
+  },
+  "big70MiB": {
+    "intact": true,
+    "ms": 2659.8
+  },
+  "bigEvent66MiB": {
+    "received": 69206016
+  },
+  "tooLarge": "PAYLOAD_TOO_LARGE",
+  "errors": {
+    "notFound": "HANDLER_NOT_FOUND",
+    "thrown": "HANDLER_FAILED",
+    "coded": "DENIED",
+    "unknownPlugin": "HANDLER_NOT_FOUND"
+  },
+  "restart": {
+    "inflightCode": "TRANSPORT_CLOSED",
+    "afterRestart": "ok",
+    "reconnectedAfterMs": 216.1,
+    "stateAfter": "open",
+    "states": [
+      "closed",
+      "connecting",
+      "open"
+    ],
+    "totalMs": 380.8
+  }
+}

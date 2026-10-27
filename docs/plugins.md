@@ -53,8 +53,7 @@ class HapticsPlugin extends AqutterPlugin {
 |---|---|
 | `id` | 必填 |
 | `supportedPlatforms` | 選填；`Set<TargetPlatform>?`，`null`（預設）代表所有平台。見下方「宣告支援的平台」 |
-| `handlers` | 暴露給網頁的方法；回傳值須可 JSON 序列化 |
-| `channels` | 選填；具名二進位通道，見下方「二進位通道」 |
+| `handlers` | 暴露給網頁的方法；回傳值須可 JSON 序列化，酬載與回傳值可直接含 `Uint8List`（見下方「二進位」） |
 | `attach(context)` | 殼就緒後呼叫一次；以 `context.emit(event, payload)` 派送事件 |
 | `buildOverlay(context)` | 疊在 WebView 之上、啟動過場之下的 UI；需要吃觸控請自行限定範圍 |
 | `buildUnderlay(context)` | 墊在 WebView 之下、被網頁蓋住但仍在 Flutter 渲染的內容（網頁載入前就掛上）；搭配 [native view 鏡像](nativeview.md) |
@@ -62,24 +61,29 @@ class HapticsPlugin extends AqutterPlugin {
 
 Plugin 的 handler 會列入 `platform_info` 的 `capabilities`，網頁以 `isPluginSupported(id, method)` 查詢（沒裝該 plugin 的 App 為 `false`）。
 
-### 二進位通道
+### 二進位
 
-`handlers` 與事件都經過 JSON，傳大量二進位資料（影像、音訊、檔案）很慢，量測見 [通道效能](channel-performance.md)。需要時改宣告 `channels`：
+酬載與回傳值、事件內容可以直接放二進位，不需要 base64，也不需要另外選擇通道：
 
 ```dart
 @override
-Map<String, AqutterChannelHandler> get channels => {
-  'frames': (connection) {
-    connection.messages.listen((data) => connection.send(process(data)));
+Map<String, AqutterPluginHandler> get handlers => {
+  'process': (payload) async {
+    final input = payload['image'] as Uint8List;   // 網頁送來的 Uint8Array
+    return {'result': await run(input)};           // 回傳 Uint8List 即可
   },
 };
 ```
 
-- 鍵是通道名（不含 id 前綴，`^[a-z][a-z0-9-]*$`）；網頁以 `openBinaryChannel('<id>.<name>')` 連上，每條新連線呼叫一次處理函式。
-- 連線與處理函式型別（`AqutterChannelConnection`、`AqutterChannelHandler`）由 `aqutter_core` 提供，細節見其 `doc/nativeview.md`。
-- 只傳二進位；v1 沒有自動重連與背壓。
-- 與 `supportedPlatforms` 一致：不支援的平台不註冊，網頁連線會被拒絕。
-- 底層是殼內的本機 WebSocket（與 native view 鏡像共用伺服器與令牌）；網頁的 CSP 需允許 `connect-src ws://127.0.0.1:*`。
+```ts
+const { result } = await callPlugin('my-plugin', 'process', { image: new Uint8Array(bytes) })
+// result 是 Uint8Array
+```
+
+- Dart 的 `Uint8List`（及其他 `TypedData`）與 JS 的 `ArrayBuffer`／`Uint8Array` 等，送出時自動處理；收到時一律是 `Uint8List`／`Uint8Array`。`$bin` 是酬載物件的保留鍵，使用者資料不得使用。
+- 呼叫、回應與事件共用**同一條**本機連線（見 [通道效能](channel-performance.md)）。超過 64 MiB 的資料由框架自動分段送出、收到後組回，使用者不需處理；單次上限 512 MiB，超過以 `PAYLOAD_TOO_LARGE` 失敗。組回後整份資料仍在記憶體裡，這不是串流。
+- 連線意外中斷時，已送出未回應的呼叫會以 `TRANSPORT_CLOSED` 失敗並自動重連；事件不補發，需要時用網頁端的 `onTransportState` 在重連後重新取得狀態。
+- 網頁的 CSP 需允許 `connect-src ws://127.0.0.1:*`（所有 App 都需要，不只用鏡像者）。
 
 ### 宣告支援的平台
 

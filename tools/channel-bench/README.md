@@ -12,6 +12,7 @@
 | `app/zzbench.client.ts` | 網頁端的基準（Nuxt 的 client plugin，載入後 10 秒自動執行）：A 小呼叫往返、B 吞吐、C JSON 酬載、D base64 二進位、E 事件、F WebSocket 二進位 |
 | `app/zzmirror.client.ts` | 鏡像基準（載入後 12 秒自動執行）：用 `mirror-demo` 的 `animate` 讓畫面每一幀都在變，量 fps、每幀大小與頻寬 |
 | `isolate/ws_server.dart`、`ws_page.html`、`ws_client_node.mjs`、`ws_client_dart.dart` | 獨立的 WebSocket 伺服器與三種客戶端（一般瀏覽器、Node、Dart），不依賴 Flutter，用來隔離「慢」在伺服器、WebView 還是 Chromium |
+| `app/zzchan.client.ts`、`app/channel_bench_plugin.dart` | 統一傳輸的端對端驗證與量測：小呼叫、二進位往返、base64 對照、事件、錯誤碼、伺服器重啟後的重連 |
 | `results/` | 2026-10-27 的原始結果（Windows、Android、Windows 鏡像三種政策） |
 
 ## 在 App 裡跑（release 版才有意義）

@@ -5,44 +5,47 @@ import 'dart:typed_data';
 import 'package:aqutter/aqutter.dart';
 import 'package:aqutter_core/aqutter_core.dart';
 
-/// 通用二進位通道的 Android 實機驗證（暫存複本）。
-/// 協定（第一個位元組是指令）：0 = 原樣回傳；1 = 下行（count u32, size u32）；2 = 回報累計上行（回 count u32, bytes u32）。
+/// 統一傳輸的 Android 實機驗證（暫存複本）。
 class BenchPlugin extends AqutterPlugin {
+  AqutterPluginContext? _context;
+
   @override
   String get id => 'bench';
 
   @override
   void attach(AqutterPluginContext context) {
-    AqutterNativeHost.instance.registerChannel('bench.bin', (connection) {
-      var upCount = 0;
-      var upBytes = 0;
-      connection.messages.listen((data) {
-        switch (data[0]) {
-          case 0:
-            connection.send(data);
-          case 1:
-            final view = ByteData.sublistView(data);
-            final count = view.getUint32(1);
-            final chunk = Uint8List(view.getUint32(5));
-            for (var i = 0; i < count; i++) {
-              connection.send(chunk);
-            }
-            connection.send(Uint8List.fromList([0xFF]));
-          case 2:
-            final reply = ByteData(8)..setUint32(0, upCount)..setUint32(4, upBytes);
-            connection.send(reply.buffer.asUint8List());
-            upCount = 0;
-            upBytes = 0;
-          default:
-            upCount += 1;
-            upBytes += data.length;
-        }
-      });
-    });
+    _context = context;
   }
 
   @override
   Map<String, AqutterPluginHandler> get handlers => {
+        'ping': (payload) async => {'ok': true},
+        // 原樣回傳（含二進位）
+        'echo': (payload) async => payload,
+        // 產生 bytes 位元組的二進位
+        'source': (payload) async => {'data': Uint8List(payload['bytes'] as int)},
+        // 回傳收到的位元組數（量上行）
+        'sink': (payload) async => {'length': (payload['data'] as Uint8List).length},
+        // 連發 count 個事件，每個帶 bytes 位元組的二進位
+        'startEvents': (payload) async {
+          final count = payload['count'] as int;
+          final chunk = Uint8List(payload['bytes'] as int);
+          for (var i = 0; i < count; i++) {
+            await _context!.emit('event', {'i': i, 'data': chunk});
+          }
+          return {'sent': count};
+        },
+        'slow': (payload) async {
+          await Future<void>.delayed(const Duration(seconds: 2));
+          return {'ok': true};
+        },
+        'boom': (payload) async => throw StateError('boom'),
+        'coded': (payload) async => aqutterErrorPayload('DENIED', 'not allowed'),
+        // 讓殼重啟本機伺服器：連線會以 1001 關閉，網頁端應自動重連
+        'restartHost': (payload) async {
+          Future<void>.delayed(const Duration(milliseconds: 50), () => AqutterNativeHost.instance.restart());
+          return {'ok': true};
+        },
         'report': (payload) async {
           final text = const JsonEncoder.withIndent('  ').convert(jsonDecode(payload['json'] as String));
           for (final line in text.split('\n')) {

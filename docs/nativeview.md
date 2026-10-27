@@ -90,7 +90,7 @@ PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains:
 
 ## 網頁的 CSP
 
-網頁若設定 Content-Security-Policy，`connect-src` 需允許 `ws://127.0.0.1:*`。
+網頁若設定 Content-Security-Policy，`connect-src` 需允許 `ws://127.0.0.1:*`。**所有 App 都需要**：呼叫與事件都走這條本機連線，不只鏡像。
 
 **沒放行的症狀**：`<aqutter-native>` 的區塊整個是空白（canvas 沒有任何內容），而且**沒有任何錯誤訊息**——瀏覽器把連線靜默擋掉。連續失敗幾次後，元素會在 console 印一則提示（`[aqutterNative] 連線 ws://127.0.0.1:… 連續失敗 …`）；看到它就先檢查 CSP。
 

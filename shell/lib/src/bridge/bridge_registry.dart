@@ -66,6 +66,9 @@ class BridgeRegistry {
 
   final Dio _dio;
 
+  /// 網頁與 Dart 之間的多工 RPC（`aqutter_core`）。
+  final AqutterRpcHost _rpc = AqutterRpcHost.instance;
+
   /// 連線逾時。dio 預設不設限（`null` 等同無上限），會讓斷線的請求一路吊到
   /// OS 的 socket 預設（Android 約 130 秒）。此處為保底防線；per-request 的
   /// 控制由前端 AbortSignal 經 [BridgeHandler.httpAbort] 負責。
@@ -104,7 +107,7 @@ class BridgeRegistry {
 
   AqutterChromeSafariBrowser? _iab;
 
-  /// 取得 handler 傳入的 payload（JS 端以單一物件傳入，位於 args[0]）。
+  /// 取得平台呼叫傳入的 payload（單一物件，位於 args[0]）。
   Map<String, dynamic> _payload(List<dynamic> args) {
     if (args.isEmpty || args.first is! Map) {
       return const {};
@@ -114,34 +117,37 @@ class BridgeRegistry {
 
   /// 註冊全部 handler。應於 onWebViewCreated 後呼叫。
   ///
-  /// handler 掛在 controller 上，故 WebView 重掛（套用網頁包更新後）必須重跑；
-  /// 系統事件訂閱則只會在首次呼叫時建立。
+  /// 除 `native_endpoint`（網頁取得連線資訊，掛在 [controller] 上）外，handler 都登錄在 [AqutterRpcHost]，
+  /// 與 WebView 無關；WebView 重掛（套用網頁包更新後）重跑時同名取代。系統事件訂閱則只會在首次呼叫時建立。
   void register(AqutterWebViewController controller) {
-    _registerPlatform(controller);
-    _registerDatabase(controller);
-    _registerStore(controller);
-    _registerDownload(controller);
-    _registerLog(controller);
-    _registerHttp(controller);
-    _registerBundle(controller);
-    _registerDevice(controller);
-    _registerPermissions(controller);
-    _registerOpenerAndBrowser(controller);
-    _registerPicker(controller);
-    _registerTcp(controller);
-    _registerUi(controller);
+    _registerPlatform();
+    _registerDatabase();
+    _registerStore();
+    _registerDownload();
+    _registerLog();
+    _registerHttp();
+    _registerBundle();
+    _registerDevice();
+    _registerPermissions();
+    _registerOpenerAndBrowser();
+    _registerPicker();
+    _registerTcp();
+    _registerUi();
     _registerNative(controller);
-    _registerPlugins(controller);
+    _registerPlugins();
     _startBroadcast();
     _registerHostEvents();
   }
 
   /// native view 鏡像：回傳 localhost WebSocket 的埠與令牌（首次呼叫時才啟動伺服器）。
+  ///
+  /// 這是**唯一**走 `callHandler` 的 handler：網頁要靠它取得多工連線的埠與令牌，連線建立前沒有別的路。
   void _registerNative(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.nativeEndpoint, (_) async {
-      final endpoint = await AqutterNativeHost.instance.ensureStarted();
-      return endpoint.toJson();
-    });
+    _capabilities.add(BridgeHandler.nativeEndpoint);
+    controller.addJavaScriptHandler(
+      handlerName: BridgeHandler.nativeEndpoint,
+      callback: (_) async => (await AqutterNativeHost.instance.ensureStarted()).toJson(),
+    );
   }
 
   /// plugin 是否已 attach；理由同 [_broadcastStarted]——WebView 重掛時 handler 要重掛、context 不該重發。
@@ -153,11 +159,14 @@ class BridgeRegistry {
   /// 回傳 `aqutterError`（`UNSUPPORTED_PLATFORM`）而不執行 plugin 的函式，也不呼叫 `attach`。
   ///
   /// id 不合法或兩個 plugin 同 id 會直接拋錯：這是 App 組裝期的程式錯誤，不該拖到網頁呼叫時才發現。
-  void _registerPlugins(AqutterWebViewController controller) {
+  void _registerPlugins() {
     final seen = <String>{};
     for (final plugin in plugins) {
       if (!aqutterPluginIdPattern.hasMatch(plugin.id)) {
         throw ArgumentError.value(plugin.id, 'AqutterPlugin.id', 'Must match ${aqutterPluginIdPattern.pattern}');
+      }
+      if (plugin.id == aqutterReservedPluginId) {
+        throw ArgumentError.value(plugin.id, 'AqutterPlugin.id', 'Reserved for the host');
       }
       if (!seen.add(plugin.id)) {
         throw ArgumentError.value(plugin.id, 'AqutterPlugin.id', 'Duplicate plugin id');
@@ -166,23 +175,19 @@ class BridgeRegistry {
       for (final entry in plugin.handlers.entries) {
         final name = aqutterPluginHandlerName(plugin.id, entry.key);
         if (supported) {
-          _handle(controller, name, entry.value);
+          _handle(name, entry.value);
         }
         else {
           _handle(
-            controller,
             name,
             supported: false,
-            (_) async => aqutterErrorPayload(
+            (_) async => throw AqutterRpcException(
               aqutterUnsupportedPlatform,
               '$name is not supported on ${_currentPlatform()}',
             ),
           );
         }
       }
-    }
-    for (final plugin in plugins) {
-      aqutterRegisterPluginChannels(AqutterNativeHost.instance, plugin, defaultTargetPlatform);
     }
     if (_pluginsAttached) {
       return;
@@ -198,7 +203,6 @@ class BridgeRegistry {
   /// 釋放 plugin 資源。
   void disposePlugins() {
     for (final plugin in plugins) {
-      aqutterUnregisterPluginChannels(AqutterNativeHost.instance, plugin);
       plugin.dispose();
     }
   }
@@ -268,13 +272,13 @@ class BridgeRegistry {
     return 'other';
   }
 
-  /// 註冊單一 handler。
+  /// 註冊單一 handler 到 [AqutterRpcHost]（網頁經多工連線呼叫）。handler 回傳 [aqutterErrorPayload]
+  /// 的結果會被轉成錯誤訊框。
   ///
   /// [supported] 宣告「本 handler 在當前平台是否真的做得到事」，預設 true。
   /// 為 false 時仍會註冊（呼叫下去不會拋 handler not found，行為與過去一致），
   /// 但不列入 [_capabilities]，網頁層即可在呼叫前查得並略過。
   void _handle(
-    AqutterWebViewController controller,
     String name,
     Future<dynamic> Function(Map<String, dynamic> payload) fn, {
     bool supported = true,
@@ -282,18 +286,22 @@ class BridgeRegistry {
     if (supported) {
       _capabilities.add(name);
     }
-    controller.addJavaScriptHandler(
-      handlerName: name,
-      callback: (args) => fn(_payload(args)),
-    );
+    _rpc.registerHandler(name, (payload) async {
+      final result = await fn(payload);
+      final error = aqutterErrorOf(result);
+      if (error != null) {
+        throw error;
+      }
+      return result;
+    });
   }
 
   // ---- Platform ----
-  void _registerPlatform(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.platformInfo, (_) async => _platformInfo());
+  void _registerPlatform() {
+    _handle(BridgeHandler.platformInfo, (_) async => _platformInfo());
     // 網頁就緒訊號。刻意不採 onLoadStop——後者只代表 document 載完，
     // hydration 與首次繪製都還沒發生，此時移除過場仍會露出空白。
-    _handle(controller, BridgeHandler.appReady, (_) async {
+    _handle(BridgeHandler.appReady, (_) async {
       onWebReady();
       return {'ok': true};
     });
@@ -332,8 +340,8 @@ class BridgeRegistry {
   }
 
   // ---- Database (drift) ----
-  void _registerDatabase(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.dbOpen, (payload) async {
+  void _registerDatabase() {
+    _handle(BridgeHandler.dbOpen, (payload) async {
       await _db.open(
         name: payload['name'] as String?,
         path: payload['path'] as String?,
@@ -341,7 +349,7 @@ class BridgeRegistry {
       return {'ok': true};
     });
 
-    _handle(controller, BridgeHandler.dbExec, (payload) async {
+    _handle(BridgeHandler.dbExec, (payload) async {
       final name = payload['name'] as String;
       final sql = payload['sql'] as String;
       final bind = (payload['bind'] as List<dynamic>?) ?? const [];
@@ -350,13 +358,13 @@ class BridgeRegistry {
   }
 
   // ---- KV Store (shared_preferences) ----
-  void _registerStore(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.storeGet, (payload) async {
+  void _registerStore() {
+    _handle(BridgeHandler.storeGet, (payload) async {
       final key = payload['key'] as String;
       return {'value': preferences.getString(key)};
     });
 
-    _handle(controller, BridgeHandler.storeSet, (payload) async {
+    _handle(BridgeHandler.storeSet, (payload) async {
       final key = payload['key'] as String;
       final value = payload['value'] as String;
       await preferences.setString(key, value);
@@ -365,8 +373,8 @@ class BridgeRegistry {
   }
 
   // ---- Download (dio + progress) ----
-  void _registerDownload(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.download, (payload) async {
+  void _registerDownload() {
+    _handle(BridgeHandler.download, (payload) async {
       final url = payload['url'] as String;
       final fileName = payload['fileName'] as String;
       final requestId = payload['requestId'] as String;
@@ -401,33 +409,33 @@ class BridgeRegistry {
   }
 
   // ---- Log ----
-  void _registerLog(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.logAppend, (payload) async {
+  void _registerLog() {
+    _handle(BridgeHandler.logAppend, (payload) async {
       await _log.append(payload['level'] as String, payload['message'] as String);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.logSetKey, (payload) async {
+    _handle(BridgeHandler.logSetKey, (payload) async {
       _log.setKey(payload['key'] as String);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.logList, (_) async => {'files': await _log.list()});
-    _handle(controller, BridgeHandler.logRead, (payload) async {
+    _handle(BridgeHandler.logList, (_) async => {'files': await _log.list()});
+    _handle(BridgeHandler.logRead, (payload) async {
       return {'content': await _log.read(payload['name'] as String)};
     });
-    _handle(controller, BridgeHandler.logWrite, (payload) async {
+    _handle(BridgeHandler.logWrite, (payload) async {
       await _log.write(payload['name'] as String, payload['bytesBase64'] as String);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.logRemove, (payload) async {
+    _handle(BridgeHandler.logRemove, (payload) async {
       await _log.remove(payload['name'] as String);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.logDir, (_) async => {'dir': await _log.dirPath()});
+    _handle(BridgeHandler.logDir, (_) async => {'dir': await _log.dirPath()});
   }
 
   // ---- HTTP fetch（繞 CORS）----
-  void _registerHttp(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.httpFetch, (payload) async {
+  void _registerHttp() {
+    _handle(BridgeHandler.httpFetch, (payload) async {
       final url = payload['url'] as String;
       final method = payload['method'] as String;
       final headers = Map<String, dynamic>.from(payload['headers'] as Map? ?? const {});
@@ -464,7 +472,7 @@ class BridgeRegistry {
       }
     });
 
-    _handle(controller, BridgeHandler.httpAbort, (payload) async {
+    _handle(BridgeHandler.httpAbort, (payload) async {
       final requestId = payload['requestId'] as String;
       // 請求可能已完成並清掉權杖；此時 abort 是無害的空操作
       _httpCancelTokens.remove(requestId)?.cancel('aborted by caller');
@@ -490,10 +498,10 @@ class BridgeRegistry {
   }
 
   // ---- 網頁包版本與更新 ----
-  void _registerBundle(AqutterWebViewController controller) {
+  void _registerBundle() {
     // 網頁包版本與殼版本一起回：使用者要看的是「這份網頁包配哪個殼」，拆成兩個 handler
     // 只會讓網頁端多一次往返再自行拼裝。
-    _handle(controller, BridgeHandler.bundleInfo, (_) async {
+    _handle(BridgeHandler.bundleInfo, (_) async {
       final host = await HostVersion.load();
       return {
         'currentVersion': await bundle.currentVersion(),
@@ -503,29 +511,29 @@ class BridgeRegistry {
       };
     });
 
-    _handle(controller, BridgeHandler.bundleCheckUpdate, (_) => _checkUpdate());
+    _handle(BridgeHandler.bundleCheckUpdate, (_) => _checkUpdate());
 
-    _handle(controller, BridgeHandler.updateConfigGet, (_) async => _updateConfigInfo());
+    _handle(BridgeHandler.updateConfigGet, (_) async => _updateConfigInfo());
 
-    _handle(controller, BridgeHandler.updateConfigSet, (payload) => _changeEndpoint(payload));
+    _handle(BridgeHandler.updateConfigSet, (payload) => _changeEndpoint(payload));
 
-    _handle(controller, BridgeHandler.updateConfigReset, (_) => _changeEndpoint(null));
+    _handle(BridgeHandler.updateConfigReset, (_) => _changeEndpoint(null));
 
-    _handle(controller, BridgeHandler.bundleDownloadUpdate, (payload) async {
+    _handle(BridgeHandler.bundleDownloadUpdate, (payload) async {
       return session.requestBundleDownload(apply: _flag(payload, 'apply', defaultValue: true)).toJson();
     });
 
     // 只取「有沒有受理」這個同步結果，不等更新完成：套用的第一步就是卸下 WebView，
     // 繼續等待會讓本次回應永遠送不回一個已不存在的頁面。
-    _handle(controller, BridgeHandler.bundleApplyUpdate, (_) async {
+    _handle(BridgeHandler.bundleApplyUpdate, (_) async {
       return (await session.requestBundleApply()).toJson();
     });
 
-    _handle(controller, BridgeHandler.hostDownloadUpdate, (payload) async {
+    _handle(BridgeHandler.hostDownloadUpdate, (payload) async {
       return session.requestHostDownload(install: _flag(payload, 'install', defaultValue: true)).toJson();
     });
 
-    _handle(controller, BridgeHandler.hostInstallUpdate, (_) async {
+    _handle(BridgeHandler.hostInstallUpdate, (_) async {
       return session.requestHostInstall().toJson();
     });
   }
@@ -631,12 +639,12 @@ class BridgeRegistry {
   }
 
   // ---- Device ----
-  void _registerDevice(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.deviceId, (_) async => _deviceIdInfo());
-    _handle(controller, BridgeHandler.deviceInfo, (_) async => _deviceInfoMap());
-    _handle(controller, BridgeHandler.deviceBattery, (_) async => _batteryInfo());
-    _handle(controller, BridgeHandler.deviceNetwork, (_) async => _networkInfo());
-    _handle(controller, BridgeHandler.deviceLocale, (_) async => {'tag': Platform.localeName});
+  void _registerDevice() {
+    _handle(BridgeHandler.deviceId, (_) async => _deviceIdInfo());
+    _handle(BridgeHandler.deviceInfo, (_) async => _deviceInfoMap());
+    _handle(BridgeHandler.deviceBattery, (_) async => _batteryInfo());
+    _handle(BridgeHandler.deviceNetwork, (_) async => _networkInfo());
+    _handle(BridgeHandler.deviceLocale, (_) async => {'tag': Platform.localeName});
   }
 
   Future<Map<String, dynamic>> _deviceIdInfo() async {
@@ -683,7 +691,7 @@ class BridgeRegistry {
   /// 當前網路狀態；供網頁層在訂閱事件時自行拉取初始值。
   ///
   /// 存在的理由是時序：原生的初始廣播事件發生在 `onWebViewCreated`，早於網頁層
-  /// 掛上 `__flutterBridgeEmit`，那一次推送必然被丟棄；而 connectivity 之後只在
+  /// 建立多工連線，那一次推送必然被丟棄（沒有連線時事件不排隊）；而 connectivity 之後只在
   /// 「連線改變」時才會再發，靜置的裝置永遠等不到第二次。改由網頁主動查詢即可
   /// **完全消除時序依賴**——想知道的時候自己問，不必猜原生何時發過什麼。
   Future<Map<String, dynamic>> _networkInfo() async {
@@ -696,45 +704,45 @@ class BridgeRegistry {
   }
 
   // ---- Permissions ----
-  void _registerPermissions(AqutterWebViewController controller) {
+  void _registerPermissions() {
     // 對應不到的型別一律回 denied，與換套件前落到 Permission.unknown 的行為一致。
-    _handle(controller, BridgeHandler.permCheck, (payload) async {
+    _handle(BridgeHandler.permCheck, (payload) async {
       final permission = mapPermissionType(payload['permission'] as String);
       if (permission == null) return {'status': 'denied'};
       return {'status': mapPermissionStatus(await PermissionPlus.checkPermission(permission))};
     });
-    _handle(controller, BridgeHandler.permRequest, (payload) async {
+    _handle(BridgeHandler.permRequest, (payload) async {
       final permission = mapPermissionType(payload['permission'] as String);
       if (permission == null) return {'status': 'denied'};
       return {'status': mapPermissionStatus(await PermissionPlus.requestPermission(permission))};
     });
-    _handle(controller, BridgeHandler.permOpenSettings, (_) async {
+    _handle(BridgeHandler.permOpenSettings, (_) async {
       await PermissionPlus.openSettings();
       return {'ok': true};
     });
   }
 
   // ---- Opener / In-App Browser ----
-  void _registerOpenerAndBrowser(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.openerOpen, (payload) async {
+  void _registerOpenerAndBrowser() {
+    _handle(BridgeHandler.openerOpen, (payload) async {
       final uri = Uri.parse(payload['url'] as String);
       await launchUrl(uri, mode: LaunchMode.externalApplication);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.iabOpen, (payload) async {
+    _handle(BridgeHandler.iabOpen, (payload) async {
       _iab ??= AqutterChromeSafariBrowser();
       await _iab!.open(url: AqutterWebUri(payload['url'] as String));
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.iabClose, (_) async {
+    _handle(BridgeHandler.iabClose, (_) async {
       await _iab?.close();
       return {'ok': true};
     });
   }
 
   // ---- File Picker ----
-  void _registerPicker(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.pickerPick, (payload) async {
+  void _registerPicker() {
+    _handle(BridgeHandler.pickerPick, (payload) async {
       final mode = payload['mode'] as String? ?? 'file';
       final options = Map<String, dynamic>.from(payload['options'] as Map? ?? const {});
       final extensions = (options['extensions'] as List<dynamic>?)?.cast<String>();
@@ -761,67 +769,67 @@ class BridgeRegistry {
   }
 
   // ---- TCP ----
-  void _registerTcp(AqutterWebViewController controller) {
-    _handle(controller, BridgeHandler.tcpConnect, (payload) async {
+  void _registerTcp() {
+    _handle(BridgeHandler.tcpConnect, (payload) async {
       return _tcp.connect(payload['host'] as String, payload['port'] as int);
     });
-    _handle(controller, BridgeHandler.tcpDisconnect, (payload) async {
+    _handle(BridgeHandler.tcpDisconnect, (payload) async {
       await _tcp.disconnect(payload['client'] as int);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.tcpSend, (payload) async {
+    _handle(BridgeHandler.tcpSend, (payload) async {
       final data = (payload['data'] as List<dynamic>).cast<int>();
       _tcp.send(payload['client'] as int, data);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.tcpRead, (payload) async {
+    _handle(BridgeHandler.tcpRead, (payload) async {
       return _tcp.read(
         payload['client'] as int,
         payload['expectLen'] as int,
         payload['timeoutMs'] as int,
       );
     });
-    _handle(controller, BridgeHandler.tcpDiagnose, (payload) async {
+    _handle(BridgeHandler.tcpDiagnose, (payload) async {
       final status = await _tcp.diagnose(payload['host'] as String, payload['port'] as int);
       return {'status': status};
     });
   }
 
   // ---- UI（方向 / 狀態列 / 最小化）----
-  void _registerUi(AqutterWebViewController controller) {
+  void _registerUi() {
     // 方向鎖定僅行動平台有意義；桌面的 setPreferredOrientations 是 no-op
-    _handle(controller, BridgeHandler.orientationLock, supported: _isMobile, (payload) async {
+    _handle(BridgeHandler.orientationLock, supported: _isMobile, (payload) async {
       await SystemChrome.setPreferredOrientations(_orientationsOf(payload['orientation'] as String?));
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.orientationUnlock, supported: _isMobile, (_) async {
+    _handle(BridgeHandler.orientationUnlock, supported: _isMobile, (_) async {
       await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
       return {'ok': true};
     });
     // 系統列：Android 走 MainActivity、iOS 走 SystemChrome；桌面無系統列可控（見 SystemBars.setVisible）
-    _handle(controller, BridgeHandler.statusBarShow, supported: _isMobile, (_) async {
+    _handle(BridgeHandler.statusBarShow, supported: _isMobile, (_) async {
       await SystemBars.setVisible(true);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.statusBarHide, supported: _isMobile, (_) async {
+    _handle(BridgeHandler.statusBarHide, supported: _isMobile, (_) async {
       await SystemBars.setVisible(false);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.statusBarImmersive, supported: _isMobile, (payload) async {
+    _handle(BridgeHandler.statusBarImmersive, supported: _isMobile, (payload) async {
       final darkContent = (payload['darkContent'] as bool?) ?? false;
       SystemBars.applyOverlayStyle(darkContent: darkContent);
       // 沉浸模式的系統列是「可見但透明」；由 hidden 切入時仍是隱藏狀態，需明確喚回
       await SystemBars.setVisible(true);
       return {'ok': true};
     });
-    _handle(controller, BridgeHandler.themeSet, (payload) async {
+    _handle(BridgeHandler.themeSet, (payload) async {
       final dark = (payload['dark'] as bool?) ?? false;
       SystemBars.appBrightness.value = dark ? Brightness.dark : Brightness.light;
       return {'ok': true};
     });
     // 最小化需 MainActivity 的 moveTaskToBack（見 docs/android-wiring.md 的 MethodChannel 佈線）；
     // 未佈線平台雖仍回 {'ok': true}，但 capabilities 不含本項，網頁層可據此略過而非誤以為成功
-    _handle(controller, BridgeHandler.minimizeApp, supported: Platform.isAndroid, (_) async {
+    _handle(BridgeHandler.minimizeApp, supported: Platform.isAndroid, (_) async {
       try {
         await _hostChannel.invokeMethod<void>(HostMethod.minimize);
       }
