@@ -58,16 +58,13 @@ import '@aqutter/aqutter/native'   // 副作用：註冊 <aqutter-native>
 不想註冊元素、要自己畫時，可直接用 `AqutterNative`：
 
 ```ts
-import { AqutterNative, callFlutter } from '@aqutter/aqutter'
-import { BridgeHandler } from '@aqutter/aqutter/contract'
+import { AqutterNative } from '@aqutter/aqutter'
 
-const mirror = new AqutterNative({
-  session: 'map',
-  canvas,
-  resolveEndpoint: () => callFlutter(BridgeHandler.NativeEndpoint),
-})
+const mirror = new AqutterNative({ session: 'map', canvas })
 mirror.start()
 ```
+
+連線資訊（埠與令牌）預設讀殼注入的 `window.aqutterEndpoint`，不必傳 `resolveEndpoint`；要自己提供時，它回傳 `Promise<{ port, token }>`。
 
 `import '@aqutter/aqutter'` 在伺服端渲染（沒有 `HTMLElement`）時是安全的；元素類別只在 `defineAqutterNative()` 時才建立。
 
