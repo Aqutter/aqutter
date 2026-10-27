@@ -92,7 +92,7 @@ Windows 上 WebSocket 下行明顯比 Android 慢（1MB：44 對 263 MB/s；64B 
 
 - Android：小呼叫沒有變慢（0.57 對 0.5 ms，量測誤差內）；大資料的好處是實測的。
 - 下行／上行的吞吐低於先前直接用 WebSocket 量到的數字（約 260／190 MB/s）：這裡每次是一個完整的呼叫往返（編碼、分派、回應），不是連續串流。
-- 只在這一支 Android 手機、一台 Windows 桌機與 WSL2 的 Linux 量過各一次；iOS、macOS 追蹤於 Aqutter/aqutter#21。
+- 只在這一支 Android 手機、一台 Windows 桌機與 WSL2 的 Linux 量過各一次；iOS 見下方「iOS（iPad 實機與模擬器）」，macOS 追蹤於 Aqutter/aqutter#21。
 - 另外用 70 MiB 的呼叫來回（內容一致，902 ms）、66 MiB 的事件（收到）、超過 512 MiB（`PAYLOAD_TOO_LARGE`）驗證自動分段。
 
 ### Windows（同一套測試）
@@ -128,9 +128,35 @@ Windows 上 WebSocket 下行明顯比 Android 慢（1MB：44 對 263 MB/s；64B 
 - 功能全部通過。小呼叫的延遲高是在 WSL2 + WPE WebKit 環境量到的，沒有與改版前的 `callHandler` 對照過，不能說是統一傳輸造成的；真實的 Linux 桌機沒有量。
 - 只量過這一個環境一次。
 
+### iOS（iPad 實機與模擬器）
+
+原始結果：`tools/channel-bench/results/ios-ipad-a16-unified-transport-2026-10-27.json`（實機）、`ios-simulator-ipad-pro-13-m5-unified-transport-2026-10-27.json`（模擬器）。
+
+- 實機：iPad（A16，iPad15,7），iOS 27.0.1，**release** 版。
+- 模擬器：iPad Pro 13 吋（M5），iOS 26.5，用 `aqutter dev` 跑的 **debug** 版（不是 release，數字只能當對照）。
+- 測試程式與 Android 相同（`channel_bench_plugin.dart`、`zzchan.client.ts`）；放進 demo-app 時 plugin id 改成 `chbench`，避免與 demo 既有的 `bench` plugin 撞名。release 版讀不到 console，結果檔寫在 App 容器的 `tmp/aqutter_chbench.json`，用 `xcrun devicectl device copy from --domain-type appDataContainer` 取回。
+
+| 項目 | 實機（release） | 模擬器（debug） |
+|---|---|---|
+| 小呼叫往返（300 次） | 平均 0.96 ms，p95 1 ms | 平均 0.63 ms，p95 1 ms |
+| 2MB 二進位來回 | 內容一致 | 內容一致 |
+| **1MB 往返：二進位對 base64（同一條傳輸）** | **7.95 ms 對 44.5 ms，約 5.6 倍** | 6.8 ms 對 39.6 ms，約 5.8 倍 |
+| 1MB 下行 × 100（逐一呼叫） | 730 MB/s | 334 MB/s |
+| 1MB 上行 × 100（逐一呼叫） | 431 MB/s（Dart 端收到 104,857,600 位元組） | 227 MB/s（同） |
+| 事件帶 100KB 二進位 × 200 | 200 個全數收到，20 ms | 200 個全數收到，20 ms |
+| 錯誤碼 | `HANDLER_NOT_FOUND`、`HANDLER_FAILED`、plugin 自訂 `DENIED` 皆正確 | 同 |
+| 殼重啟伺服器 | 進行中的呼叫 `TRANSPORT_CLOSED`，狀態 closed → connecting → open，約 209 ms 後呼叫恢復 | 同，約 213 ms |
+
+- 功能全部通過：WKWebView 內的頁面連得上 `ws://127.0.0.1:<埠>/channel/aqutter.rpc`（頁面來源是殼的本機 server，沒有被混合內容或 App Transport Security 擋掉）。
+- 小呼叫在實機約 1 ms（Android 0.57 ms、Windows 0.79 ms），二進位的好處（約 5.6 倍）介於 Windows 與 Android 之間。
+- 實機的下行／上行吞吐（730／431 MB/s）高於 Android 與 Windows；單次量測，不確定差距的原因，不要當成各平台的穩定排序。
+- 「殼重啟伺服器」是 bench 叫殼直接呼叫 `restart()`；實際按 Home 或鎖屏後回前景的重連，只在模擬器上手動確認過，實機沒有量。
+- 結果裡的 `platform` 是 `Macintosh; Intel Mac OS X 10_15_7`：iPadOS 的 WKWebView 預設使用桌面版 UA，不是量到 Mac。
+- 只在一台 iPad 與一個模擬器各量過一次。
+
 ## 限制
 
 - 單機單次，Android 是高階手機；中低階裝置的差距可能更大。
-- iOS、macOS、Linux 沒有量；請用 [tools/channel-bench](../tools/channel-bench) 在那些平台重跑。
+- macOS 與真實的 Linux 桌機沒有量；iOS 只量過一台 iPad 與其模擬器各一次。需要這些平台的數字，請用 [tools/channel-bench](../tools/channel-bench) 在那些平台重跑。
 - 鏡像實驗只用 `mirror-demo` 的 `animate` 壓力測試，不代表一般使用情境。
 - 「Chromium 在 Windows 的 WebSocket 下行上限」是在這台機器上量到的現象，沒有追到 Chromium 內部的原因。
