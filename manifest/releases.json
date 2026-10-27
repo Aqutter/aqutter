@@ -14,14 +14,14 @@
       "shell": {
         "url": "https://github.com/Aqutter/aqutter.git",
         "path": "shell",
-        "ref": "2c68ba5ed66a37629d99ef30b6dd2eb7f49adb31"
+        "ref": "5890d7f570e20428ca3f43446c8b2f292a9d191b"
       },
       "core": {
         "url": "https://github.com/Aqutter/aqutter_core.git",
         "ref": "f90eb6b8cabb9b2177148fd4e2662b93daa90cc9"
       },
       "client": {
-        "spec": "github:Aqutter/aqutter-js#22840cd46fb1abae31fa50411646e96918bda354"
+        "spec": "github:Aqutter/aqutter-js#1e5afd8b64834fbf08dd49789f00e78140dd4790"
       },
       "cli": {
         "min": "0.0.0"
