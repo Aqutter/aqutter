@@ -34,9 +34,10 @@ Aqutter 把既有的網頁專案包成原生 App：網頁跑在 Flutter 殼的 W
 | bridge 的 handler 與事件名稱 | shell 與 client（另一個 repo） |
 | 鏡像協定的幀格式與手勢訊息 | aqutter_core 與 client（兩個獨立 repo） |
 | 統一傳輸的訊框格式（`/channel/aqutter.rpc`：呼叫、回應、事件、二進位、分段） | aqutter_core 與 client（兩個 repo，共用測試向量）；shell 只界接 |
+| 傳輸的連線資訊（網頁全域 `window.aqutterEndpoint`：埠與令牌） | shell 的注入腳本與 client 的讀取（另一個 repo）；端點由 aqutter_core 的伺服器提供，重啟後 shell 會更新它 |
 | env 鍵 | shell 的 Dart 端、cli 的 env 範本（另一個 repo）、環境變數頁 |
 
-來源：1. [AGENTS.md](../../../AGENTS.md#L7-L10)　2. [plugins.md](../../../docs/plugins.md)　3. [channel-performance.md](../../../docs/channel-performance.md)
+來源：1. [AGENTS.md](../../../AGENTS.md#L7-L10)　2. [plugins.md](../../../docs/plugins.md)　3. [channel-performance.md](../../../docs/channel-performance.md)　4. [endpoint_script.dart](../../../shell/lib/src/bridge/endpoint_script.dart)
 
 ---
 [⚙️ Env](../environment.md) | [🏠 Wiki](../index.md)

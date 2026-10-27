@@ -1,0 +1,55 @@
+# 2610272336 - inject-native-endpoint-remove-callhandler
+
+- Created: 2026-10-27 23:36 / Archived: 2026-10-28 00:10
+- Issue: Aqutter/aqutter#33
+- Milestone: N/A / Base Branch: main
+
+## Summary
+殼移除唯一還在用的舊通道 handler `native_endpoint`，改在頁面載入時以 UserScript 注入 `window.aqutterEndpoint`（`{ port, token }`），並在傳輸伺服器重啟時更新目前頁面與注入腳本。
+網頁不再向殼詢問埠與令牌；`BridgeHandler.nativeEndpoint` 與 `register()` 的 controller 參數一併移除。新增 `endpoint_script.dart` 與單元測試，文件、`project.md`、channel-bench 註解與 wiki 的成對約定表同步更新。
+
+## Cross-Repo Scope
+- 參與 repo 與職責：`aqutter_core`（提供 `AqutterNativeHost.endpoint`，issue Aqutter/aqutter_core#10）、`aqutter`（殼：移除 `native_endpoint`、注入 `window.aqutterEndpoint`，契約正本，issue Aqutter/aqutter#33）、`aqutter-js`（client：改讀全域、移除 `callHandler`，issue Aqutter/aqutter-js#12）。
+- 共用計畫 ID `2610272336-inject-native-endpoint-remove-callhandler`，共用分支名 `feature/2610272336-inject-native-endpoint-remove-callhandler`，三份計畫都 `base = main`。
+- 執行順序：`aqutter_core` → `aqutter` → `aqutter-js`（序列執行）；建議合併次序同。契約介面 #1–#4（`AqutterNativeHost.endpoint`、`window.aqutterEndpoint`、移除 `native_endpoint`／`callHandler`、`resolveEndpoint` 選填），最終 rev 3，提供方與正本 repo 為 `aqutter`。
+
+## Key Decisions
+- **[範圍]** 使用者要求「完全移除舊通道寫法，未來只會有新通道」；引導方式選「改由殼注入」（來源：對話，Phase 0）。
+- **[repo]** 目標 repo 清單 = `aqutter`、`aqutter-js`、`aqutter_core`（來源：使用者確認，Phase 0 步驟 0）。
+- **[Milestone]** 不指定，`Base Branch` = `main`（來源：使用者於 Phase 0 選擇；AGENTS.md 寫明開發階段版本一律 `0.0.0`）。
+- **[整合主幹]** 遠端無 `dev`／`develop`／`development` 分支，採 `origin/HEAD` = `main`，依規定不詢問、不記錄。
+- **[設計]** 不新增「端點已變更」的網頁事件：重啟後的恢復靠 `Transport` 既有重連（800 ms）重新讀取全域，避免多一個介面。
+- **[設計]** `isFlutter()` 改以 `window.aqutterEndpoint` 是否存在判斷，不再看 `window.aqutter`（否則仍依賴舊橋接物件）。
+- **[Q1]** 全域名稱採 `window.aqutterEndpoint` — 理由：不受核心橋接腳本 `window.aqutter = {}`（`aqutter_core` 的 `android/src/main/kotlin/com/github/aqutter/core/plugin_scripts_js/JavaScriptBridgeJS.kt:301`）覆蓋影響，注入順序不重要。
+- **[Q2]** `demo-app/dbltest.html` 直接刪除（使用者選擇）— 理由：該頁只為雙擊測試，且依賴舊的 `callHandler`；`demo-app` 非 git repo，刪除前備份到暫存區，由 `aqutter` 那份計畫的執行者處理。
+- **[契約]** rev 1 凍結（使用者於 Phase 2 核准閘核准）。
+- **[完成後]** commit + 開 PR（預設；自動歸檔＋wiki，Rule 12 非互動鏈）；完成前將 `git fetch` 後 `git rebase origin/main` 並 `git push --force-with-lease --force-if-includes`，重寫的是遠端工作分支（來源：核准閘，僅本計畫生效）。
+- **[執行模式]** 序列（依據：契約 #1 先於 #2，`aqutter` 依賴 `aqutter_core`；整合驗證需要三個 repo 都完成；無法確認可派出獨立子 agent）。順序：`aqutter_core` → `aqutter` → `aqutter-js`。
+- **[契約變更]** rev 1 → 2（已核准並凍結）：新增 #4 `AqutterNativeOptions.resolveEndpoint` 改選填 — 原因：`docs/nativeview.md:67` 的公開用法依賴 `BridgeHandler.NativeEndpoint`（來源：執行中發現，Rule 29）。
+- **[補列]** 計畫執行中發現未列的檔案，已補進 `## Impact Files`，並於 2026-10-27 重新核准（Rule 18/2）。
+- **[契約]** rev 2 凍結（使用者於重新核准閘核准）。
+- **[契約變更]** rev 2 → 3（已核准並凍結，2026-10-28）：更正 §3 的重連間隔數字（Phase 4 契約一致性檢查發現，Rule 29）；介面與行為不變。
+- **[契約]** rev 3 凍結（使用者於 2026-10-28 核准，只更正 §3 的重連間隔數字）。
+
+## Deviations
+- 契約 rev 1 → 2（2026-10-27）：新增介面 #4（`AqutterNativeOptions.resolveEndpoint` 改選填，預設讀全域）。原因：`aqutter` 的 `docs/nativeview.md:67` 公開範例把 `callFlutter(BridgeHandler.NativeEndpoint)` 傳給它，移除 `NativeEndpoint` 後必須有替代。
+- 契約 rev 2 → 3（2026-10-28）：更正 §3 的重連間隔（`Transport` 是 200 ms 起、每次加倍、上限 5 秒，不是 800 ms；800 ms 是鏡像元素的預設）。介面與行為不變。
+- 「注入是否可行」的驗證原排在 Phase 3 第一步，實際在 client 完成後的整合階段做（iPad 模擬器、Android 手機、macOS），結果可行；沒有因此改設計。
+- 實作中補列兩個檔案（`docs/nativeview.md:67` 的公開範例、`.kn-project/project.md:25`），已重新核准。
+- `demo-app`（不是 git repo，不在治理範圍）的 `dbltest.html` 依使用者決議刪除，`index.html` 的連結一併移除；原檔備份在暫存區。
+- 未驗證：實體 iPad、Windows、Linux；macOS 的「回前景換新埠」；release 版（只驗證了 Android 手機上 `demo-app` 的 release 版可獨立開啟）。
+
+## Impact Files
+- `shell/lib/src/bridge/bridge_registry.dart:117` (`register` 說明)、`:133` (`_registerNative(controller)` 呼叫)、`:141-148` (`_registerNative`，唯一的 `addJavaScriptHandler`)、`:143` (`_capabilities.add(BridgeHandler.nativeEndpoint)`) — 整段移除。
+- `shell/lib/src/bridge/bridge_names.dart:16` (`nativeEndpoint = 'native_endpoint'`) — 移除，與 `aqutter-js` 的 `src/contract/bridge.ts:23` 成對（命名成對規則）。
+- `shell/lib/src/app.dart:793` (`_buildWebView`)、`:758`（呼叫處）、`:198`/`:447`/`:665` (`_webViewGeneration` 重掛) — 建立前取得端點並放入 `initialUserScripts`；重掛時用最新端點。
+- `shell/lib/src/app.dart:679` (`_onWebViewCreated`) — 訂閱 `AqutterNativeHost.instance.endpoint`，變更時更新頁面與注入腳本；`dispose` 時取消訂閱。
+- `shell/lib/src/bridge/endpoint_script.dart` (new) — 純函式，產生注入腳本（契約 §2）；獨立檔案才能不依賴 WebView 做單元測試。
+- `shell/test/endpoint_script_test.dart` (new) — 腳本內容、令牌以 JSON 字串輸出（含需跳脫字元的情況）、物件凍結、`configurable: true`。
+- `tools/channel-bench/app/bench_plugin.dart:11,29` — 過時註解（`callHandler`）改為統一傳輸。
+- 版本相容清單 `manifest/releases.json` 不在本計畫內動（需要合併後的 commit，見 Manual Follow-ups）。
+- `docs/nativeview.md:67` — 公開範例 `resolveEndpoint: () => callFlutter(BridgeHandler.NativeEndpoint)` 改為省略 `resolveEndpoint`（契約 rev 2 #4；補列）。
+- `.kn-project/project.md:25` — 「統一傳輸」一行提到 `callHandler`，改為「`window.aqutterEndpoint` 由殼注入」（補列）。
+
+## Details
+不相容升級：舊網頁包搭新殼不能用（新殼不再回應 `native_endpoint`、也不注入給舊 client 判斷是否在殼內的物件），網頁包必須用新 client 重打（`aqutter seed`）。`window.aqutter`（平台層橋接物件）仍由核心注入，但已不屬於框架契約。
