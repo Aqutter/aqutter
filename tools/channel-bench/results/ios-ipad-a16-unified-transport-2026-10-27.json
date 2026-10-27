@@ -1,0 +1,44 @@
+{
+  "platform": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "smallRtt": {
+    "meanMs": 0.96,
+    "p95Ms": 1
+  },
+  "echo2MBIntact": true,
+  "roundTrip1MB": {
+    "binaryMs": 7.95,
+    "base64Ms": 44.5,
+    "speedup": 5.6
+  },
+  "down1MB": {
+    "mbPerSec": 729.93
+  },
+  "up1MB": {
+    "mbPerSec": 431.03,
+    "receivedBytes": 104857600
+  },
+  "events": {
+    "sent": 200,
+    "received": 200,
+    "receivedBytes": 20480000,
+    "ms": 20
+  },
+  "errors": {
+    "notFound": "HANDLER_NOT_FOUND",
+    "thrown": "HANDLER_FAILED",
+    "coded": "DENIED",
+    "unknownPlugin": "HANDLER_NOT_FOUND"
+  },
+  "restart": {
+    "inflightCode": "TRANSPORT_CLOSED",
+    "afterRestart": "ok",
+    "reconnectedAfterMs": 209,
+    "stateAfter": "open",
+    "states": [
+      "closed",
+      "connecting",
+      "open"
+    ],
+    "totalMs": 365
+  }
+}
