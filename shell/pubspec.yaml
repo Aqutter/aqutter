@@ -21,7 +21,7 @@ dependencies:
   aqutter_core:
     git:
       url: https://github.com/Aqutter/aqutter_core.git
-      ref: feature/2610281120-unified-bridge-transport
+      ref: 0.0.0
 
   # Embedded local HTTP server (serves the web build from a writable directory, supports hot update)
   shelf: ^1.4.2
