@@ -1,7 +1,7 @@
 # Tasks for 2610272336
 
 ## Phase 1 — 驗證注入可行性（Phase 3 第一步，失敗就停下回報）
-- [ ] [aqutter] 小型驗證：`initialUserScripts` 的 `AT_DOCUMENT_START` 腳本是否早於頁面腳本，且不被核心橋接腳本（`window.aqutter = {}`）影響；`addUserScript`／`removeUserScript`／`evaluateJavascript` 在目前支援的平台行為一致　需等待 [aqutter_core]：契約 #1 已可用
+- [x] [aqutter] 小型驗證：`initialUserScripts` 的 `AT_DOCUMENT_START` 腳本是否早於頁面腳本，且不被核心橋接腳本（`window.aqutter = {}`）影響；`addUserScript`／`removeUserScript`／`evaluateJavascript` 在目前支援的平台行為一致　需等待 [aqutter_core]：契約 #1 已可用
 
 ## Phase 2 — 殼端實作（契約 #2 的提供方）
 - [x] [aqutter] `shell/lib/src/bridge/endpoint_script.dart` (new)：`buildEndpointUserScript`　依賴 Contract §2 #2
@@ -19,4 +19,4 @@
 - [x] [aqutter] `flutter analyze && flutter test`（`cd shell`）
 
 ## Phase 4 — 整合驗證
-- [ ] [aqutter] 以實機（iPad、Android 手機）與 macOS 跑 `aqutter-nuxt-app`／`demo-app`：頁面載入後傳輸連得上；`restart()` 後恢復　需等待 [aqutter-js]：client 改讀 `window.aqutterEndpoint` 並通過其測試
+- [x] [aqutter] 以實機（iPad、Android 手機）與 macOS 跑 `aqutter-nuxt-app`／`demo-app`：頁面載入後傳輸連得上；`restart()` 後恢復　需等待 [aqutter-js]：client 改讀 `window.aqutterEndpoint` 並通過其測試
