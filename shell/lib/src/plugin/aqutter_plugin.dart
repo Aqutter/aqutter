@@ -18,41 +18,38 @@ String aqutterPluginEventChannel(String pluginId, String event) => '$pluginId.$e
 /// 不含 `.`——點號是 id 與方法名的分隔符，也避免與殼內建的 handler（無點號）撞名。
 final RegExp aqutterPluginIdPattern = RegExp(r'^[a-z][a-z0-9-]*$');
 
-/// 殼對 plugin 呼叫失敗時回傳的錯誤資料所用的欄位名（保留欄位，plugin 自己的回傳不得使用）。
+/// plugin 以資料回報失敗時所用的欄位名（保留欄位，plugin 自己的回傳不得使用）。
 ///
-/// 用資料而不是例外回報：例外如何傳回網頁取決於各原生平台的實作，無法逐一保證 Promise 會 reject。
-/// 網頁端（`@aqutter/aqutter` 的 `callPlugin`）看到這個欄位就轉成拋出的 `AqutterPluginError`。
+/// handler 回傳 [aqutterErrorPayload] 的結果時，殼把它轉成錯誤訊框，網頁端的 `callPlugin`
+/// 因此拋出 `AqutterPluginError`；拋出 [AqutterRpcException] 有同樣的效果。
 const String aqutterErrorKey = 'aqutterError';
 
 /// plugin 不支援目前平台時的錯誤碼（見 [AqutterPlugin.supportedPlatforms]）。
 const String aqutterUnsupportedPlatform = 'UNSUPPORTED_PLATFORM';
 
+/// plugin id 的保留字：`aqutter.rpc` 是殼與網頁之間的傳輸通道名。
+const String aqutterReservedPluginId = 'aqutter';
+
+/// handler 回傳了 [aqutterErrorPayload] 的結果時，轉成可送給網頁的 [AqutterRpcException]；否則回傳 null。
+///
+/// 欄位型別不對（`code`、`message` 不是字串）的資料一律當一般結果，不視為錯誤。
+AqutterRpcException? aqutterErrorOf(Object? result) {
+  if (result is! Map) {
+    return null;
+  }
+  final error = result[aqutterErrorKey];
+  if (error is! Map) {
+    return null;
+  }
+  final code = error['code'];
+  final message = error['message'];
+  return code is String && message is String ? AqutterRpcException(code, message) : null;
+}
+
 /// 組出殼的錯誤資料：`{ aqutterError: { code, message } }`。
 Map<String, dynamic> aqutterErrorPayload(String code, String message) => {
       aqutterErrorKey: {'code': code, 'message': message},
     };
-
-/// 通道在 [AqutterNativeHost] 上的完整名稱：`<pluginId>.<channel>`。
-String aqutterPluginChannelName(String pluginId, String channel) => '$pluginId.$channel';
-
-/// 把 [plugin] 宣告的通道註冊到 [host]；[platform] 不受支援時什麼都不做。
-///
-/// 通道名不合法時拋出 [ArgumentError]（App 組裝期的程式錯誤）。
-void aqutterRegisterPluginChannels(AqutterNativeHost host, AqutterPlugin plugin, TargetPlatform platform) {
-  if (!aqutterPluginSupports(plugin, platform)) {
-    return;
-  }
-  for (final entry in plugin.channels.entries) {
-    host.registerChannel(aqutterPluginChannelName(plugin.id, entry.key), entry.value);
-  }
-}
-
-/// 取消註冊 [plugin] 宣告的通道（同時關閉其連線）。
-void aqutterUnregisterPluginChannels(AqutterNativeHost host, AqutterPlugin plugin) {
-  for (final name in plugin.channels.keys) {
-    host.unregisterChannel(aqutterPluginChannelName(plugin.id, name));
-  }
-}
 
 /// [plugin] 是否支援 [platform]：[AqutterPlugin.supportedPlatforms] 為 null 代表所有平台。
 bool aqutterPluginSupports(AqutterPlugin plugin, TargetPlatform platform) {
@@ -91,14 +88,6 @@ abstract class AqutterPlugin {
 
   /// 暴露給網頁的方法，鍵為方法名（不含 id 前綴）。
   Map<String, AqutterPluginHandler> get handlers => const {};
-
-  /// 暴露給網頁的二進位通道，鍵為通道名（不含 id 前綴，須符合 `^[a-z][a-z0-9-]*$`）。
-  ///
-  /// 網頁以 `openBinaryChannel('<id>.<name>')` 連上；每條新連線呼叫一次對應的處理函式。
-  /// 只傳二進位、不經 JSON 與 base64，適合大量資料。連線與處理函式型別都由 `aqutter_core` 提供。
-  ///
-  /// 目前平台不在 [supportedPlatforms] 內時不註冊，網頁連線會被拒絕。
-  Map<String, AqutterChannelHandler> get channels => const {};
 
   /// 殼就緒後呼叫一次；[context] 在 plugin 存活期間有效。
   void attach(AqutterPluginContext context) {}

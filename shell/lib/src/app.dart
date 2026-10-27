@@ -677,7 +677,6 @@ class _AqutterPageState extends State<AqutterPage> {
   }
 
   void _onWebViewCreated(AqutterWebViewController controller) {
-    _emitter.controller = controller;
     _safeAreaInjector.controller = controller;
     _registry?.register(controller);
   }

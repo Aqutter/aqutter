@@ -1,0 +1,44 @@
+{
+  "platform": "Mozilla/5.0 (Linux; Android 13; ASUS_I006D Build/TKQ1.220807.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/155.0.8059.43 Mobile Safari/537.36",
+  "smallRtt": {
+    "meanMs": 0.57,
+    "p95Ms": 1.1
+  },
+  "echo2MBIntact": true,
+  "roundTrip1MB": {
+    "binaryMs": 15.45,
+    "base64Ms": 100.1,
+    "speedup": 6.48
+  },
+  "down1MB": {
+    "mbPerSec": 133.56
+  },
+  "up1MB": {
+    "mbPerSec": 121.46,
+    "receivedBytes": 104857600
+  },
+  "events": {
+    "sent": 200,
+    "received": 200,
+    "receivedBytes": 20480000,
+    "ms": 113.7
+  },
+  "errors": {
+    "notFound": "HANDLER_NOT_FOUND",
+    "thrown": "HANDLER_FAILED",
+    "coded": "DENIED",
+    "unknownPlugin": "HANDLER_NOT_FOUND"
+  },
+  "restart": {
+    "inflightCode": "TRANSPORT_CLOSED",
+    "afterRestart": "ok",
+    "reconnectedAfterMs": 217.4,
+    "stateAfter": "open",
+    "states": [
+      "closed",
+      "connecting",
+      "open"
+    ],
+    "totalMs": 373.9
+  }
+}

@@ -1,26 +1,13 @@
-import 'dart:convert';
-
 import 'package:aqutter_core/aqutter_core.dart';
 
-/// 原生→JS 事件發射器：呼叫網頁端 `window.__flutterBridgeEmit(channel, payload)`。
+/// 原生→JS 事件發射器：經 [AqutterRpcHost] 以 `evt` 訊框送給目前的網頁連線。
 ///
-/// 對接前端 `flutterBridge.ts` 掛載的全域派送函式。controller 於 WebView 建立後注入。
+/// 沒有連線時（網頁尚未載入或正在重連）事件直接丟棄，不排隊——想知道狀態的網頁在連線建立後自行查詢。
 class BridgeEmitter {
-  AqutterWebViewController? _controller;
+  BridgeEmitter({AqutterRpcHost? rpc}) : _rpc = rpc ?? AqutterRpcHost.instance;
 
-  /// 綁定當前 WebView controller（onWebViewCreated 後呼叫）。
-  set controller(AqutterWebViewController? controller) => _controller = controller;
+  final AqutterRpcHost _rpc;
 
-  /// 派送事件到指定頻道。controller 尚未就緒時安全略過。
-  Future<void> emit(String channel, Object? payload) async {
-    final controller = _controller;
-    if (controller == null) {
-      return;
-    }
-    final channelLiteral = jsonEncode(channel);
-    final payloadLiteral = jsonEncode(payload);
-    final source =
-        'window.__flutterBridgeEmit && window.__flutterBridgeEmit($channelLiteral, $payloadLiteral);';
-    await controller.evaluateJavascript(source: source);
-  }
+  /// 派送事件到指定頻道。
+  Future<void> emit(String channel, Object? payload) => _rpc.emit(channel, payload);
 }

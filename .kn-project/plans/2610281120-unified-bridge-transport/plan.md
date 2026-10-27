@@ -133,7 +133,7 @@ header = { "t": <type>, "id"?: <u53>, "name"?: <string>, "ch"?: <string>, "p"?: 
 - **決議**：64 MiB　狀態：✅ 已確認
 
 ## Manual Follow-ups / 人工收尾事項
-- **[合併後]** 在 iOS、macOS 驗證本機 WebSocket 通道可用（`tools/channel-bench`，或任一使用鏡像／通道的 App）— 由使用者用 Mac 驗證；失敗時的處理屆時再決定 — 需要 Mac 與 iOS 裝置，agent 沒有（Linux 由 agent 以 WSL2 驗證，不在此列）
+- **[合併後]** 在 iOS、macOS 驗證本機 WebSocket 通道可用（追蹤於 Aqutter/aqutter#21，用 `tools/channel-bench`）— 由使用者用 Mac 驗證；失敗時的處理屆時再決定 — 需要 Mac 與 iOS 裝置，agent 沒有（Linux 由 agent 以 WSL2 驗證，不在此列）
 - **[合併後]** 既有 App 的網頁 CSP 補上 `connect-src ws://127.0.0.1:*` — 本計畫後所有 App 必須放行；範本專案 `aqutter-nuxt-app` 已放行，其他專案需自行檢查 — 屬各專案自己的網頁設定
 - **[合併後]** 更新 manifest 的 `shell.ref`／`client.spec`、移動兩個 repo 的 `0.0.0` tag、同步 `aqutter-cli` 快照、範本專案 `aqutter upgrade` — 沿用先前流程 — 對外動作，需使用者核准
 
