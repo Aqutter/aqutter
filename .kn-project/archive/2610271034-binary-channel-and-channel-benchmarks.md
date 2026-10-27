@@ -1,6 +1,6 @@
 # 2610271034 - binary-channel-and-channel-benchmarks
 
-- Created: 2026-10-27 10:34 / Archived: 2026-10-28 10:00
+- Created: 2026-10-27 10:34 / Archived: 2026-10-27 10:00
 - Issue: Aqutter/aqutter#14
 - Milestone: N/A / Base Branch: main
 
@@ -25,6 +25,7 @@
 - **[基準工具]** 放在 `tools/channel-bench/`，結果寫進 `docs/channel-performance.md`。
 
 ## Deviations
+- 歸檔日期更正：原寫 `2026-10-28`（誤用日期），更正為 `2026-10-27`。
 - 命名：契約寫通道全名用 `aqutterPluginHandlerName`，實作另加 `aqutterPluginChannelName`（輸出相同）。
 - 殼層註冊與網頁端 `openBinaryChannel` 起初只有單元測試；事後在 Android 實機以真實 `channels` + `openBinaryChannel` 驗證（1MB 往返 base64 126.5 ms／通道 11.5 ms，下行 302 MB/s）。
 - 未歸檔就合併：本計畫的 PR 合併時尚未歸檔，歸檔另開 PR 補上。
@@ -48,4 +49,4 @@
 
 | 頁面 | 日期 | 版本 | 變動 | Issue | PR |
 |---|---|---|---|---|---|
-| `platform/architecture.md` | 2026-10-28 | — | 殼讓 plugin 宣告二進位通道並保存通道基準 | [#14](https://github.com/Aqutter/aqutter/issues/14) | [PR #15](https://github.com/Aqutter/aqutter/pull/15) |
+| `platform/architecture.md` | 2026-10-27 | — | 殼讓 plugin 宣告二進位通道並保存通道基準 | [#14](https://github.com/Aqutter/aqutter/issues/14) | [PR #15](https://github.com/Aqutter/aqutter/pull/15) |

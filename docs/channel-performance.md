@@ -77,7 +77,7 @@ Windows 上 WebSocket 下行明顯比 Android 慢（1MB：44 對 263 MB/s；64B 
 
 ## 統一傳輸（Android 實機）
 
-呼叫與事件改走同一條多工連線後，在同一支 Android 手機（release）以真實的 plugin 與 `callPlugin` 量測。原始結果與測試程式在 `tools/channel-bench/results/android-asus-i006d-unified-transport-2026-10-28.json`、`app/zzchan.client.ts`、`app/channel_bench_plugin.dart`。
+呼叫與事件改走同一條多工連線後，在同一支 Android 手機（release）以真實的 plugin 與 `callPlugin` 量測。原始結果與測試程式在 `tools/channel-bench/results/android-asus-i006d-unified-transport-2026-10-27.json`、`app/zzchan.client.ts`、`app/channel_bench_plugin.dart`。
 
 | 項目 | 結果 |
 |---|---|
@@ -97,7 +97,7 @@ Windows 上 WebSocket 下行明顯比 Android 慢（1MB：44 對 263 MB/s；64B 
 
 ### Windows（同一套測試）
 
-原始結果：`tools/channel-bench/results/windows-unified-transport-2026-10-28.json`。
+原始結果：`tools/channel-bench/results/windows-unified-transport-2026-10-27.json`。
 
 | 項目 | 結果 |
 |---|---|
@@ -114,7 +114,7 @@ Windows 上 WebSocket 下行明顯比 Android 慢（1MB：44 對 263 MB/s；64B 
 
 ### Linux（WSL2 Debian 13，WPE WebKit 2.48.3）
 
-原始結果：`tools/channel-bench/results/linux-wsl2-debian13-unified-transport-2026-10-28.json`。
+原始結果：`tools/channel-bench/results/linux-wsl2-debian13-unified-transport-2026-10-27.json`。
 
 | 項目 | 結果 |
 |---|---|
