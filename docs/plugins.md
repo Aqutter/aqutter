@@ -81,7 +81,7 @@ const { result } = await callPlugin('my-plugin', 'process', { image: new Uint8Ar
 ```
 
 - Dart 的 `Uint8List`（及其他 `TypedData`）與 JS 的 `ArrayBuffer`／`Uint8Array` 等，送出時自動處理；收到時一律是 `Uint8List`／`Uint8Array`。`$bin` 是酬載物件的保留鍵，使用者資料不得使用。
-- 呼叫、回應與事件共用**同一條**本機連線（見 [通道效能](channel-performance.md)），單一訊框上限 64 MiB，更大的資料請分段。
+- 呼叫、回應與事件共用**同一條**本機連線（見 [通道效能](channel-performance.md)）。超過 64 MiB 的資料由框架自動分段送出、收到後組回，使用者不需處理；單次上限 512 MiB，超過以 `PAYLOAD_TOO_LARGE` 失敗。組回後整份資料仍在記憶體裡，這不是串流。
 - 連線意外中斷時，已送出未回應的呼叫會以 `TRANSPORT_CLOSED` 失敗並自動重連；事件不補發，需要時用網頁端的 `onTransportState` 在重連後重新取得狀態。
 - 網頁的 CSP 需允許 `connect-src ws://127.0.0.1:*`（所有 App 都需要，不只用鏡像者）。
 
