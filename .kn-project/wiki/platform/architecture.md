@@ -33,7 +33,7 @@ Aqutter 把既有的網頁專案包成原生 App：網頁跑在 Flutter 殼的 W
 |---|---|
 | bridge 的 handler 與事件名稱 | shell 與 client（另一個 repo） |
 | 鏡像協定的幀格式與手勢訊息 | aqutter_core 與 client（兩個獨立 repo） |
-| 二進位通道的路徑與名稱格式（`/channel/<pluginId>.<channel>`） | aqutter_core、shell 與 client（三個 repo） |
+| 統一傳輸的訊框格式（`/channel/aqutter.rpc`：呼叫、回應、事件、二進位、分段） | aqutter_core 與 client（兩個 repo，共用測試向量）；shell 只界接 |
 | env 鍵 | shell 的 Dart 端、cli 的 env 範本（另一個 repo）、環境變數頁 |
 
 來源：1. [AGENTS.md](../../../AGENTS.md#L7-L10)　2. [plugins.md](../../../docs/plugins.md)　3. [channel-performance.md](../../../docs/channel-performance.md)
