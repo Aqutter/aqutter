@@ -8,9 +8,9 @@
     "0.0.0": {
       "status": "supported",
       "flutter": {
-        "baseline": "3.47.4"
+        "baseline": "3.47.8"
       },
-      "dart": ">=3.13.0 <4.0.0",
+      "dart": ">=3.13.7 <4.0.0",
       "shell": {
         "url": "https://github.com/Aqutter/aqutter.git",
         "path": "shell",

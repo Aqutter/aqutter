@@ -22,7 +22,7 @@ WPE WebKit 必須在**建置**與**執行**的機器上都有（App 動態連結
 
 ### Flutter 與 Node
 
-- Flutter 3.47.4（Linux 版 SDK），並啟用 Linux 桌面：`flutter config --enable-linux-desktop`。
+- Flutter 3.47.8 以上（Linux 版 SDK），並啟用 Linux 桌面：`flutter config --enable-linux-desktop`。
 - **pnpm 11 需要 Node 22.13 以上**。Debian 13 的套件庫只有 Node 20.19，`pnpm install` 會失敗（`No such built-in module: node:sqlite`）。請改裝官方的 Node 22（例如 nodejs.org 的 Linux 壓縮檔，解到使用者目錄即可）。
 - 不要用 root 跑 Flutter 與 App：WSLg 的圖形環境（`XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir`）屬於一般使用者，建一個一般使用者（uid 1000）來跑。
 
