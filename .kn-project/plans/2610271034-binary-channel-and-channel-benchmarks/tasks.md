@@ -7,9 +7,9 @@
 - [x] 結論與（可行時的）修正；不可行則記錄與 workaround
 
 ## Phase 2 — 通道（需 aqutter_core 新版）
-- [ ] `AqutterPlugin.channels`（型別用 core 的 `AqutterChannelHandler`）與匯出
-- [ ] `_registerPlugins` 註冊／取消註冊，與 `supportedPlatforms` 整合
-- [ ] `plugin_test.dart`
+- [x] `AqutterPlugin.channels`（型別用 core 的 `AqutterChannelHandler`）與匯出
+- [x] `_registerPlugins` 註冊／取消註冊，與 `supportedPlatforms` 整合
+- [x] `plugin_test.dart`
 
 ## Phase 3 — 文件與量測
 - [ ] `docs/plugins.md`、`docs/channel-performance.md`、`docs/windows.md`、`project.md`

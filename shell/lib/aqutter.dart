@@ -13,9 +13,12 @@ export 'src/plugin/aqutter_plugin.dart'
         aqutterErrorKey,
         aqutterErrorPayload,
         aqutterPluginEventChannel,
+        aqutterPluginChannelName,
         aqutterPluginHandlerName,
         aqutterPluginIdPattern,
         aqutterPluginSupports,
+        aqutterRegisterPluginChannels,
+        aqutterUnregisterPluginChannels,
         aqutterUnsupportedPlatform;
 export 'package:aqutter_core/aqutter_core.dart'
     show
@@ -23,6 +26,8 @@ export 'package:aqutter_core/aqutter_core.dart'
         AqutterNativeQuality,
         AqutterNativeFormat,
         AqutterNativeFrame,
+        AqutterChannelConnection,
+        AqutterChannelHandler,
         AqutterNativeHost,
         AqutterNativeMessage,
         AqutterNativeSession,

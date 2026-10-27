@@ -46,12 +46,50 @@ void main() {
       });
     });
   });
+
+  group('channels', () {
+    final host = AqutterNativeHost.instance;
+    tearDown(() {
+      for (final name in ['maps.bin', 'maps.raw']) {
+        host.unregisterChannel(name);
+      }
+    });
+
+    test('registers each channel as <pluginId>.<channel> on a supported platform', () {
+      final plugin = _Plugin(null, channels: {'bin': (_) {}, 'raw': (_) {}});
+      aqutterRegisterPluginChannels(host, plugin, TargetPlatform.android);
+      expect(aqutterPluginChannelName('maps', 'bin'), 'maps.bin');
+      expect(host.hasChannel('maps.bin'), isTrue);
+      expect(host.hasChannel('maps.raw'), isTrue);
+    });
+
+    test('registers nothing on an unsupported platform', () {
+      final plugin = _Plugin({TargetPlatform.android}, channels: {'bin': (_) {}});
+      aqutterRegisterPluginChannels(host, plugin, TargetPlatform.iOS);
+      expect(host.hasChannel('maps.bin'), isFalse);
+    });
+
+    test('a malformed channel name is an assembly-time error', () {
+      final plugin = _Plugin(null, channels: {'Bad': (_) {}});
+      expect(() => aqutterRegisterPluginChannels(host, plugin, TargetPlatform.android), throwsArgumentError);
+    });
+
+    test('unregistering removes the channels', () {
+      final plugin = _Plugin(null, channels: {'bin': (_) {}});
+      aqutterRegisterPluginChannels(host, plugin, TargetPlatform.android);
+      aqutterUnregisterPluginChannels(host, plugin);
+      expect(host.hasChannel('maps.bin'), isFalse);
+    });
+  });
 }
 
 class _Plugin extends AqutterPlugin {
-  _Plugin(this._platforms);
+  _Plugin(this._platforms, {this.channels = const {}});
 
   final Set<TargetPlatform>? _platforms;
+
+  @override
+  final Map<String, AqutterChannelHandler> channels;
 
   @override
   String get id => 'maps';

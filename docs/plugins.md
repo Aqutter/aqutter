@@ -54,12 +54,32 @@ class HapticsPlugin extends AqutterPlugin {
 | `id` | 必填 |
 | `supportedPlatforms` | 選填；`Set<TargetPlatform>?`，`null`（預設）代表所有平台。見下方「宣告支援的平台」 |
 | `handlers` | 暴露給網頁的方法；回傳值須可 JSON 序列化 |
+| `channels` | 選填；具名二進位通道，見下方「二進位通道」 |
 | `attach(context)` | 殼就緒後呼叫一次；以 `context.emit(event, payload)` 派送事件 |
 | `buildOverlay(context)` | 疊在 WebView 之上、啟動過場之下的 UI；需要吃觸控請自行限定範圍 |
 | `buildUnderlay(context)` | 墊在 WebView 之下、被網頁蓋住但仍在 Flutter 渲染的內容（網頁載入前就掛上）；搭配 [native view 鏡像](nativeview.md) |
 | `dispose()` | 殼結束時釋放資源 |
 
 Plugin 的 handler 會列入 `platform_info` 的 `capabilities`，網頁以 `isPluginSupported(id, method)` 查詢（沒裝該 plugin 的 App 為 `false`）。
+
+### 二進位通道
+
+`handlers` 與事件都經過 JSON，傳大量二進位資料（影像、音訊、檔案）很慢，量測見 [通道效能](channel-performance.md)。需要時改宣告 `channels`：
+
+```dart
+@override
+Map<String, AqutterChannelHandler> get channels => {
+  'frames': (connection) {
+    connection.messages.listen((data) => connection.send(process(data)));
+  },
+};
+```
+
+- 鍵是通道名（不含 id 前綴，`^[a-z][a-z0-9-]*$`）；網頁以 `openBinaryChannel('<id>.<name>')` 連上，每條新連線呼叫一次處理函式。
+- 連線與處理函式型別（`AqutterChannelConnection`、`AqutterChannelHandler`）由 `aqutter_core` 提供，細節見其 `doc/nativeview.md`。
+- 只傳二進位；v1 沒有自動重連與背壓。
+- 與 `supportedPlatforms` 一致：不支援的平台不註冊，網頁連線會被拒絕。
+- 底層是殼內的本機 WebSocket（與 native view 鏡像共用伺服器與令牌）；網頁的 CSP 需允許 `connect-src ws://127.0.0.1:*`。
 
 ### 宣告支援的平台
 
