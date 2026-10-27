@@ -107,6 +107,7 @@
 | 旗標 | 說明 |
 |---|---|
 | `--offline` | 不連網：清單只用本機快取，再退回 CLI 內建快照；同時略過 lock 與遠端的比對 |
+| `--refresh` | 略過 24 小時的快取有效期，直接連網取得清單並更新本機快取（與 `--offline` 互斥） |
 
 結束碼：有**錯誤**才為 1；只有警告為 0。
 
@@ -120,6 +121,8 @@
 | `--dry-run` | 只列出會改什麼，不寫檔、不執行 flutter |
 | `--skip-pub` | 只改檔案，不執行 `flutter pub upgrade` |
 | `--offline` | 不連網，清單只用本機快取與內建快照 |
+| `--refresh` | 略過 24 小時的快取有效期，直接連網取得清單（與 `--offline` 互斥） |
+| `--allow-downgrade` | 目標比現況舊時仍照做；預設拒絕（見下） |
 
 會改的（只改需要改的那一行，保留原有格式）：
 
@@ -130,6 +133,18 @@
 接著在 `<appDir>` 執行 `flutter pub upgrade aqutter aqutter_core`，讓 `pubspec.lock` 跟上。
 
 **不會改**：`init` 當初展開的原生檔案（`android/`、`ios/`、`windows/` 等）與 `lib/`——它們是專案自己的。
+
+### 降級保護
+
+清單來自過期的快取時，`upgrade` 可能拿到**比專案現況舊**的版本。為了避免無聲降級，下列任一項目標低於現況時，`upgrade` 預設**拒絕**（不寫檔、不執行 flutter、結束碼 1；`--dry-run` 也一樣）：
+
+| 比較項目 | 說明 |
+|---|---|
+| `pubspec.yaml` 的 `environment.flutter` 下限 | 例如 `>=3.47.8` → `>=3.47.4` |
+| `pubspec.yaml` 的 `environment.sdk` 下限 | 例如 `>=3.13.7` → `>=3.13.0` |
+| `.fvmrc` 的 `flutter` | 只在檔案存在時比較 |
+
+訊息會列出每個降級項（現況 → 目標），並提示：常見原因是清單來自過期快取，先加 `--refresh` 重新取得；確定要降級才加 `--allow-downgrade`（此時照做，並先印一行警告）。現況或目標讀不出下限（例如 `^` 範圍）的項目略過；相同或變高不算降級。
 
 升級流程：先把 `@aqutter/aqutter-cli` 升到新版並重新安裝（若清單的 `cli.min` 高於目前 CLI，指令會拒絕並提示），再執行 `aqutter upgrade`，最後 `aqutter doctor` 確認。升級後若 `package.json` 有變動，指令會提示重新安裝依賴的指令。
 
@@ -144,4 +159,6 @@
 
 ## 清單來源
 
-`init`、`plugin create`、`doctor`、`upgrade` 會讀發佈清單：預設從 `https://raw.githubusercontent.com/Aqutter/aqutter/main/manifest/releases.json` 取得並快取 24 小時，逾時 15 秒；失敗時依序退回舊快取與 CLI 內建快照。可用環境變數 `AQUTTER_MANIFEST_URL` 或 `aqutter.config.json` 的 `manifest.url` 改成其他 https 網址。
+`init`、`plugin create`、`doctor`、`upgrade` 會讀發佈清單：預設從 `https://raw.githubusercontent.com/Aqutter/aqutter/main/manifest/releases.json` 取得並快取 24 小時，逾時 15 秒；失敗時依序退回舊快取與 CLI 內建快照。加 `--refresh` 可略過快取有效期強制連網（失敗時行為相同）。
+
+輸出的 `manifest 來源` 會標出清單從哪來；來自快取時還會顯示它**多舊**（例如「約 3 小時前取得；--refresh 可強制重新取得」）。開發階段清單一天內可能更新多次，看到來源是快取時，先想一想要不要 `--refresh`。可用環境變數 `AQUTTER_MANIFEST_URL` 或 `aqutter.config.json` 的 `manifest.url` 改成其他 https 網址。
