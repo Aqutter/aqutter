@@ -121,6 +121,25 @@ else {
 
 `aqutterError` 是殼的保留欄位，plugin 自己的回傳不得使用這個名稱。
 
+## 官方 plugin
+
+殼只保留傳輸、plugin 載入、本機伺服器與網頁包更新這類核心；依賴較重、不是每個 App 都需要的功能做成各自獨立的官方 plugin，需要才安裝：
+
+| plugin | 功能 | 安裝 |
+|---|---|---|
+| [aqutter-plugin-sqlite-drift](https://github.com/Aqutter/aqutter-plugin-sqlite-drift) | SQLite 資料庫：Dart 端以 drift 當 raw SQL 執行器，網頁端是 Kysely dialect `AqutterSqliteDialect`；BLOB 直接傳二進位 | `aqutter plugin add aqutter-plugin-sqlite-drift` |
+
+拆出資料庫的實際效果（同一個暫存 App、同一台機器、各做一次完整的 Android release 建置，殼分別是拆前與拆後）：
+
+| | 拆前（殼含 drift、sqlite3） | 拆後 | 差異 |
+|---|---|---|---|
+| 建置時間 | 155 秒 | 97 秒 | 少 58 秒（約 37%） |
+| APK 體積 | 71,000,240 位元組 | 65,310,478 位元組 | 少 5.69 MB（約 8%） |
+
+各只量了一次，「拆前」先跑，可能受快取影響；只量 Android，沒有量 Windows。
+
+資料庫原本是殼的內建 handler（`db_open`、`db_exec`），已移除；舊的網頁程式要改用 plugin，遷移說明見該 plugin 的 README。
+
 ## 網頁端與型別
 
 ```ts

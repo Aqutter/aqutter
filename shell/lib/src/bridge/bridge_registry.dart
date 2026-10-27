@@ -15,7 +15,6 @@ import 'package:permission_plus/permission_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../db/drift_executor.dart';
 import '../server/bundle_manager.dart';
 import '../server/host_updater.dart';
 import '../server/host_version.dart';
@@ -76,7 +75,6 @@ class BridgeRegistry {
   static const Duration _receiveTimeout = Duration(seconds: 30);
   static const Duration _sendTimeout = Duration(seconds: 30);
 
-  final DriftDatabaseManager _db = DriftDatabaseManager();
   final LogService _log = LogService();
   final TcpService _tcp = TcpService();
   final Battery _battery = Battery();
@@ -121,7 +119,6 @@ class BridgeRegistry {
   /// 與 WebView 無關；WebView 重掛（套用網頁包更新後）重跑時同名取代。系統事件訂閱則只會在首次呼叫時建立。
   void register(AqutterWebViewController controller) {
     _registerPlatform();
-    _registerDatabase();
     _registerStore();
     _registerDownload();
     _registerLog();
@@ -337,24 +334,6 @@ class BridgeRegistry {
       return info.utsname.machine;
     }
     return 'unknown';
-  }
-
-  // ---- Database (drift) ----
-  void _registerDatabase() {
-    _handle(BridgeHandler.dbOpen, (payload) async {
-      await _db.open(
-        name: payload['name'] as String?,
-        path: payload['path'] as String?,
-      );
-      return {'ok': true};
-    });
-
-    _handle(BridgeHandler.dbExec, (payload) async {
-      final name = payload['name'] as String;
-      final sql = payload['sql'] as String;
-      final bind = (payload['bind'] as List<dynamic>?) ?? const [];
-      return _db.exec(name, sql, bind);
-    });
   }
 
   // ---- KV Store (shared_preferences) ----

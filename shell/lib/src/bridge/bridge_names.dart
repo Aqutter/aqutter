@@ -15,8 +15,6 @@ class BridgeHandler {
   /// native view 鏡像的 WebSocket 連線資訊（埠與令牌）；見 `<aqutter-native>`。
   static const String nativeEndpoint = 'native_endpoint';
 
-  static const String dbExec = 'db_exec';
-  static const String dbOpen = 'db_open';
 
   static const String storeGet = 'store_get';
   static const String storeSet = 'store_set';
