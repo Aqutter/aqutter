@@ -1,0 +1,16 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0",
+  "startedAt": "2026-10-27T02:52:46.094Z",
+  "mirror": {
+    "seconds": 10,
+    "frames": 361,
+    "fps": 36.1,
+    "kbPerFrame": 344,
+    "mbPerSecond": 12.1,
+    "meanDrawMs": 0.17,
+    "meanLatencyMs": 14.88,
+    "element": "1100x320 dpr=1.25"
+  },
+  "finishedAt": "2026-10-27T02:53:03.108Z",
+  "quality": "smooth"
+}

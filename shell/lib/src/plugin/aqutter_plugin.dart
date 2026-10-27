@@ -1,3 +1,4 @@
+import 'package:aqutter_core/aqutter_core.dart';
 import 'package:flutter/widgets.dart';
 
 /// plugin 暴露給網頁的方法：吃單一 JSON 物件，回傳可 JSON 序列化的結果。
@@ -30,6 +31,28 @@ const String aqutterUnsupportedPlatform = 'UNSUPPORTED_PLATFORM';
 Map<String, dynamic> aqutterErrorPayload(String code, String message) => {
       aqutterErrorKey: {'code': code, 'message': message},
     };
+
+/// 通道在 [AqutterNativeHost] 上的完整名稱：`<pluginId>.<channel>`。
+String aqutterPluginChannelName(String pluginId, String channel) => '$pluginId.$channel';
+
+/// 把 [plugin] 宣告的通道註冊到 [host]；[platform] 不受支援時什麼都不做。
+///
+/// 通道名不合法時拋出 [ArgumentError]（App 組裝期的程式錯誤）。
+void aqutterRegisterPluginChannels(AqutterNativeHost host, AqutterPlugin plugin, TargetPlatform platform) {
+  if (!aqutterPluginSupports(plugin, platform)) {
+    return;
+  }
+  for (final entry in plugin.channels.entries) {
+    host.registerChannel(aqutterPluginChannelName(plugin.id, entry.key), entry.value);
+  }
+}
+
+/// 取消註冊 [plugin] 宣告的通道（同時關閉其連線）。
+void aqutterUnregisterPluginChannels(AqutterNativeHost host, AqutterPlugin plugin) {
+  for (final name in plugin.channels.keys) {
+    host.unregisterChannel(aqutterPluginChannelName(plugin.id, name));
+  }
+}
 
 /// [plugin] 是否支援 [platform]：[AqutterPlugin.supportedPlatforms] 為 null 代表所有平台。
 bool aqutterPluginSupports(AqutterPlugin plugin, TargetPlatform platform) {
@@ -68,6 +91,14 @@ abstract class AqutterPlugin {
 
   /// 暴露給網頁的方法，鍵為方法名（不含 id 前綴）。
   Map<String, AqutterPluginHandler> get handlers => const {};
+
+  /// 暴露給網頁的二進位通道，鍵為通道名（不含 id 前綴，須符合 `^[a-z][a-z0-9-]*$`）。
+  ///
+  /// 網頁以 `openBinaryChannel('<id>.<name>')` 連上；每條新連線呼叫一次對應的處理函式。
+  /// 只傳二進位、不經 JSON 與 base64，適合大量資料。連線與處理函式型別都由 `aqutter_core` 提供。
+  ///
+  /// 目前平台不在 [supportedPlatforms] 內時不註冊，網頁連線會被拒絕。
+  Map<String, AqutterChannelHandler> get channels => const {};
 
   /// 殼就緒後呼叫一次；[context] 在 plugin 存活期間有效。
   void attach(AqutterPluginContext context) {}

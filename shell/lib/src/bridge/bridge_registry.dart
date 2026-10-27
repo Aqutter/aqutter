@@ -181,6 +181,9 @@ class BridgeRegistry {
         }
       }
     }
+    for (final plugin in plugins) {
+      aqutterRegisterPluginChannels(AqutterNativeHost.instance, plugin, defaultTargetPlatform);
+    }
     if (_pluginsAttached) {
       return;
     }
@@ -195,6 +198,7 @@ class BridgeRegistry {
   /// 釋放 plugin 資源。
   void disposePlugins() {
     for (final plugin in plugins) {
+      aqutterUnregisterPluginChannels(AqutterNativeHost.instance, plugin);
       plugin.dispose();
     }
   }

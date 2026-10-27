@@ -1,0 +1,181 @@
+{
+  "userAgent": "Mozilla/5.0 (Linux; Android 13; ASUS_I006D Build/TKQ1.220807.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/155.0.8059.43 Mobile Safari/537.36",
+  "startedAt": "2026-10-27T02:29:17.214Z",
+  "A_smallCallRoundTrip": {
+    "n": 300,
+    "meanMs": 0.529,
+    "p50Ms": 0.5,
+    "p95Ms": 0.7,
+    "p99Ms": 0.9,
+    "minMs": 0.3,
+    "maxMs": 1.2
+  },
+  "B_smallCallThroughput": {
+    "calls": 2000,
+    "seconds": 0.546,
+    "callsPerSecond": 3665
+  },
+  "C_jsonEcho": {
+    "1024B": {
+      "n": 30,
+      "meanMs": 0.623,
+      "p50Ms": 0.6,
+      "p95Ms": 0.8,
+      "p99Ms": 0.8,
+      "minMs": 0.5,
+      "maxMs": 0.8,
+      "roundTripMbPerSecond": 3.135
+    },
+    "65536B": {
+      "n": 30,
+      "meanMs": 4.25,
+      "p50Ms": 4.2,
+      "p95Ms": 5.2,
+      "p99Ms": 5.3,
+      "minMs": 3.5,
+      "maxMs": 5.3,
+      "roundTripMbPerSecond": 29.412
+    },
+    "1048576B": {
+      "n": 10,
+      "meanMs": 52.04,
+      "p50Ms": 52.7,
+      "p95Ms": 55.3,
+      "p99Ms": 55.3,
+      "minMs": 48.7,
+      "maxMs": 55.3,
+      "roundTripMbPerSecond": 38.432
+    },
+    "4194304B": {
+      "n": 10,
+      "meanMs": 202.4,
+      "p50Ms": 202,
+      "p95Ms": 209.9,
+      "p99Ms": 209.9,
+      "minMs": 193.4,
+      "maxMs": 209.9,
+      "roundTripMbPerSecond": 39.526
+    }
+  },
+  "D_base64OneMbRoundTrip": {
+    "encode": {
+      "n": 10,
+      "meanMs": 50.96,
+      "p50Ms": 51.4,
+      "p95Ms": 56.3,
+      "p99Ms": 56.3,
+      "minMs": 44.7,
+      "maxMs": 56.3
+    },
+    "call": {
+      "n": 10,
+      "meanMs": 75.59,
+      "p50Ms": 75.2,
+      "p95Ms": 79.8,
+      "p99Ms": 79.8,
+      "minMs": 67.6,
+      "maxMs": 79.8
+    },
+    "decode": {
+      "n": 10,
+      "meanMs": 6.3,
+      "p50Ms": 6.4,
+      "p95Ms": 9.8,
+      "p99Ms": 9.8,
+      "minMs": 4.4,
+      "maxMs": 9.8
+    },
+    "total": {
+      "n": 10,
+      "meanMs": 132.85,
+      "p50Ms": 134,
+      "p95Ms": 141.1,
+      "p99Ms": 141.1,
+      "minMs": 123.4,
+      "maxMs": 141.1
+    },
+    "base64Chars": 1398104
+  },
+  "E_events": [
+    {
+      "count": 1000,
+      "bytes": 100,
+      "mode": "seq",
+      "dartMs": 719,
+      "totalMs": 721.3,
+      "firstToLastMs": 718.2,
+      "eventsPerSecond": 1391
+    },
+    {
+      "count": 300,
+      "bytes": 10000,
+      "mode": "seq",
+      "dartMs": 295,
+      "totalMs": 296.6,
+      "firstToLastMs": 294.7,
+      "eventsPerSecond": 1015
+    },
+    {
+      "count": 50,
+      "bytes": 500000,
+      "mode": "seq",
+      "dartMs": 635,
+      "totalMs": 639,
+      "firstToLastMs": 618.4,
+      "eventsPerSecond": 79
+    },
+    {
+      "count": 1000,
+      "bytes": 100,
+      "mode": "burst",
+      "dartMs": 125,
+      "totalMs": 126.8,
+      "firstToLastMs": 42.1,
+      "eventsPerSecond": 23729
+    },
+    {
+      "count": 100,
+      "bytes": 10000,
+      "mode": "burst",
+      "dartMs": 24,
+      "totalMs": 25.9,
+      "firstToLastMs": 8.9,
+      "eventsPerSecond": 11124
+    }
+  ],
+  "F_webSocket": [
+    {
+      "direction": "down",
+      "count": 200,
+      "bytesEach": 1048576,
+      "ms": 761.5,
+      "mbPerSecond": 262.64,
+      "messagesPerSecond": 263
+    },
+    {
+      "direction": "up",
+      "count": 200,
+      "bytesEach": 1048576,
+      "ms": 1359.7,
+      "mbPerSecond": 147.091,
+      "messagesPerSecond": 147
+    },
+    {
+      "direction": "down",
+      "count": 20000,
+      "bytesEach": 64,
+      "ms": 511.4,
+      "mbPerSecond": 2.387,
+      "messagesPerSecond": 39108
+    },
+    {
+      "direction": "up",
+      "count": 20000,
+      "bytesEach": 64,
+      "ms": 946.3,
+      "mbPerSecond": 1.29,
+      "messagesPerSecond": 21135
+    }
+  ],
+  "finishedAt": "2026-10-27T02:29:27.407Z"
+}
