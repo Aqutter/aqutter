@@ -90,9 +90,27 @@ Windows 上 WebSocket 下行明顯比 Android 慢（1MB：44 對 263 MB/s；64B 
 | 錯誤碼 | `HANDLER_NOT_FOUND`、`HANDLER_FAILED`、plugin 自訂 `DENIED` 皆正確 |
 | 殼重啟伺服器 | 進行中的呼叫 `TRANSPORT_CLOSED`，狀態 closed → connecting → open，約 217 ms 後呼叫恢復 |
 
-- 小呼叫沒有變慢（0.57 對 0.5 ms，量測誤差內）；大資料的好處是實測的。
+- Android：小呼叫沒有變慢（0.57 對 0.5 ms，量測誤差內）；大資料的好處是實測的。
 - 下行／上行的吞吐低於先前直接用 WebSocket 量到的數字（約 260／190 MB/s）：這裡每次是一個完整的呼叫往返（編碼、分派、回應），不是連續串流。
-- 只在這一支 Android 手機量過；Windows、Linux、iOS、macOS 見下。
+- 只在這一支 Android 手機與一台 Windows 桌機量過各一次；Linux 見下，iOS、macOS 追蹤於 Aqutter/aqutter#21。
+- 另外用 70 MiB 的呼叫來回（內容一致，902 ms）、66 MiB 的事件（收到）、超過 512 MiB（`PAYLOAD_TOO_LARGE`）驗證自動分段。
+
+### Windows（同一套測試）
+
+原始結果：`tools/channel-bench/results/windows-unified-transport-2026-10-28.json`。
+
+| 項目 | 結果 |
+|---|---|
+| 小呼叫往返（300 次） | 平均 0.79 ms，p95 1.2 ms（改版前 `callHandler` 約 0.48 ms，**慢了約 0.3 ms**） |
+| 1MB 往返：二進位對 base64（同一條傳輸） | 45.3 ms 對 121.9 ms（約 2.7 倍） |
+| 1MB 下行／上行 × 100（逐一呼叫） | 57／46 MB/s |
+| 事件帶 100KB 二進位 × 200 | 全數收到，369 ms |
+| 70 MiB 呼叫來回／66 MiB 事件／超過 512 MiB | 內容一致（2.66 秒）／收到／`PAYLOAD_TOO_LARGE` |
+| 錯誤碼、殼重啟後的重連 | 皆正確；約 216 ms 後呼叫恢復 |
+
+- Windows 的好處比 Android 小（2.7 倍對 6.5 倍），因為 Chromium 的 WebSocket 下行上限約 50 MB/s（見上方「Windows 的 WebSocket 下行上限」），這條傳輸同樣受限。
+- 小呼叫在 Windows 慢了約 0.3 ms：一般呼叫不受影響，但每次呼叫都有這個固定成本。
+- 只在這一台 Windows 桌機量過一次。
 
 ## 限制
 

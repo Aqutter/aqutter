@@ -13,7 +13,7 @@
 
 ## Phase 3 — 驗證與文件（需等待 aqutter-js：傳輸完成）
 - [x] Android 實機端對端：呼叫、事件、二進位往返、重連（殼 `restart()`）、CSP 擋掉的錯誤；與舊數字對照
-- [ ] Windows 實機端對端與量測
+- [x] Windows 實機端對端與量測
 - [ ] Linux（WSL2 Debian 13）端對端驗證
 - [x] `docs/plugins.md`、`docs/channel-performance.md`、`docs/getting-started.md`、`tools/channel-bench`、wiki、project.md
 - [ ] `flutter analyze`、`flutter test`、wiki lint／build
