@@ -22,6 +22,7 @@ WebView 由獨立 repo `Aqutter/aqutter_core`（以 git tag 依賴）提供。
 - **CLI 在 `Aqutter/aqutter-cli`**：其 `dist/` 必須與 `src/`、`template/` 同步提交；CLI 不寫死任何網頁框架，只認 `aqutter.config.json`。跨 repo 的成對規則（env 鍵、Flutter 版本、範本變數）見 `AGENTS.md`，目前只靠文件約束，沒有跨 repo CI。
 - **env 範圍**：`AQUTTER_*` 只有殼讀；dev 連線位址 `AQUTTER_DEV_URL` 由 `aqutter dev` 依平台注入。
 - **Native view 鏡像**：原生端在 `aqutter_core`（`AqutterNative`，以 tag 依賴），網頁端在 client（`Aqutter/aqutter-js`，`<aqutter-native>`、`AqutterNative`）；幀格式與訊息格式兩端各存一份（`native_frame.dart` ↔ aqutter-js 的 `src/nativeview/frame.ts`、`gestures.ts`），改一邊必改另一邊。`import '@aqutter/aqutter'` 必須在伺服端渲染下安全，故元素類別只在 `defineAqutterNative()` 內建立。
+- **二進位通道**：plugin 以 `AqutterPlugin.channels` 宣告具名通道（`<id>.<channel>`），底層是 `aqutter_core` 的 `AqutterNativeHost` 上的 `/channel/<name>?token=`（與鏡像共用伺服器與令牌）；網頁端 `openBinaryChannel`（`Aqutter/aqutter-js`）。只傳二進位，沒有自動重連與背壓。量測與限制見 `docs/channel-performance.md`。
 - **Plugin**：同一個 repo 同時是 npm 套件與 Dart 套件；`aqutter plugin add` 把 Dart 端以 path 依賴指向 `node_modules` 內的套件，並產生 `lib/aqutter_plugins.dart`。
 
 ## 工作流程
