@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -11,6 +12,7 @@ import 'plugin/aqutter_plugin.dart';
 import 'bridge/bridge_emitter.dart';
 import 'bridge/bridge_names.dart';
 import 'bridge/bridge_registry.dart';
+import 'bridge/endpoint_script.dart';
 import 'bridge/safe_area_injector.dart';
 import 'bridge/system_ui.dart';
 import 'server/bundle_manager.dart';
@@ -131,6 +133,12 @@ class _AqutterPageState extends State<AqutterPage> {
 
   BridgeRegistry? _registry;
 
+  /// 目前的 WebView controller；端點變更時用它更新頁面（見 [_onEndpointChanged]）。
+  AqutterWebViewController? _webController;
+
+  /// 端點更新的串接：連續變更時依序套用，不讓兩次更新交錯。
+  Future<void> _endpointUpdate = Future<void>.value();
+
   /// 字型服務根；於 [_bootstrap] 佈署一次後沿用。
   ///
   /// 字型隨 App 二進位走、不受網頁包更新影響，故執行期更新重啟 server 時不需重新佈署。
@@ -241,6 +249,7 @@ class _AqutterPageState extends State<AqutterPage> {
   void initState() {
     super.initState();
     SystemBars.appBrightness.addListener(_onAppBrightnessChanged);
+    AqutterNativeHost.instance.endpoint.addListener(_onEndpointChanged);
     _bootstrap();
   }
 
@@ -306,7 +315,7 @@ class _AqutterPageState extends State<AqutterPage> {
       // dev：直接載入 web dev server，橋接照常註冊於 onWebViewCreated。
       // 種子 / OTA / server 全部跳過，故只經歷「載入網頁」一段。
       if (kDevUrl.isNotEmpty) {
-        _mountWebView(Uri.parse(kDevUrl));
+        await _mountWebView(Uri.parse(kDevUrl));
         return;
       }
 
@@ -343,7 +352,7 @@ class _AqutterPageState extends State<AqutterPage> {
     _setStage(StartupStage.startingServer);
     final baseUrl = await _server.start(documentRoot, fontsRoot: _fontsRoot);
 
-    _mountWebView(baseUrl);
+    await _mountWebView(baseUrl);
   }
 
   /// 嚴格模式阻擋畫面的「重試」：清掉阻擋狀態讓過場回到畫面上，再從查版本重來。
@@ -434,7 +443,9 @@ class _AqutterPageState extends State<AqutterPage> {
   ///
   /// 過場**不在此移除**——WebView 此刻才開始載入，正是原本完全沒有回饋的那一段。
   /// 就緒判定窗也不在此起算，而是等 `onLoadStop`（見 [_onLoadStop]）。
-  void _mountWebView(Uri baseUrl) {
+  Future<void> _mountWebView(Uri baseUrl) async {
+    // 端點要先就緒：WebView 建立時就要把它注入頁面（見 [_buildWebView]）
+    await _ensureEndpointStarted();
     if (!mounted) {
       return;
     }
@@ -446,6 +457,16 @@ class _AqutterPageState extends State<AqutterPage> {
       _updateProgress = null;
       _webViewGeneration++;
     });
+  }
+
+  /// 啟動本機傳輸伺服器（冪等）。失敗只記錄：WebView 仍會掛上，端點在伺服器起來後由 [_onEndpointChanged] 補上。
+  Future<void> _ensureEndpointStarted() async {
+    try {
+      await AqutterNativeHost.instance.ensureStarted();
+    }
+    catch (error) {
+      debugPrint('[aqutter] failed to start the local transport: $error');
+    }
   }
 
   /// 網頁回報就緒（`app_ready`）：淡出過場。
@@ -496,7 +517,7 @@ class _AqutterPageState extends State<AqutterPage> {
       if (_devLoadRetries < _devLoadRetryLimit) {
         _devLoadRetries++;
         _devLoadRetryTimer?.cancel();
-        _devLoadRetryTimer = Timer(_devLoadRetryDelay, () => _mountWebView(Uri.parse(kDevUrl)));
+        _devLoadRetryTimer = Timer(_devLoadRetryDelay, () => unawaited(_mountWebView(Uri.parse(kDevUrl))));
         return;
       }
       setState(() => _error = 'dev server 載入失敗（已重試 $_devLoadRetryLimit 次）\n$reason');
@@ -653,6 +674,7 @@ class _AqutterPageState extends State<AqutterPage> {
         await _bundleManager.currentPath(),
         fontsRoot: _fontsRoot,
       );
+      await _ensureEndpointStarted();
       if (!mounted) {
         return;
       }
@@ -678,7 +700,38 @@ class _AqutterPageState extends State<AqutterPage> {
 
   void _onWebViewCreated(AqutterWebViewController controller) {
     _safeAreaInjector.controller = controller;
-    _registry?.register(controller);
+    _webController = controller;
+    _registry?.register();
+    // 建立 WebView 到現在之間端點可能又變過：補套一次（重複套用無害）
+    _onEndpointChanged();
+  }
+
+  /// 本機傳輸的端點變了（伺服器重啟後埠與令牌都換新）：讓網頁拿到新值。
+  ///
+  /// 兩件事缺一不可：目前的頁面要立刻改用新值（`evaluateJavascript`），之後的導覽與重新整理也要
+  /// （換掉注入腳本）。網頁每次重連前都會重新讀 `window.aqutterEndpoint`，所以不需要另外通知它。
+  void _onEndpointChanged() {
+    final controller = _webController;
+    if (controller == null) {
+      return;
+    }
+    _endpointUpdate = _endpointUpdate.then((_) => _applyEndpoint(controller));
+  }
+
+  Future<void> _applyEndpoint(AqutterWebViewController controller) async {
+    final endpoint = AqutterNativeHost.instance.endpoint.value;
+    if (endpoint == null) {
+      return;
+    }
+    final script = buildEndpointUserScript(endpoint);
+    try {
+      await controller.removeUserScriptsByGroupName(groupName: aqutterEndpointScriptGroup);
+      await controller.addUserScript(userScript: script);
+      await controller.evaluateJavascript(source: script.source);
+    }
+    catch (error) {
+      debugPrint('[aqutter] failed to update the endpoint script: $error');
+    }
   }
 
   /// 頁面（重）載入會清掉 documentElement 的 inline style（dev HMR full reload 亦同），
@@ -700,6 +753,7 @@ class _AqutterPageState extends State<AqutterPage> {
   @override
   void dispose() {
     SystemBars.appBrightness.removeListener(_onAppBrightnessChanged);
+    AqutterNativeHost.instance.endpoint.removeListener(_onEndpointChanged);
     _readyWindow?.cancel();
     _devLoadRetryTimer?.cancel();
     _registry?.disposePlugins();
@@ -791,6 +845,9 @@ class _AqutterPageState extends State<AqutterPage> {
   }
 
   Widget _buildWebView(Uri baseUrl) {
+    // 本機傳輸的端點：以 UserScript 在頁面載入時注入 `window.aqutterEndpoint`（早於頁面腳本）。
+    // 伺服器重啟後的更新見 [_onEndpointChanged]；此刻沒有端點（重啟中）就先不注入，稍後會補上。
+    final endpoint = AqutterNativeHost.instance.endpoint.value;
     return AqutterWebView(
       // key 隨每次重掛遞增：強制 Flutter 銷毀舊 element 並建立新的 platform view。
       // initialUrlRequest 只在建立當下讀取，element 被原地重用時換了也不生效。
@@ -798,6 +855,7 @@ class _AqutterPageState extends State<AqutterPage> {
       // iOS：關掉 Flutter 平台視圖的 DelayingGestureRecognizer，否則快速連點的第二下進不了網頁
       preventGestureDelay: true,
       initialUrlRequest: AqutterURLRequest(url: AqutterWebUri.uri(baseUrl)),
+      initialUserScripts: endpoint == null ? null : UnmodifiableListView([buildEndpointUserScript(endpoint)]),
       initialSettings: AqutterWebViewSettings(
         javaScriptEnabled: true,
         // 允許載入本機 http server（loopback）

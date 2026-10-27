@@ -115,9 +115,9 @@ class BridgeRegistry {
 
   /// 註冊全部 handler。應於 onWebViewCreated 後呼叫。
   ///
-  /// 除 `native_endpoint`（網頁取得連線資訊，掛在 [controller] 上）外，handler 都登錄在 [AqutterRpcHost]，
-  /// 與 WebView 無關；WebView 重掛（套用網頁包更新後）重跑時同名取代。系統事件訂閱則只會在首次呼叫時建立。
-  void register(AqutterWebViewController controller) {
+  /// handler 都登錄在 [AqutterRpcHost]，與 WebView 無關；WebView 重掛（套用網頁包更新後）重跑時同名取代。
+  /// 系統事件訂閱則只會在首次呼叫時建立。網頁取得連線資訊的方式不在這裡：殼把端點注入頁面（見 `endpoint_script.dart`）。
+  void register() {
     _registerPlatform();
     _registerStore();
     _registerDownload();
@@ -130,21 +130,9 @@ class BridgeRegistry {
     _registerPicker();
     _registerTcp();
     _registerUi();
-    _registerNative(controller);
     _registerPlugins();
     _startBroadcast();
     _registerHostEvents();
-  }
-
-  /// native view 鏡像：回傳 localhost WebSocket 的埠與令牌（首次呼叫時才啟動伺服器）。
-  ///
-  /// 這是**唯一**走 `callHandler` 的 handler：網頁要靠它取得多工連線的埠與令牌，連線建立前沒有別的路。
-  void _registerNative(AqutterWebViewController controller) {
-    _capabilities.add(BridgeHandler.nativeEndpoint);
-    controller.addJavaScriptHandler(
-      handlerName: BridgeHandler.nativeEndpoint,
-      callback: (_) async => (await AqutterNativeHost.instance.ensureStarted()).toJson(),
-    );
   }
 
   /// plugin 是否已 attach；理由同 [_broadcastStarted]——WebView 重掛時 handler 要重掛、context 不該重發。

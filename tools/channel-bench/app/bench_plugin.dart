@@ -8,8 +8,8 @@ import 'package:aqutter/aqutter.dart';
 /// 通道效能基準用的 plugin（只在暫存複本裡，不進任何 repo）。
 ///
 /// 量三層之間（網頁 <-> Flutter）各條通道的延遲與吞吐：
-///   echo      小／大 JSON 往返（callHandler）
-///   events    Dart -> 網頁的事件（evaluateJavascript）
+///   echo      小／大 JSON 往返（統一傳輸）
+///   events    Dart -> 網頁的事件（統一傳輸）
 ///   ws        本機 WebSocket 的二進位傳輸（下行、上行）
 ///   report    把結果寫成檔案，供外部讀取
 class BenchPlugin extends AqutterPlugin {
@@ -26,7 +26,7 @@ class BenchPlugin extends AqutterPlugin {
 
   @override
   Map<String, AqutterPluginHandler> get handlers => {
-        // 原樣回傳：量 callHandler 的往返與序列化成本
+        // 原樣回傳：量統一傳輸的往返與序列化成本
         'echo': (payload) async => payload,
         // 只回一個小物件：量「呼叫本身」的成本，不含酬載
         'ping': (payload) async => {'ok': true},

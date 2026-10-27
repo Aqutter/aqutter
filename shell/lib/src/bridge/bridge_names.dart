@@ -12,9 +12,6 @@ class BridgeHandler {
   /// 網頁層已掛載且首次繪製完成；host 據此移除啟動過場。
   static const String appReady = 'app_ready';
 
-  /// native view 鏡像的 WebSocket 連線資訊（埠與令牌）；見 `<aqutter-native>`。
-  static const String nativeEndpoint = 'native_endpoint';
-
 
   static const String storeGet = 'store_get';
   static const String storeSet = 'store_set';
