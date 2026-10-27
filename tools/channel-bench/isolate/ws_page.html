@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ws bench</title>
+</head>
+<body>
+<pre id="out">running…</pre>
+<script>
+// 與 App 內 zzbench.client.ts 的 F（WebSocket）同一份測試，用一般瀏覽器跑，隔離 WebView2。
+const MB = 1024 * 1024
+const now = () => performance.now()
+const round = v => Math.round(v * 1000) / 1000
+const open = () => new Promise((resolve, reject) => {
+  const target = new URLSearchParams(location.search).get('target') || location.host
+  const socket = new WebSocket(`ws://${target}/`)
+  socket.binaryType = 'arraybuffer'
+  socket.onopen = () => resolve(socket)
+  socket.onerror = () => reject(new Error('ws error'))
+})
+const down = async (count, bytes) => {
+  const socket = await open()
+  let received = 0, receivedBytes = 0
+  const finished = new Promise(resolve => {
+    socket.onmessage = event => {
+      if (typeof event.data === 'string') resolve()
+      else { received += 1; receivedBytes += event.data.byteLength }
+    }
+  })
+  const t0 = now()
+  socket.send(JSON.stringify({ mode: 'down', count, bytes }))
+  await finished
+  const ms = now() - t0
+  socket.close()
+  return { direction: 'down', count: received, bytesEach: bytes, ms: round(ms), mbPerSecond: round((receivedBytes / MB) / (ms / 1000)), messagesPerSecond: Math.round(received / (ms / 1000)) }
+}
+const up = async (count, bytes) => {
+  const socket = await open()
+  const chunk = new Uint8Array(bytes)
+  const reply = new Promise(resolve => { socket.onmessage = event => resolve(JSON.parse(event.data)) })
+  const t0 = now()
+  for (let i = 0; i < count; i++) {
+    socket.send(chunk)
+    while (socket.bufferedAmount > 8 * MB) await new Promise(r => setTimeout(r, 1))
+  }
+  socket.send(JSON.stringify({ mode: 'upEnd' }))
+  const result = await reply
+  const ms = now() - t0
+  socket.close()
+  return { direction: 'up', count: result.count, bytesEach: bytes, ms: round(ms), mbPerSecond: round((result.bytes / MB) / (ms / 1000)), messagesPerSecond: Math.round(result.count / (ms / 1000)) }
+}
+;(async () => {
+  const out = { client: navigator.userAgent, results: [] }
+  try {
+    out.results.push(await down(200, MB), await up(200, MB), await down(20000, 64), await up(20000, 64))
+  } catch (error) { out.error = String(error) }
+  document.getElementById('out').textContent = JSON.stringify(out, null, 2)
+  window.__done = true
+})()
+</script>
+</body>
+</html>

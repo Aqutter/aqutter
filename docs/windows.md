@@ -76,6 +76,6 @@ aqutter build windows        # 或 aqutter dev windows
 | debug（`aqutter dev`） | 14 到 23 fps | `toImage` 約 9 到 11 ms ＋ `toByteData` 約 13 到 17 ms，合計 22 到 28 ms |
 | release | 約 26 fps | 未量（release 版沒有統計輸出） |
 
-- 瓶頸在「把畫面從 GPU 讀回」（`toImage` 加 `toByteData`），不在傳輸（`send` 約 0.1 ms）或資料量；aqutter_core 文件裡 macOS release 的範例輸出，擷取合計約 4.7 ms。
+- **有兩個上限，不是只有一個**：大幀時（`auto`、`sharp`）卡在 **WebSocket 下行**（Windows 上 Chromium 的上限約 50 MB/s，約 30 fps），小幀時（`smooth`）卡在「把畫面從 GPU 讀回」（`toImage` 加 `toByteData`，約 36 到 45 fps）。完整的量測、隔離過程與三種 `quality` 的比較見 [通道效能](channel-performance.md)。先前這裡寫「瓶頸在讀回、不在傳輸」只對小幀成立。
 - 閒置時 CPU 約 0%；持續拖動時 App 行程約用掉 1.1 到 1.3 個核心（22 核心的機器上約 5%）。
 - 這是單機、單次、單指拖動的量測，數字僅供量級參考。想看各階段耗時：用 `--dart-define=AQUTTER_NATIVE_STATS=true` 建置（見 [aqutter_core 的 doc/nativeview.md](https://github.com/Aqutter/aqutter_core/blob/main/doc/nativeview.md) 的「量測」一節）。
