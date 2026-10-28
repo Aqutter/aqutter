@@ -13,6 +13,7 @@ import 'bridge/bridge_emitter.dart';
 import 'bridge/bridge_names.dart';
 import 'bridge/bridge_registry.dart';
 import 'bridge/endpoint_script.dart';
+import 'bridge/media_permission.dart';
 import 'bridge/safe_area_injector.dart';
 import 'bridge/system_ui.dart';
 import 'server/bundle_manager.dart';
@@ -894,6 +895,13 @@ class _AqutterPageState extends State<AqutterPage> {
         isInspectable: _webViewDebugEnabled(),
       ),
       onWebViewCreated: _onWebViewCreated,
+      // 網頁的 getUserMedia（相機、麥克風）：Android WebView 沒人回答就一律拒絕，故由殼決定。
+      // 只放行殼自己供應的頁面，見 [decideMediaPermission]。
+      onPermissionRequest: (controller, request) async => decideMediaPermission(
+        request,
+        baseUrl: _baseUrl,
+        devUrl: kDevUrl,
+      ),
       onLoadStop: _onLoadStop,
       onProgressChanged: (controller, progress) => _onWebViewProgress(progress),
       // 載入層級的錯誤直接判定失敗，不必等就緒窗——此時已確定網頁包起不來。
