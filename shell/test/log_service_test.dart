@@ -128,4 +128,53 @@ void main() {
       );
     });
   });
+
+  group('date rollover (the date part is computed at every write, no scheduler)', () {
+    late DateTime clock;
+    late LogService clocked;
+
+    setUp(() {
+      clock = DateTime(2026, 10, 29, 23, 59, 59);
+      clocked = LogService(
+        rootResolver: (provider) async => Directory(p.join(root.path, provider.name)),
+        now: () => clock,
+      );
+    });
+
+    Future<List<String>> names(String relative) async {
+      return (await filesUnder(relative)).map((f) => p.basename(f.path)).toList()..sort();
+    }
+
+    test('an omitted name rolls to the next day on the first write after midnight', () async {
+      const target = LogTarget(dir: 'daily');
+      await clocked.append('info', 'before', target: target);
+      clock = DateTime(2026, 10, 30, 0, 0, 1);
+      await clocked.append('info', 'after', target: target);
+
+      expect(await names('internal/daily'), ['app_20261029.log', 'app_20261030.log']);
+      final after = File(p.join(root.path, 'internal/daily/app_20261030.log'));
+      expect(await after.readAsString(), contains('[info] after'));
+      expect(await after.readAsString(), isNot(contains('before')));
+    });
+
+    test('an explicit name rolls over the same way, and setKey is honoured across the boundary', () async {
+      await clocked.append('info', 'a', target: const LogTarget(dir: 'x', name: 'order'));
+      clocked.setKey('user_1');
+      clock = DateTime(2026, 10, 30, 0, 0, 0);
+      await clocked.append('info', 'b', target: const LogTarget(dir: 'x', name: 'order'));
+      await clocked.append('info', 'c', target: const LogTarget(dir: 'x'));
+
+      expect(await names('internal/x'), ['order_20261029.log', 'order_20261030.log', 'user_1_20261030.log']);
+    });
+
+    test('midnight is judged on the local clock at the moment of each write', () async {
+      const target = LogTarget(dir: 'edge');
+      clock = DateTime(2026, 12, 31, 23, 59, 59, 999);
+      await clocked.append('info', 'last ms of the year', target: target);
+      clock = DateTime(2027, 1, 1);
+      await clocked.append('info', 'first ms of the year', target: target);
+
+      expect(await names('internal/edge'), ['app_20261231.log', 'app_20270101.log']);
+    });
+  });
 }

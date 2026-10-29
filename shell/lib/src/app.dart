@@ -478,7 +478,6 @@ class _AqutterPageState extends State<AqutterPage> {
       return;
     }
     _webReady = false;
-    widget.errorCenter?.webReady = false;
     setState(() {
       _baseUrl = baseUrl;
       _stage = StartupStage.loadingWeb;
@@ -507,8 +506,6 @@ class _AqutterPageState extends State<AqutterPage> {
     _devLoadRetries = 0;
     _webReady = true;
     _recovering = false;
-    // 網頁已連上殼：把尚未確認的 crash 紀錄交給網頁寫入目標檔案。
-    widget.errorCenter?.webReady = true;
     _dismissOverlay();
   }
 

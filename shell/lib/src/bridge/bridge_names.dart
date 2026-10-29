@@ -26,6 +26,9 @@ class BridgeHandler {
   static const String logAppend = 'log_append';
   static const String logSetKey = 'log_set_key';
 
+  /// 網頁取回未確認的 crash 紀錄（最多 50 筆、由舊到新）並告知殼可開始推送；回應 `{'reports': [...]}`。
+  static const String crashTake = 'crash_take';
+
   /// 網頁確認已把 crash 紀錄寫入目標檔案，殼刪除對應的待送紀錄；請求 `{'ids': [...]}`。
   static const String crashAck = 'crash_ack';
 
@@ -135,6 +138,7 @@ class BridgeEvent {
   /// 更新流程（網頁包／殼）的每個狀態；payload 見 `UpdateState.toJson`。
   static const String updateState = 'update_state';
 
-  /// 殼端尚未被確認的 crash／錯誤紀錄，payload `{'reports': [...]}`（見 `AqutterErrorReport.toJson`）。
+  /// 殼端新記下的 crash／錯誤紀錄（一次一筆），payload `{'reports': [...]}`（見 `AqutterErrorReport.toJson`）；
+  /// 只在網頁呼叫過 `crash_take` 之後才送。
   static const String crashReports = 'crash_reports';
 }

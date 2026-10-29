@@ -7,8 +7,11 @@ import '../bridge/bridge_names.dart';
 import 'aqutter_error_reporter.dart';
 import 'crash_spool.dart';
 
-/// 錯誤的集散點：Dart 端錯誤先寫入 [CrashSpool]（耐久），再派給 reporters，網頁就緒後以
-/// `crash_reports` 事件交給網頁寫入目標檔案，網頁以 `crash_ack` 確認後才刪除。
+/// 錯誤的集散點：Dart 端錯誤先寫入 [CrashSpool]（耐久），再派給 reporters。
+///
+/// 網頁（`installConsoleLog`）呼叫 `crash_take` 取回所有未確認的紀錄，並從此刻起由殼以
+/// `crash_reports` 事件逐筆推送新紀錄；網頁寫入目標檔案後以 `crash_ack` 確認，殼才刪除。
+/// 事件在網頁未連線時會被丟棄，但紀錄仍在 spool，下次 `crash_take` 一定取得。
 class ErrorCenter {
   ErrorCenter({
     required this.spool,
@@ -20,19 +23,10 @@ class ErrorCenter {
   final BridgeEmitter emitter;
   final List<AqutterErrorReporter> reporters;
 
-  /// 一次最多送出的筆數（與 aqutter-js 契約成對）。
+  /// `crash_take` 一次最多回傳的筆數（與 aqutter-js 契約成對）。
   static const int maxBatch = 50;
 
-  bool _webReady = false;
-  bool _flushAgain = false;
-
-  /// 本代網頁是否已回報就緒；轉為就緒時立刻補送所有未確認的紀錄。
-  set webReady(bool value) {
-    _webReady = value;
-    if (value) {
-      unawaited(flush());
-    }
-  }
+  bool _subscribed = false;
 
   /// [FlutterError.onError] 的錯誤（框架層，App 仍可運作）。
   Future<void> recordFlutter(FlutterErrorDetails details) {
@@ -62,7 +56,7 @@ class ErrorCenter {
     );
   }
 
-  /// 寫入待送紀錄、派給 reporters；網頁已就緒時立刻送出。
+  /// 寫入待送紀錄、派給 reporters；網頁已訂閱時立刻推送這一筆。
   Future<void> record(AqutterErrorReport report) async {
     try {
       await spool.add(report);
@@ -70,8 +64,14 @@ class ErrorCenter {
       debugPrint('[aqutter] crash spool 寫入失敗：$error');
     }
     _dispatch(report);
-    if (_webReady) {
-      await flush();
+    if (_subscribed) {
+      try {
+        await emitter.emit(BridgeEvent.crashReports, {
+          'reports': [report.toJson()],
+        });
+      } on Object catch (error) {
+        debugPrint('[aqutter] crash_reports 送出失敗：$error');
+      }
     }
   }
 
@@ -87,40 +87,15 @@ class ErrorCenter {
     );
   }
 
+  /// `crash_take`：回傳未確認的紀錄（最多 [maxBatch] 筆、由舊到新），並開始推送新紀錄。
+  Future<List<AqutterErrorReport>> take() async {
+    _subscribed = true;
+    final pending = await spool.pending();
+    return pending.take(maxBatch).toList();
+  }
+
   /// 網頁確認已寫入，刪除對應的待送紀錄。
   Future<void> ack(Iterable<String> ids) => spool.ack(ids);
-
-  Future<void>? _inFlight;
-
-  /// 送出所有未確認的紀錄；同時間只跑一輪（重複呼叫會等同一輪完成），期間新增的由同一輪補上。
-  Future<void> flush() {
-    final running = _inFlight;
-    if (running != null) {
-      _flushAgain = true;
-      return running;
-    }
-    return _inFlight = _flushLoop().whenComplete(() => _inFlight = null);
-  }
-
-  Future<void> _flushLoop() async {
-    try {
-      do {
-        _flushAgain = false;
-        if (!_webReady) {
-          break;
-        }
-        final pending = await spool.pending();
-        if (pending.isEmpty) {
-          break;
-        }
-        await emitter.emit(BridgeEvent.crashReports, {
-          'reports': [for (final report in pending.take(maxBatch)) report.toJson()],
-        });
-      } while (_flushAgain);
-    } on Object catch (error) {
-      debugPrint('[aqutter] crash_reports 送出失敗：$error');
-    }
-  }
 
   void _dispatch(AqutterErrorReport report) {
     for (final reporter in reporters) {

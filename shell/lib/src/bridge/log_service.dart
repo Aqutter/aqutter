@@ -122,9 +122,14 @@ Future<Directory?> _defaultRootResolver(LogProvider provider) async {
 ///
 /// 對接前端 useAppLog（append / setKey）與 useAppLogger（list / read / write / remove / dir）。
 class LogService {
-  LogService({LogRootResolver? rootResolver}) : _rootResolver = rootResolver ?? _defaultRootResolver;
+  LogService({LogRootResolver? rootResolver, DateTime Function()? now})
+      : _rootResolver = rootResolver ?? _defaultRootResolver,
+        _now = now ?? DateTime.now;
 
   final LogRootResolver _rootResolver;
+
+  /// 時鐘；測試可注入以驗證跨午夜換檔。每次寫入都重新取時間，所以換日不需要排程。
+  final DateTime Function() _now;
 
   String _logKey = 'app';
 
@@ -151,7 +156,7 @@ class LogService {
 
   Future<File> _currentFile() async {
     final dir = await _logDir();
-    final name = '${_logKey}_${_dateSegment(DateTime.now())}.log';
+    final name = '${_logKey}_${_dateSegment(_now())}.log';
     return File(p.join(dir.path, name));
   }
 
@@ -166,7 +171,7 @@ class LogService {
     }
     final dir = Directory(p.joinAll([root.path, ...segments]));
     await dir.create(recursive: true);
-    return File(p.join(dir.path, '${name}_${_dateSegment(DateTime.now())}.log'));
+    return File(p.join(dir.path, '${name}_${_dateSegment(_now())}.log'));
   }
 
   /// 設定 log 檔名 key；下一筆 append 起寫入新檔。

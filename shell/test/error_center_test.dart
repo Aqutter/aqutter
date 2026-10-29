@@ -53,7 +53,7 @@ void main() {
     await root.delete(recursive: true);
   });
 
-  test('before the web is ready an error is spooled and reporters see it, but nothing is emitted', () async {
+  test('before the web takes anything an error is spooled and reporters see it, but nothing is emitted', () async {
     await center.recordPlatform(StateError('late'), StackTrace.current);
 
     expect(await spool.pending(), hasLength(1));
@@ -62,62 +62,55 @@ void main() {
     expect(emitter.events, isEmpty);
   });
 
-  test('when the web becomes ready every unacknowledged report is emitted as crash_reports', () async {
+  test('take returns every unacknowledged report oldest first, without emitting', () async {
     await center.recordPlatform(StateError('one'), StackTrace.current);
     await center.recordPlatform(StateError('two'), StackTrace.current);
 
-    center.webReady = true;
-    await center.flush();
+    final taken = await center.take();
 
-    expect(emitter.events, isNotEmpty);
-    final event = emitter.events.last;
-    expect(event.$1, BridgeEvent.crashReports);
-    expect(_reportsOf(event).map((r) => r['message']), ['Bad state: one', 'Bad state: two']);
-    expect(_reportsOf(event).first['source'], 'platform');
-  });
-
-  test('a report recorded while the web is ready is emitted immediately', () async {
-    center.webReady = true;
-    await center.flush();
-    emitter.events.clear();
-
-    await center.recordPlatform(StateError('now'), StackTrace.current);
-
-    expect(emitter.events, hasLength(1));
-    expect(_reportsOf(emitter.events.single).single['message'], 'Bad state: now');
-  });
-
-  test('nothing is re-sent after ack; unacknowledged reports are re-sent on the next ready', () async {
-    await center.recordPlatform(StateError('a'), StackTrace.current);
-    await center.recordPlatform(StateError('b'), StackTrace.current);
-    final pending = await spool.pending();
-
-    center.webReady = true;
-    await center.flush();
-    await center.ack([pending.first.id]);
-
-    center.webReady = false;
-    emitter.events.clear();
-    center.webReady = true;
-    await center.flush();
-
-    expect(_reportsOf(emitter.events.last).map((r) => r['id']), [pending.last.id]);
-  });
-
-  test('when everything is acknowledged a later ready emits nothing', () async {
-    await center.recordPlatform(StateError('a'), StackTrace.current);
-    center.webReady = true;
-    await center.flush();
-    await center.ack((await spool.pending()).map((r) => r.id));
-    emitter.events.clear();
-
-    center.webReady = true;
-    await center.flush();
-
+    expect(taken.map((r) => r.message), ['Bad state: one', 'Bad state: two']);
     expect(emitter.events, isEmpty);
   });
 
-  test('batches are capped at ErrorCenter.maxBatch', () async {
+  test('after take every new report is pushed immediately, one per event', () async {
+    await center.take();
+
+    await center.recordPlatform(StateError('now'), StackTrace.current);
+    await center.recordPlatform(StateError('then'), StackTrace.current);
+
+    expect(emitter.events.map((e) => e.$1), [BridgeEvent.crashReports, BridgeEvent.crashReports]);
+    expect(_reportsOf(emitter.events.first).single['message'], 'Bad state: now');
+    expect(_reportsOf(emitter.events.last).single['message'], 'Bad state: then');
+    expect(_reportsOf(emitter.events.first).single['source'], 'platform');
+  });
+
+  test('an event dropped because the web was not connected is still returned by the next take', () async {
+    await center.take();
+    await center.recordPlatform(StateError('lost event'), StackTrace.current);
+
+    final again = await center.take();
+
+    expect(again.map((r) => r.message), ['Bad state: lost event']);
+  });
+
+  test('acknowledged reports are not returned again; unacknowledged ones are', () async {
+    await center.recordPlatform(StateError('a'), StackTrace.current);
+    await center.recordPlatform(StateError('b'), StackTrace.current);
+    final first = await center.take();
+
+    await center.ack([first.first.id, 'not-an-id']);
+
+    expect((await center.take()).map((r) => r.id), [first.last.id]);
+  });
+
+  test('when everything is acknowledged take returns nothing', () async {
+    await center.recordPlatform(StateError('a'), StackTrace.current);
+    await center.ack((await center.take()).map((r) => r.id));
+
+    expect(await center.take(), isEmpty);
+  });
+
+  test('take returns at most ErrorCenter.maxBatch reports', () async {
     final big = CrashSpool(spool.directory, maxEntries: 200);
     center = ErrorCenter(spool: big, emitter: emitter);
     for (var i = 0; i < ErrorCenter.maxBatch + 5; i++) {
@@ -129,16 +122,11 @@ void main() {
       ));
     }
 
-    center.webReady = true;
-    await center.flush();
-
-    expect(_reportsOf(emitter.events.last), hasLength(ErrorCenter.maxBatch));
+    expect(await center.take(), hasLength(ErrorCenter.maxBatch));
   });
 
   test('a report from the web goes to reporters only: not spooled, not emitted', () async {
-    center.webReady = true;
-    await center.flush();
-    emitter.events.clear();
+    await center.take();
 
     center.reportFromWeb(message: 'js boom', stack: 'at x', fatal: false);
 

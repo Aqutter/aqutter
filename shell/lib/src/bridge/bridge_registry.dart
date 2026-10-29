@@ -24,6 +24,7 @@ import '../plugin/aqutter_plugin.dart';
 import '../server/update_session.dart';
 import 'bridge_emitter.dart';
 import 'bridge_names.dart';
+import '../error/aqutter_error_reporter.dart';
 import '../error/error_center.dart';
 import 'log_service.dart';
 import 'system_ui.dart';
@@ -408,6 +409,10 @@ class BridgeRegistry {
       return {'ok': true};
     });
     _handle(BridgeHandler.logDir, (_) async => {'dir': await _log.dirPath()});
+    _handle(BridgeHandler.crashTake, (_) async {
+      final reports = await errorCenter?.take() ?? const <AqutterErrorReport>[];
+      return {'reports': [for (final report in reports) report.toJson()]};
+    });
     _handle(BridgeHandler.crashAck, (payload) async {
       final ids = payload['ids'];
       await errorCenter?.ack(ids is List ? ids.whereType<String>() : const <String>[]);

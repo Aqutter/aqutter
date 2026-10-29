@@ -7,6 +7,9 @@
 - [x] [aqutter] `installErrorHooks`、`runAqutter(errorReporters)`
 - [x] [aqutter] `crash_reports` 事件、`crash_ack`／`error_report` handler、`_onWebReady` flush　需等待 [aqutter-js]：契約型別完成
 
-## Phase 3 — 驗證與對齊
+## Phase 3 — rev 2：crash_take
+- [x] [aqutter] `crash_take` handler；`ErrorCenter` 改為 take 後才推、一次一筆；移除 `app.dart` 的 `webReady` 接線與測試更新
+
+## Phase 4 — 驗證與對齊
 - [x] [aqutter] 測試、`flutter analyze`（僅檢查本次新增檔案）
 - [x] [aqutter] `manifest/releases.json` 的 `client.spec` 更新　需等待 [aqutter-js]：已 push
