@@ -62,6 +62,19 @@ abstract class AqutterPluginContext {
   /// 對網頁派送事件；頻道自動加上 `<pluginId>.` 前綴。
   /// WebView 尚未就緒時安全略過。
   Future<void> emit(String event, Object? payload);
+
+  /// 系統層權限的目前狀態，不跳授權視窗。
+  ///
+  /// 權限一律經由殼處理，plugin 不必自行相依 `permission_plus`。[type] 與回傳值沿用網頁端
+  /// `PermissionType` / `PermissionStatus` 字串（`camera`、`microphone`、`location`、`notifications`…；
+  /// `granted`、`denied`、`permanentlyDenied`、`restricted`、`limited`、`prompt`）；不認識的型別回 `denied`。
+  Future<String> checkPermission(String type);
+
+  /// 要求系統層權限（必要時跳授權視窗），回傳結果狀態；字串同 [checkPermission]。
+  Future<String> requestPermission(String type);
+
+  /// 開啟本 App 的系統設定頁（權限被永久拒絕後只能由使用者在這裡改）。
+  Future<void> openPermissionSettings();
 }
 
 /// Aqutter plugin 的 Dart 端介面。

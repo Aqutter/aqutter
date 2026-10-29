@@ -78,5 +78,14 @@ void main() {
       final response = decideMediaPermission(request('http://127.0.0.1:51234', const []), baseUrl: base);
       expect(response.action, AqutterPermissionResponseAction.DENY);
     });
+
+    test('the allowed set can be narrowed by the app', () {
+      final response = decideMediaPermission(
+        request('http://127.0.0.1:51234', [AqutterPermissionResourceType.MICROPHONE]),
+        baseUrl: base,
+        allowed: {AqutterPermissionResourceType.CAMERA},
+      );
+      expect(response.action, AqutterPermissionResponseAction.DENY);
+    });
   });
 }

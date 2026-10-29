@@ -12,14 +12,13 @@ import 'package:flutter/services.dart';
 import 'package:aqutter_core/aqutter_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_plus/permission_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../server/bundle_manager.dart';
 import '../server/host_updater.dart';
 import '../server/host_version.dart';
-import 'permission_mapping.dart';
+import 'permission_service.dart';
 import '../server/update_config.dart';
 import '../plugin/aqutter_plugin.dart';
 import '../server/update_session.dart';
@@ -43,6 +42,7 @@ class BridgeRegistry {
     this.plugins = const [],
     this.errorCenter,
     this.logRetention = const LogRetention(),
+    this.permissions = const AqutterPermissions(),
     Dio? dio,
   }) : _dio = dio ?? Dio(BaseOptions(
          connectTimeout: _connectTimeout,
@@ -74,6 +74,9 @@ class BridgeRegistry {
 
   /// 預設日誌目錄的保留策略。
   final LogRetention logRetention;
+
+  /// 系統層權限的出入口；網頁 handler 與 plugin 的 context 共用同一份。
+  final AqutterPermissions permissions;
 
   final Dio _dio;
 
@@ -192,7 +195,7 @@ class BridgeRegistry {
     _pluginsAttached = true;
     for (final plugin in plugins) {
       if (aqutterPluginSupports(plugin, defaultTargetPlatform)) {
-        plugin.attach(_PluginContext(plugin.id, emitter));
+        plugin.attach(_PluginContext(plugin.id, emitter, permissions));
       }
     }
   }
@@ -708,19 +711,15 @@ class BridgeRegistry {
 
   // ---- Permissions ----
   void _registerPermissions() {
-    // 對應不到的型別一律回 denied，與換套件前落到 Permission.unknown 的行為一致。
+    // 對應不到的型別一律回 denied，與換套件前落到 Permission.unknown 的行為一致（見 AqutterPermissions）。
     _handle(BridgeHandler.permCheck, (payload) async {
-      final permission = mapPermissionType(payload['permission'] as String);
-      if (permission == null) return {'status': 'denied'};
-      return {'status': mapPermissionStatus(await PermissionPlus.checkPermission(permission))};
+      return {'status': await permissions.check(payload['permission'] as String)};
     });
     _handle(BridgeHandler.permRequest, (payload) async {
-      final permission = mapPermissionType(payload['permission'] as String);
-      if (permission == null) return {'status': 'denied'};
-      return {'status': mapPermissionStatus(await PermissionPlus.requestPermission(permission))};
+      return {'status': await permissions.request(payload['permission'] as String)};
     });
     _handle(BridgeHandler.permOpenSettings, (_) async {
-      await PermissionPlus.openSettings();
+      await permissions.openSettings();
       return {'ok': true};
     });
   }
@@ -858,10 +857,20 @@ class BridgeRegistry {
 }
 
 class _PluginContext implements AqutterPluginContext {
-  _PluginContext(this._pluginId, this._emitter);
+  _PluginContext(this._pluginId, this._emitter, this._permissions);
 
   final String _pluginId;
   final BridgeEmitter _emitter;
+  final AqutterPermissions _permissions;
+
+  @override
+  Future<String> checkPermission(String type) => _permissions.check(type);
+
+  @override
+  Future<String> requestPermission(String type) => _permissions.request(type);
+
+  @override
+  Future<void> openPermissionSettings() => _permissions.openSettings();
 
   @override
   Future<void> emit(String event, Object? payload) {

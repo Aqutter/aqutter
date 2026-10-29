@@ -4,7 +4,8 @@
 library;
 
 export 'src/app.dart' show runAqutter, AqutterApp;
-export 'src/aqutter_config.dart' show AqutterConfig;
+export 'src/aqutter_config.dart' show AqutterConfig, defaultWebPermissions;
+export 'src/bridge/permission_service.dart' show AqutterPermissions;
 export 'src/bridge/log_retention.dart' show LogRetention;
 export 'src/error/aqutter_error_reporter.dart'
     show AqutterErrorReport, AqutterErrorReporter, AqutterErrorSource;
@@ -32,4 +33,5 @@ export 'package:aqutter_core/aqutter_core.dart'
         AqutterNativeHost,
         AqutterNativeMessage,
         AqutterNativeSession,
-        AqutterNativeCapture;
+        AqutterNativeCapture,
+        AqutterPermissionResourceType;

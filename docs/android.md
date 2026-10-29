@@ -16,7 +16,7 @@
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 ```
 
-網頁用 `getUserMedia` 開相機／麥克風時，殼只對自己供應的頁面（本機網頁包 server 或 dev server）放行相機與麥克風，其他來源一律拒絕；系統層仍要先有使用者授權（網頁端可用 `usePermissions().request(PermissionType.Camera)` 先要）。
+網頁用 `getUserMedia` 開相機／麥克風時，殼只對自己供應的頁面（本機網頁包 server 或 dev server）放行 `AqutterConfig.webPermissions` 內的資源（預設相機與麥克風），其他來源一律拒絕；系統層仍要先有使用者授權（網頁端可用 `usePermissions().request(PermissionType.Camera)` 先要）。
 
 ## 2. Cleartext loopback（本機 shelf server 為 http）
 

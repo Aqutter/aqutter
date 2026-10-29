@@ -935,6 +935,7 @@ class _AqutterPageState extends State<AqutterPage> {
         request,
         baseUrl: _baseUrl,
         devUrl: kDevUrl,
+        allowed: widget.config.webPermissions ?? defaultWebPermissions,
       ),
       onLoadStop: _onLoadStop,
       onProgressChanged: (controller, progress) => _onWebViewProgress(progress),

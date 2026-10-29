@@ -121,6 +121,22 @@ else {
 
 `aqutterError` 是殼的保留欄位，plugin 自己的回傳不得使用這個名稱。
 
+## 權限
+
+權限一律問殼，plugin 不必自行相依 `permission_plus`。`attach` 收到的 `context` 提供：
+
+```dart
+final status = await context.checkPermission('camera');   // 不跳授權視窗
+if (status != 'granted') {
+  await context.requestPermission('camera');               // 必要時跳系統授權視窗
+}
+await context.openPermissionSettings();                    // 被永久拒絕後，引導使用者到系統設定
+```
+
+型別字串與狀態字串沿用網頁端 `PermissionType` / `PermissionStatus`（`camera`、`microphone`、`location`、`notifications`、`photos`、`contacts`、`calendar`、`bluetooth`、`storage`、`phone`、`sms`…；`granted`、`denied`、`permanentlyDenied`、`restricted`、`limited`、`prompt`），不認識的型別回 `denied`。網頁 bridge 與 plugin 走同一個實作，行為一致。
+
+網頁 `getUserMedia` 等 WebView 授權由殼決定，不開放 plugin 各自回答：只放行殼自己供應的頁面，資源以 `AqutterConfig(webPermissions: {...})` 設定（預設相機與麥克風）。App 仍要在 `AndroidManifest.xml`／`Info.plist` 宣告對應權限。
+
 ## 官方 plugin
 
 殼只保留傳輸、plugin 載入、本機伺服器與網頁包更新這類核心；依賴較重、不是每個 App 都需要的功能做成各自獨立的官方 plugin，需要才安裝：
