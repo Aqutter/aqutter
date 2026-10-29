@@ -1,0 +1,43 @@
+# 2610291528-crash-error-capture
+
+- Created: 2026-10-29 15:28 / Archived: 2026-10-29 16:30
+- Issue: N/A（使用者決議不建 issue）
+- Milestone: N/A / Base Branch: main
+
+## Summary
+殼掛上 FlutterError.onError 與 PlatformDispatcher.onError，錯誤先存成待送紀錄（crash_pending，跨重啟、上限 50）並派給 AqutterErrorReporter；網頁以 crash_take 取回、寫檔後 crash_ack 才刪除，之後新錯誤以 crash_reports 事件逐筆推送。
+runAqutter 新增 errorReporters 參數，預留 Crashlytics 接口，殼不依賴 Firebase。
+
+## Cross-Repo Scope
+- 共用計畫 ID：`2610291528-crash-error-capture`；直接 main，無分支。
+- 參與 repo：aqutter-js（契約、JS 錯誤捕捉、crash 紀錄寫入與確認）、aqutter（殼：錯誤處理、待送紀錄、回報接口、crash_take／事件／ack）；aqutter-nuxt-app 不改（只做 aqutter upgrade）。
+- 執行順序：aqutter-js → aqutter（再更新 manifest 的 client.spec 與 shell ref）。本 repo：aqutter。
+
+## Key Decisions
+- **範圍**：第一批只做 Dart＋JS；原生 crash／ANR／被殺／渲染進程崩潰另開計畫並寫入同一個待送紀錄 — Crashlytics 先不處理、只預留接口。
+- **機制**：只用 Flutter SDK、dart:io、既有 path_provider 與既有 bridge，不新增第三方套件。
+- **Dart 錯誤**：FlutterError.onError＋PlatformDispatcher.onError，不用 runZonedGuarded — PlatformDispatcher 已涵蓋非同步錯誤。
+- **交付**：殼不寫檔，經事件／拉取交給 JS，由 JS 以 crashTarget（沒設就沿用 target，可為函式）寫入，寫成功才 ack 刪除 — 動態目標只存在 JS 端。
+- **JS 錯誤**：error／unhandledrejection 走 console.error 並轉給殼的回報接口，不進待送紀錄 — JS 已自行寫檔。
+- **契約**：rev 1 凍結；rev 2 新增 crash_take，crash_reports 改為「crash_take 之後才推、一次一筆」，移除與 app_ready 的掛鉤。
+- **流程**：直接 main、不建 issue；完成後只 commit（後續依使用者要求 push 並移動 tag 0.0.0）。
+
+## Deviations
+- 契約 rev 2：移除 app.dart 對 app_ready 的接線，改由 crash_take 觸發。
+- 寫測試時發現並修正修剪邏輯在未達上限時因負數丟 RangeError。
+- 原生 crash、ANR、被系統終止、渲染進程崩潰未涵蓋（第二批另開計畫）。
+
+## Impact Files
+- `shell/lib/src/app.dart:45`（runAqutter）、`:307`（BridgeRegistry 建立）— errorReporters、建立待送紀錄與 hooks
+- `shell/lib/src/bridge/bridge_names.dart:113`、`:117` — crashTake／crashAck／errorReport／crashReports
+- `shell/lib/src/bridge/bridge_registry.dart`（_registerLog 旁）— 三個 handler
+- `shell/lib/aqutter.dart:6` — 匯出 AqutterErrorReport／Reporter／Source
+- `shell/lib/src/error/`（new）— aqutter_error_reporter、crash_spool、error_center
+- `shell/test/crash_spool_test.dart`、`shell/test/error_center_test.dart`（new）
+- `manifest/releases.json` — client.spec 與 shell ref
+
+## Wiki Changes
+
+| 頁面 | 日期 | 版本 | 變動 | Issue | PR |
+|---|---|---|---|---|---|
+| `platform/error-capture.md` | 2026-10-29 | — | Dart 錯誤捕捉、待送紀錄與回報接口 | — | — |

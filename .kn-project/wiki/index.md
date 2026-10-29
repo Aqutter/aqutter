@@ -3,6 +3,8 @@
 ## 平台
 
 - [架構總覽](platform/architecture.md)
+- [錯誤捕捉](platform/error-capture.md)
+- [日誌檔](platform/log-file.md)
 
 ## 維運
 

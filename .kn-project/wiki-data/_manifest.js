@@ -10,5 +10,7 @@ window.WIKI_MANIFEST={
 "ops/distribution.md",
 "ops/release-manifest.md",
 "platform/architecture.md",
+"platform/error-capture.md",
+"platform/log-file.md",
 ]
 };
