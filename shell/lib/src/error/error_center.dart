@@ -14,12 +14,13 @@ import 'crash_spool.dart';
 /// 事件在網頁未連線時會被丟棄，但紀錄仍在 spool，下次 `crash_take` 一定取得。
 class ErrorCenter {
   ErrorCenter({
-    required this.spool,
     required this.emitter,
+    this.spool,
     this.reporters = const [],
   });
 
-  final CrashSpool spool;
+  /// 待送紀錄；為 null 表示 App 選擇不落檔，此時錯誤只派給 [reporters]，網頁取不到任何紀錄。
+  final CrashSpool? spool;
   final BridgeEmitter emitter;
   final List<AqutterErrorReporter> reporters;
 
@@ -59,12 +60,12 @@ class ErrorCenter {
   /// 寫入待送紀錄、派給 reporters；網頁已訂閱時立刻推送這一筆。
   Future<void> record(AqutterErrorReport report) async {
     try {
-      await spool.add(report);
+      await spool?.add(report);
     } on Object catch (error) {
       debugPrint('[aqutter] crash spool 寫入失敗：$error');
     }
     _dispatch(report);
-    if (_subscribed) {
+    if (_subscribed && spool != null) {
       try {
         await emitter.emit(BridgeEvent.crashReports, {
           'reports': [report.toJson()],
@@ -90,12 +91,12 @@ class ErrorCenter {
   /// `crash_take`：回傳未確認的紀錄（最多 [maxBatch] 筆、由舊到新），並開始推送新紀錄。
   Future<List<AqutterErrorReport>> take() async {
     _subscribed = true;
-    final pending = await spool.pending();
+    final pending = await spool?.pending() ?? const <AqutterErrorReport>[];
     return pending.take(maxBatch).toList();
   }
 
   /// 網頁確認已寫入，刪除對應的待送紀錄。
-  Future<void> ack(Iterable<String> ids) => spool.ack(ids);
+  Future<void> ack(Iterable<String> ids) async => spool?.ack(ids);
 
   void _dispatch(AqutterErrorReport report) {
     for (final reporter in reporters) {

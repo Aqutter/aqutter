@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'log_retention.dart';
+
 /// log 檔根目錄來源；名稱與 aqutter-js 的 `LogProvider` 值成對。
 enum LogProvider {
   /// `getApplicationSupportDirectory`（預設）。
@@ -122,9 +124,15 @@ Future<Directory?> _defaultRootResolver(LogProvider provider) async {
 ///
 /// 對接前端 useAppLog（append / setKey）與 useAppLogger（list / read / write / remove / dir）。
 class LogService {
-  LogService({LogRootResolver? rootResolver, DateTime Function()? now})
-      : _rootResolver = rootResolver ?? _defaultRootResolver,
+  LogService({
+    LogRootResolver? rootResolver,
+    DateTime Function()? now,
+    this.retention = const LogRetention(),
+  })  : _rootResolver = rootResolver ?? _defaultRootResolver,
         _now = now ?? DateTime.now;
+
+  /// 預設日誌目錄的保留策略；只清理預設目錄（網頁以 target 指定的位置不受影響）。
+  final LogRetention retention;
 
   final LogRootResolver _rootResolver;
 
@@ -140,7 +148,10 @@ class LogService {
     if (cached != null) {
       return cached;
     }
-    final support = await getApplicationSupportDirectory();
+    final support = await _rootResolver(LogProvider.internal);
+    if (support == null) {
+      throw const LogTargetException('log_provider_unavailable', '本平台沒有內部目錄');
+    }
     final dir = Directory(p.join(support.path, 'logs'));
     await dir.create(recursive: true);
     _cachedDir = dir;
@@ -154,9 +165,43 @@ class LogService {
     return '$yyyy$mm$dd';
   }
 
+  String? _prunedForDate;
+
+  /// 依 [retention] 清理預設日誌目錄；出錯一律忽略（清理失敗不該影響寫 log）。
+  Future<void> prune() async {
+    if (retention.maxAge == null && retention.maxBytes == null) {
+      return;
+    }
+    try {
+      final dir = await _logDir();
+      final stats = <LogFileStat>[];
+      await for (final entity in dir.list()) {
+        if (entity is File && entity.path.endsWith('.log')) {
+          final stat = await entity.stat();
+          stats.add(LogFileStat(path: entity.path, size: stat.size, modified: stat.modified));
+        }
+      }
+      for (final path in selectLogFilesToDelete(stats, retention: retention, now: _now())) {
+        try {
+          await File(path).delete();
+        } on FileSystemException {
+          // 刪不掉（被占用等）就留著，下次再處理。
+        }
+      }
+    } on Object {
+      // 忽略。
+    }
+  }
+
   Future<File> _currentFile() async {
     final dir = await _logDir();
-    final name = '${_logKey}_${_dateSegment(_now())}.log';
+    final segment = _dateSegment(_now());
+    // 第一次寫入與每次換日（建立當日新檔）時清理一次；不加排程、不在每次寫入掃描目錄。
+    if (_prunedForDate != segment) {
+      _prunedForDate = segment;
+      await prune();
+    }
+    final name = '${_logKey}_$segment.log';
     return File(p.join(dir.path, name));
   }
 

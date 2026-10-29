@@ -168,4 +168,19 @@ void main() {
       }
     });
   });
+
+  group('without a spool (crashSpool: false)', () {
+    test('errors still reach reporters, but nothing is stored, emitted or returned', () async {
+      final bare = ErrorCenter(emitter: emitter, reporters: [reporter]);
+      await bare.take();
+
+      await bare.recordPlatform(StateError('no disk'), StackTrace.current);
+
+      expect(reporter.reports.single.message, 'Bad state: no disk');
+      expect(emitter.events, isEmpty);
+      expect(await bare.take(), isEmpty);
+      await bare.ack(['1-aaaaaa']);
+      expect(root.listSync().where((e) => p.basename(e.path) == 'crash_pending'), isEmpty);
+    });
+  });
 }

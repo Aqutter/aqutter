@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -26,6 +27,7 @@ import 'bridge_emitter.dart';
 import 'bridge_names.dart';
 import '../error/aqutter_error_reporter.dart';
 import '../error/error_center.dart';
+import 'log_retention.dart';
 import 'log_service.dart';
 import 'system_ui.dart';
 import 'tcp_service.dart';
@@ -40,6 +42,7 @@ class BridgeRegistry {
     required this.onWebReady,
     this.plugins = const [],
     this.errorCenter,
+    this.logRetention = const LogRetention(),
     Dio? dio,
   }) : _dio = dio ?? Dio(BaseOptions(
          connectTimeout: _connectTimeout,
@@ -69,6 +72,9 @@ class BridgeRegistry {
   /// 錯誤集散點；為 null 時 `crash_ack`／`error_report` 只回應 ok、不做事。
   final ErrorCenter? errorCenter;
 
+  /// 預設日誌目錄的保留策略。
+  final LogRetention logRetention;
+
   final Dio _dio;
 
   /// 網頁與 Dart 之間的多工 RPC（`aqutter_core`）。
@@ -81,7 +87,7 @@ class BridgeRegistry {
   static const Duration _receiveTimeout = Duration(seconds: 30);
   static const Duration _sendTimeout = Duration(seconds: 30);
 
-  final LogService _log = LogService();
+  late final LogService _log = LogService(retention: logRetention);
   final TcpService _tcp = TcpService();
   final Battery _battery = Battery();
   final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
@@ -383,6 +389,8 @@ class BridgeRegistry {
 
   // ---- Log ----
   void _registerLog() {
+    // 啟動時清理一次舊日誌；之後在每次建立當日新檔時再清理。
+    unawaited(_log.prune());
     _handle(BridgeHandler.logAppend, (payload) async {
       final target = payload['target'];
       await _log.append(

@@ -52,10 +52,11 @@ Future<void> runAqutter({
   AqutterConfig config = const AqutterConfig(),
   List<AqutterPlugin> plugins = const [],
   List<AqutterErrorReporter> errorReporters = const [],
+  bool crashSpool = true,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   // 先掛錯誤處理再做其他初始化，啟動期間的錯誤也會被記下。
-  final errorCenter = await _createErrorCenter(errorReporters);
+  final errorCenter = await _createErrorCenter(errorReporters, crashSpool: crashSpool);
   installErrorHooks(errorCenter);
   // WebView 全屏 edge-to-edge：Android 需明確設定才會讓內容延伸到系統列後方
   // （對齊 bridge_registry.dart 的 statusbar_show；iOS 本即全屏，設定無害）。
@@ -65,7 +66,12 @@ Future<void> runAqutter({
 }
 
 /// 待送錯誤紀錄放在 App 支援目錄的 `crash_pending/`，跨重啟保留。
-Future<ErrorCenter> _createErrorCenter(List<AqutterErrorReporter> reporters) async {
+///
+/// [crashSpool] 為 false 時不落檔：錯誤仍派給 [reporters]，但網頁取不到任何紀錄。
+Future<ErrorCenter> _createErrorCenter(List<AqutterErrorReporter> reporters, {required bool crashSpool}) async {
+  if (!crashSpool) {
+    return ErrorCenter(emitter: BridgeEmitter(), reporters: reporters);
+  }
   final support = await getApplicationSupportDirectory();
   return ErrorCenter(
     spool: CrashSpool(Directory(p.join(support.path, 'crash_pending'))),
@@ -338,6 +344,7 @@ class _AqutterPageState extends State<AqutterPage> {
         onWebReady: _onWebReady,
         plugins: widget.plugins,
         errorCenter: widget.errorCenter,
+        logRetention: widget.config.logRetention,
       );
 
       // dev：直接載入 web dev server，橋接照常註冊於 onWebViewCreated。
