@@ -378,7 +378,12 @@ class BridgeRegistry {
   // ---- Log ----
   void _registerLog() {
     _handle(BridgeHandler.logAppend, (payload) async {
-      await _log.append(payload['level'] as String, payload['message'] as String);
+      final target = payload['target'];
+      await _log.append(
+        payload['level'] as String,
+        payload['message'] as String,
+        target: target == null ? null : LogTarget.fromJson(target),
+      );
       return {'ok': true};
     });
     _handle(BridgeHandler.logSetKey, (payload) async {
