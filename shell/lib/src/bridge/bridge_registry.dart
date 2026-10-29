@@ -24,6 +24,7 @@ import '../plugin/aqutter_plugin.dart';
 import '../server/update_session.dart';
 import 'bridge_emitter.dart';
 import 'bridge_names.dart';
+import '../error/error_center.dart';
 import 'log_service.dart';
 import 'system_ui.dart';
 import 'tcp_service.dart';
@@ -37,6 +38,7 @@ class BridgeRegistry {
     required this.session,
     required this.onWebReady,
     this.plugins = const [],
+    this.errorCenter,
     Dio? dio,
   }) : _dio = dio ?? Dio(BaseOptions(
          connectTimeout: _connectTimeout,
@@ -62,6 +64,9 @@ class BridgeRegistry {
 
   /// App 傳入的 plugin。handler 於 [register] 掛上，事件入口於首次 [register] 交付。
   final List<AqutterPlugin> plugins;
+
+  /// 錯誤集散點；為 null 時 `crash_ack`／`error_report` 只回應 ok、不做事。
+  final ErrorCenter? errorCenter;
 
   final Dio _dio;
 
@@ -403,6 +408,19 @@ class BridgeRegistry {
       return {'ok': true};
     });
     _handle(BridgeHandler.logDir, (_) async => {'dir': await _log.dirPath()});
+    _handle(BridgeHandler.crashAck, (payload) async {
+      final ids = payload['ids'];
+      await errorCenter?.ack(ids is List ? ids.whereType<String>() : const <String>[]);
+      return {'ok': true};
+    });
+    _handle(BridgeHandler.errorReport, (payload) async {
+      errorCenter?.reportFromWeb(
+        message: '${payload['message']}',
+        stack: payload['stack'] as String?,
+        fatal: payload['fatal'] == true,
+      );
+      return {'ok': true};
+    });
   }
 
   // ---- HTTP fetch（繞 CORS）----

@@ -26,6 +26,12 @@ class BridgeHandler {
   static const String logAppend = 'log_append';
   static const String logSetKey = 'log_set_key';
 
+  /// 網頁確認已把 crash 紀錄寫入目標檔案，殼刪除對應的待送紀錄；請求 `{'ids': [...]}`。
+  static const String crashAck = 'crash_ack';
+
+  /// 網頁的未捕捉錯誤，派給 [AqutterErrorReporter]（不寫檔）；請求 `{'message', 'stack'?, 'fatal'}`。
+  static const String errorReport = 'error_report';
+
   static const String deviceId = 'device_id';
   static const String deviceInfo = 'device_info';
   static const String deviceBattery = 'device_battery';
@@ -128,4 +134,7 @@ class BridgeEvent {
 
   /// 更新流程（網頁包／殼）的每個狀態；payload 見 `UpdateState.toJson`。
   static const String updateState = 'update_state';
+
+  /// 殼端尚未被確認的 crash／錯誤紀錄，payload `{'reports': [...]}`（見 `AqutterErrorReport.toJson`）。
+  static const String crashReports = 'crash_reports';
 }

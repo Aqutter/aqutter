@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:aqutter_core/aqutter_core.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'aqutter_config.dart';
@@ -16,6 +19,9 @@ import 'bridge/endpoint_script.dart';
 import 'bridge/media_permission.dart';
 import 'bridge/safe_area_injector.dart';
 import 'bridge/system_ui.dart';
+import 'error/aqutter_error_reporter.dart';
+import 'error/crash_spool.dart';
+import 'error/error_center.dart';
 import 'server/bundle_manager.dart';
 import 'server/font_bootstrapper.dart';
 import 'server/host_requirement.dart';
@@ -45,13 +51,27 @@ const String _envWebViewDebug = String.fromEnvironment('AQUTTER_WEBVIEW_DEBUG');
 Future<void> runAqutter({
   AqutterConfig config = const AqutterConfig(),
   List<AqutterPlugin> plugins = const [],
+  List<AqutterErrorReporter> errorReporters = const [],
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 先掛錯誤處理再做其他初始化，啟動期間的錯誤也會被記下。
+  final errorCenter = await _createErrorCenter(errorReporters);
+  installErrorHooks(errorCenter);
   // WebView 全屏 edge-to-edge：Android 需明確設定才會讓內容延伸到系統列後方
   // （對齊 bridge_registry.dart 的 statusbar_show；iOS 本即全屏，設定無害）。
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await _applyWebViewDebugFlag();
-  runApp(AqutterApp(config: config, plugins: plugins));
+  runApp(AqutterApp(config: config, plugins: plugins, errorCenter: errorCenter));
+}
+
+/// 待送錯誤紀錄放在 App 支援目錄的 `crash_pending/`，跨重啟保留。
+Future<ErrorCenter> _createErrorCenter(List<AqutterErrorReporter> reporters) async {
+  final support = await getApplicationSupportDirectory();
+  return ErrorCenter(
+    spool: CrashSpool(Directory(p.join(support.path, 'crash_pending'))),
+    emitter: BridgeEmitter(),
+    reporters: reporters,
+  );
 }
 
 /// 解析 `AQUTTER_WEBVIEW_DEBUG`；沿用 [BundleUpdateConfig.parseFlag] 的紀律——非 `true` / `false`
@@ -91,10 +111,14 @@ class AqutterApp extends StatelessWidget {
     super.key,
     this.config = const AqutterConfig(),
     this.plugins = const [],
+    this.errorCenter,
   });
 
   final AqutterConfig config;
   final List<AqutterPlugin> plugins;
+
+  /// 錯誤集散點（由 [runAqutter] 建立）；為 null 時不處理錯誤紀錄。
+  final ErrorCenter? errorCenter;
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +130,7 @@ class AqutterApp extends StatelessWidget {
         settings: settings,
         pageBuilder: (context, animation, secondaryAnimation) => builder(context),
       ),
-      home: AqutterPage(config: config, plugins: plugins),
+      home: AqutterPage(config: config, plugins: plugins, errorCenter: errorCenter),
     );
   }
 }
@@ -116,10 +140,12 @@ class AqutterPage extends StatefulWidget {
     super.key,
     this.config = const AqutterConfig(),
     this.plugins = const [],
+    this.errorCenter,
   });
 
   final AqutterConfig config;
   final List<AqutterPlugin> plugins;
+  final ErrorCenter? errorCenter;
 
   @override
   State<AqutterPage> createState() => _AqutterPageState();
@@ -311,6 +337,7 @@ class _AqutterPageState extends State<AqutterPage> {
         session: _session,
         onWebReady: _onWebReady,
         plugins: widget.plugins,
+        errorCenter: widget.errorCenter,
       );
 
       // dev：直接載入 web dev server，橋接照常註冊於 onWebViewCreated。
@@ -451,6 +478,7 @@ class _AqutterPageState extends State<AqutterPage> {
       return;
     }
     _webReady = false;
+    widget.errorCenter?.webReady = false;
     setState(() {
       _baseUrl = baseUrl;
       _stage = StartupStage.loadingWeb;
@@ -479,6 +507,8 @@ class _AqutterPageState extends State<AqutterPage> {
     _devLoadRetries = 0;
     _webReady = true;
     _recovering = false;
+    // 網頁已連上殼：把尚未確認的 crash 紀錄交給網頁寫入目標檔案。
+    widget.errorCenter?.webReady = true;
     _dismissOverlay();
   }
 

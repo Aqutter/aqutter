@@ -1,0 +1,183 @@
+import 'dart:io';
+
+import 'package:aqutter/src/bridge/bridge_emitter.dart';
+import 'package:aqutter/src/bridge/bridge_names.dart';
+import 'package:aqutter/src/error/aqutter_error_reporter.dart';
+import 'package:aqutter/src/error/crash_spool.dart';
+import 'package:aqutter/src/error/error_center.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+
+class _FakeEmitter extends BridgeEmitter {
+  final List<(String, Object?)> events = [];
+
+  @override
+  Future<void> emit(String channel, Object? payload) async {
+    events.add((channel, payload));
+  }
+}
+
+class _Reporter implements AqutterErrorReporter {
+  final List<AqutterErrorReport> reports = [];
+
+  @override
+  void report(AqutterErrorReport report) => reports.add(report);
+}
+
+class _ThrowingReporter implements AqutterErrorReporter {
+  @override
+  void report(AqutterErrorReport report) => throw StateError('reporter failed');
+}
+
+List<Map<String, dynamic>> _reportsOf((String, Object?) event) {
+  return ((event.$2 as Map<String, dynamic>)['reports'] as List).cast<Map<String, dynamic>>();
+}
+
+void main() {
+  late Directory root;
+  late CrashSpool spool;
+  late _FakeEmitter emitter;
+  late _Reporter reporter;
+  late ErrorCenter center;
+
+  setUp(() async {
+    root = await Directory.systemTemp.createTemp('aqutter_center_test');
+    spool = CrashSpool(Directory(p.join(root.path, 'crash_pending')));
+    emitter = _FakeEmitter();
+    reporter = _Reporter();
+    center = ErrorCenter(spool: spool, emitter: emitter, reporters: [_ThrowingReporter(), reporter]);
+  });
+
+  tearDown(() async {
+    await root.delete(recursive: true);
+  });
+
+  test('before the web is ready an error is spooled and reporters see it, but nothing is emitted', () async {
+    await center.recordPlatform(StateError('late'), StackTrace.current);
+
+    expect(await spool.pending(), hasLength(1));
+    expect(reporter.reports.single.source, AqutterErrorSource.platform);
+    expect(reporter.reports.single.fatal, isTrue);
+    expect(emitter.events, isEmpty);
+  });
+
+  test('when the web becomes ready every unacknowledged report is emitted as crash_reports', () async {
+    await center.recordPlatform(StateError('one'), StackTrace.current);
+    await center.recordPlatform(StateError('two'), StackTrace.current);
+
+    center.webReady = true;
+    await center.flush();
+
+    expect(emitter.events, isNotEmpty);
+    final event = emitter.events.last;
+    expect(event.$1, BridgeEvent.crashReports);
+    expect(_reportsOf(event).map((r) => r['message']), ['Bad state: one', 'Bad state: two']);
+    expect(_reportsOf(event).first['source'], 'platform');
+  });
+
+  test('a report recorded while the web is ready is emitted immediately', () async {
+    center.webReady = true;
+    await center.flush();
+    emitter.events.clear();
+
+    await center.recordPlatform(StateError('now'), StackTrace.current);
+
+    expect(emitter.events, hasLength(1));
+    expect(_reportsOf(emitter.events.single).single['message'], 'Bad state: now');
+  });
+
+  test('nothing is re-sent after ack; unacknowledged reports are re-sent on the next ready', () async {
+    await center.recordPlatform(StateError('a'), StackTrace.current);
+    await center.recordPlatform(StateError('b'), StackTrace.current);
+    final pending = await spool.pending();
+
+    center.webReady = true;
+    await center.flush();
+    await center.ack([pending.first.id]);
+
+    center.webReady = false;
+    emitter.events.clear();
+    center.webReady = true;
+    await center.flush();
+
+    expect(_reportsOf(emitter.events.last).map((r) => r['id']), [pending.last.id]);
+  });
+
+  test('when everything is acknowledged a later ready emits nothing', () async {
+    await center.recordPlatform(StateError('a'), StackTrace.current);
+    center.webReady = true;
+    await center.flush();
+    await center.ack((await spool.pending()).map((r) => r.id));
+    emitter.events.clear();
+
+    center.webReady = true;
+    await center.flush();
+
+    expect(emitter.events, isEmpty);
+  });
+
+  test('batches are capped at ErrorCenter.maxBatch', () async {
+    final big = CrashSpool(spool.directory, maxEntries: 200);
+    center = ErrorCenter(spool: big, emitter: emitter);
+    for (var i = 0; i < ErrorCenter.maxBatch + 5; i++) {
+      await big.add(AqutterErrorReport.create(
+        source: AqutterErrorSource.flutter,
+        fatal: false,
+        message: 'e$i',
+        now: DateTime.fromMillisecondsSinceEpoch(1000 + i, isUtc: true),
+      ));
+    }
+
+    center.webReady = true;
+    await center.flush();
+
+    expect(_reportsOf(emitter.events.last), hasLength(ErrorCenter.maxBatch));
+  });
+
+  test('a report from the web goes to reporters only: not spooled, not emitted', () async {
+    center.webReady = true;
+    await center.flush();
+    emitter.events.clear();
+
+    center.reportFromWeb(message: 'js boom', stack: 'at x', fatal: false);
+
+    expect(reporter.reports.single.source, AqutterErrorSource.web);
+    expect(reporter.reports.single.message, 'js boom');
+    expect(await spool.pending(), isEmpty);
+    expect(emitter.events, isEmpty);
+  });
+
+  test('a throwing reporter does not stop the others or the spool', () async {
+    await center.record(AqutterErrorReport.create(source: AqutterErrorSource.flutter, fatal: false, message: 'x'));
+
+    expect(reporter.reports, hasLength(1));
+    expect(await spool.pending(), hasLength(1));
+  });
+
+  group('installErrorHooks', () {
+    test('routes FlutterError.onError and PlatformDispatcher.onError into the center and restores them', () async {
+      final before = FlutterError.onError;
+      final beforePlatform = PlatformDispatcher.instance.onError;
+      final previousCalls = <FlutterErrorDetails>[];
+      FlutterError.onError = previousCalls.add;
+      final restore = installErrorHooks(center);
+      try {
+        FlutterError.onError!(FlutterErrorDetails(exception: StateError('framework'), library: 'widgets'));
+        final handled = PlatformDispatcher.instance.onError!(StateError('async'), StackTrace.current);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(previousCalls, hasLength(1));
+        expect(handled, isTrue);
+        final reports = await spool.pending();
+        expect(reports.map((r) => r.source), containsAll([AqutterErrorSource.flutter, AqutterErrorSource.platform]));
+        expect(reports.firstWhere((r) => r.source == AqutterErrorSource.flutter).fatal, isFalse);
+        expect(reports.firstWhere((r) => r.source == AqutterErrorSource.flutter).extra, {'library': 'widgets'});
+      } finally {
+        restore();
+        FlutterError.onError = before;
+        PlatformDispatcher.instance.onError = beforePlatform;
+      }
+    });
+  });
+}

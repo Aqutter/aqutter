@@ -5,6 +5,8 @@ library;
 
 export 'src/app.dart' show runAqutter, AqutterApp;
 export 'src/aqutter_config.dart' show AqutterConfig;
+export 'src/error/aqutter_error_reporter.dart'
+    show AqutterErrorReport, AqutterErrorReporter, AqutterErrorSource;
 export 'src/plugin/aqutter_plugin.dart'
     show
         AqutterPlugin,
