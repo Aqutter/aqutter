@@ -98,7 +98,7 @@ def flutter_app(root: Path):
         '</adaptive-icon>\n', encoding="utf-8")
     (res / "values/ic_launcher_background.xml").write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
-        '    <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n', encoding="utf-8")
+        '    <color name="ic_launcher_background">#0E1514</color>\n</resources>\n', encoding="utf-8")
     launch = (
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<!-- 啟動畫面：底色 + 置中 logo（tools/gen-logo-assets.py 產生 drawable-*/launch_logo.png） -->\n'
@@ -108,6 +108,21 @@ def flutter_app(root: Path):
         '        <bitmap android:gravity="center" android:src="@drawable/launch_logo" />\n'
         '    </item>\n'
         '</layer-list>\n')
+    # Android 12+ 系統 splash：用單純的 logo drawable，避免被包進 adaptive icon 的圓形底
+    for qual, parent in (("values-v31", "Theme.Light.NoTitleBar"), ("values-night-v31", "Theme.Black.NoTitleBar")):
+        (res / qual).mkdir(exist_ok=True)
+        splash = (
+            '        <item name="android:windowSplashScreenBackground">@color/launch_background</item>\n'
+            '        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>\n'
+        )
+        (res / qual / "styles.xml").write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+            f'    <style name="LaunchTheme" parent="@android:style/{parent}">\n'
+            '        <item name="android:windowBackground">@drawable/launch_background</item>\n' + splash +
+            '    </style>\n'
+            f'    <style name="NormalTheme" parent="@android:style/{parent}">\n'
+            '        <item name="android:windowBackground">@color/launch_background</item>\n' + splash +
+            '    </style>\n</resources>\n', encoding="utf-8")
     for d in ("drawable", "drawable-v21"):
         (res / d / "launch_background.xml").write_text(launch, encoding="utf-8")
 
