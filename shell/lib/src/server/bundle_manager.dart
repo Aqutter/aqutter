@@ -3,10 +3,12 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'bundle_archive.dart';
+import 'bundle_signature.dart';
 import 'host_requirement.dart';
 import 'host_version.dart';
 import 'seed_bootstrapper.dart';
@@ -17,7 +19,7 @@ typedef BundleDownloadProgress = void Function(int received, int total);
 
 /// 遠端版本資訊（`version.json`）。
 class RemoteVersion {
-  RemoteVersion({required this.version, required this.url, required this.sha256, this.size, this.host});
+  RemoteVersion({required this.version, required this.url, required this.sha256, this.signature, this.size, this.host});
 
   /// [platform] 供 `host` 區塊挑平台覆寫；`host` 缺席即無殼版本要求。
   factory RemoteVersion.fromJson(Map<String, dynamic> json, {required String platform}) {
@@ -26,6 +28,7 @@ class RemoteVersion {
       version: json['version'] as String,
       url: json['url'] as String,
       sha256: json['sha256'] as String?,
+      signature: json['signature'] as String?,
       size: _asInt(json['size']),
       host: host is Map<String, dynamic> ? HostRequirement.fromJson(host, platform: platform) : null,
     );
@@ -50,12 +53,46 @@ class RemoteVersion {
   /// bundle.zip 的 sha256（十六進位）；null 表示不驗證。
   final String? sha256;
 
+  /// 對「版本＋sha256」的 Ed25519 簽章（Base64）；只在殼設了公鑰時才被檢查。
+  final String? signature;
+
   /// bundle.zip 大小（bytes）；供下載前顯示，null 表示伺服器未宣告。
   /// 下載期間仍以 content-length 為準，只在其缺席時回退用這個值。
   final int? size;
 
   /// 殼版本要求（已合併本機平台的覆寫）；null 表示伺服器未宣告。
   final HostRequirement? host;
+}
+
+/// 解包前的完整性與來源驗證；失敗丟出 [StateError]，呼叫端不得解包。
+///
+/// 沒設公鑰（[verifier] 為 null）：只看雜湊（有就驗、沒有就不驗），與簽章功能出現之前相同。
+/// 設了公鑰：雜湊與簽章缺一不可，雜湊對得上才驗簽——簽章綁的是「版本＋這份位元組的雜湊」。
+@visibleForTesting
+Future<void> verifyBundleBytes(
+  List<int> bytes,
+  RemoteVersion remote, {
+  required BundleSignatureVerifier? verifier,
+}) async {
+  final expected = remote.sha256;
+  if (verifier == null) {
+    if (expected != null) {
+      _checkHash(bytes, expected);
+    }
+    return;
+  }
+  if (expected == null) {
+    throw StateError('Bundle sha256 missing: it is required when signing keys are configured');
+  }
+  _checkHash(bytes, expected);
+  await verifier.verify(version: remote.version, sha256Hex: expected, signature: remote.signature);
+}
+
+void _checkHash(List<int> bytes, String expectedSha256) {
+  final actual = sha256.convert(bytes).toString();
+  if (actual != expectedSha256.toLowerCase()) {
+    throw StateError('Bundle sha256 mismatch: expected $expectedSha256, got $actual');
+  }
 }
 
 /// 嚴格模式（`AQUTTER_UPDATE_REQUIRED=true`）下版本查詢或套用失敗；[BundleManager.checkForUpdate]
@@ -109,7 +146,7 @@ class UpdateCheckResult {
 
 /// 網頁包管理：可寫服務根、首次種子、以及熱更新（下載→解壓→原子換名）。
 class BundleManager {
-  BundleManager({Dio? dio, SeedBootstrapper? seed})
+  BundleManager({Dio? dio, SeedBootstrapper? seed, this.signatureVerifier})
     : _dio = dio ?? Dio(BaseOptions(
         connectTimeout: connectTimeout,
         receiveTimeout: receiveTimeout,
@@ -118,6 +155,9 @@ class BundleManager {
 
   final Dio _dio;
   final SeedBootstrapper _seed;
+
+  /// 非 null 時，下載的網頁包必須帶有效簽章才會解包；null 代表沒設公鑰、不驗簽章。
+  final BundleSignatureVerifier? signatureVerifier;
 
   /// 連線逾時。此流程位於啟動路徑上，斷線時若無上限會把冷啟一路拖到 OS 的
   /// socket 預設（Android 約 130 秒），故取一個使用者仍願意等的短上限。
@@ -200,14 +240,8 @@ class BundleManager {
     return remote.compareTo(local) > 0;
   }
 
-  void _verifyHash(List<int> bytes, String? expectedSha256) {
-    if (expectedSha256 == null) {
-      return;
-    }
-    final actual = sha256.convert(bytes).toString();
-    if (actual != expectedSha256.toLowerCase()) {
-      throw StateError('Bundle sha256 mismatch: expected $expectedSha256, got $actual');
-    }
+  Future<void> _verifyBundle(List<int> bytes, RemoteVersion remote) {
+    return verifyBundleBytes(bytes, remote, verifier: signatureVerifier);
   }
 
   /// 解包完成的標記檔；只有它存在，`next/` 才算「待套用」。
@@ -266,7 +300,7 @@ class BundleManager {
     return _guardStrict(config, () async {
       final bytes = await _downloadBundle(config, remote, _withSizeFallback(onProgress, remote.size));
       onVerifying?.call();
-      _verifyHash(bytes, remote.sha256);
+      await _verifyBundle(bytes, remote);
 
       final staging = await _stagingDir(_updateStagingDir);
       await extractBundle(staging, bytes, onProgress: onExtractProgress);

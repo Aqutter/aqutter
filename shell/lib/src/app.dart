@@ -23,6 +23,7 @@ import 'error/aqutter_error_reporter.dart';
 import 'error/crash_spool.dart';
 import 'error/error_center.dart';
 import 'server/bundle_manager.dart';
+import 'server/bundle_signature.dart';
 import 'server/font_bootstrapper.dart';
 import 'server/host_requirement.dart';
 import 'server/host_updater.dart';
@@ -158,7 +159,9 @@ class AqutterPage extends StatefulWidget {
 }
 
 class _AqutterPageState extends State<AqutterPage> {
-  final BundleManager _bundleManager = BundleManager();
+  /// 網頁包管理。與 [_configStore] 同理在 [_bootstrap] 內建構：公鑰（`AQUTTER_UPDATE_PUBLIC_KEYS`）
+  /// 不合法時 [BundleSignatureVerifier.fromEnvironment] 會拋錯，要落到既有的錯誤畫面而非直接崩潰。
+  late final BundleManager _bundleManager;
   final FontBootstrapper _fontBootstrapper = FontBootstrapper();
   final LocalWebServer _server = LocalWebServer();
   final BridgeEmitter _emitter = BridgeEmitter();
@@ -322,6 +325,7 @@ class _AqutterPageState extends State<AqutterPage> {
   Future<void> _bootstrap() async {
     try {
       final preferences = await SharedPreferences.getInstance();
+      _bundleManager = BundleManager(signatureVerifier: BundleSignatureVerifier.fromEnvironment());
       _configStore = UpdateConfigStore(
         defaults: BundleUpdateConfig.fromEnvironment(),
         preferences: preferences,

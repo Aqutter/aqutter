@@ -54,6 +54,7 @@ dependencies:
   # Hot update: extract bundle.zip, verify hashes
   archive: ^4.0.9
   crypto: ^3.0.7
+  cryptography: ^2.9.0
 
 dev_dependencies:
   flutter_test:

@@ -20,6 +20,7 @@
 | `AQUTTER_UPDATE_API_KEY_HEADER` | `X-Api-Key` | 承載 API KEY 的 header 名 |
 | `AQUTTER_UPDATE_BUNDLE_AUTH` | `true` | 下載 bundle.zip 時是否也帶鑑權 header |
 | `AQUTTER_UPDATE_REQUIRED` | `false` | 版本查詢必須成功才能進網頁；為 `true` 時 BASE_URL 不得為空 |
+| `AQUTTER_UPDATE_PUBLIC_KEYS` | 空 | 網頁包簽章公鑰（Ed25519，Base64 的 32 位元組，逗號分隔可多把）；空＝不驗簽章，設了就必須帶有效簽章。不合法即啟動報錯。編譯期設定，網頁不能改 |
 | `AQUTTER_UPDATE_CONNECT_TIMEOUT_SECONDS` | `30` | 更新伺服器連線逾時 |
 | `AQUTTER_UPDATE_RECEIVE_TIMEOUT_SECONDS` | `600` | 網頁包下載接收逾時 |
 

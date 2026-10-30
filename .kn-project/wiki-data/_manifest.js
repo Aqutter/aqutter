@@ -12,5 +12,6 @@ window.WIKI_MANIFEST={
 "platform/architecture.md",
 "platform/error-capture.md",
 "platform/log-file.md",
+"platform/update-signature.md",
 ]
 };

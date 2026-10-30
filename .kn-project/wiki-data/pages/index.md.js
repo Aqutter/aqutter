@@ -5,5 +5,5 @@ WIKI_PAGE("index.md",{
 "seq":{},
 "ext":[],
 "changelog":[],
-"md":"# aqutter Wiki\n\n## 平台\n\n- [架構總覽](platform/architecture.md)\n- [錯誤捕捉](platform/error-capture.md)\n- [日誌檔](platform/log-file.md)\n\n## 維運\n\n- [發佈與安裝](ops/distribution.md)\n- [發佈清單](ops/release-manifest.md)\n\n## 開發\n\n- [驗證指令](dev/verification.md)\n\n---\n[⚙️ Env](environment.md) | [🏠 Wiki](index.md)\n"
+"md":"# aqutter Wiki\n\n## 平台\n\n- [架構總覽](platform/architecture.md)\n- [錯誤捕捉](platform/error-capture.md)\n- [日誌檔](platform/log-file.md)\n- [更新簽章](platform/update-signature.md)\n\n## 維運\n\n- [發佈與安裝](ops/distribution.md)\n- [發佈清單](ops/release-manifest.md)\n\n## 開發\n\n- [驗證指令](dev/verification.md)\n\n---\n[⚙️ Env](environment.md) | [🏠 Wiki](index.md)\n"
 });

@@ -5,6 +5,7 @@
 - [架構總覽](platform/architecture.md)
 - [錯誤捕捉](platform/error-capture.md)
 - [日誌檔](platform/log-file.md)
+- [更新簽章](platform/update-signature.md)
 
 ## 維運
 

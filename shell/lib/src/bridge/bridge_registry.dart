@@ -28,6 +28,7 @@ import '../error/aqutter_error_reporter.dart';
 import '../error/error_center.dart';
 import 'log_retention.dart';
 import 'log_service.dart';
+import 'safe_file_name.dart';
 import 'system_ui.dart';
 import 'tcp_service.dart';
 
@@ -358,6 +359,10 @@ class BridgeRegistry {
   void _registerDownload() {
     _handle(BridgeHandler.download, (payload) async {
       final url = payload['url'] as String;
+      final problem = downloadFileNameProblem(payload['fileName']);
+      if (problem != null) {
+        return aqutterErrorPayload('invalid_file_name', problem);
+      }
       final fileName = payload['fileName'] as String;
       final requestId = payload['requestId'] as String;
       final toBase64 = (payload['toBase64'] as bool?) ?? false;

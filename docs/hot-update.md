@@ -42,7 +42,7 @@ web/
      `HostTooOldException`，**不下載、不掛網頁**，改顯示阻擋畫面（見下方「強制更新殼」）。
      這一步在比對網頁包版本**之前**：強制更新殼是伺服器驅動的決定，不因「這次剛好沒新網頁包」而略過。
    - 與 `current/version.json` 的 `version` 比對；遠端**不大於**本地則跳過。
-   - 較新 → 下載 `url`（bundle.zip）→ 驗 `sha256` → 解壓到 `next/` 並寫入標記檔 `.ready` → 套用：
+   - 較新 → 下載 `url`（bundle.zip）→ 驗 `sha256`（設了簽章公鑰時另驗 `signature`，見下方「簽章」）→ 解壓到 `next/` 並寫入標記檔 `.ready` → 套用：
      `current/` rename 為 `previous/`、`next/` rename 為 `current/`。
    - 任一步失敗保留舊 `current/`（rollback 安全）。標記檔缺席的 `next/`（解到一半被殺）視為殘渣清掉。
    - `size` 供網頁端在下載前顯示總大小；下載期間仍以 content-length 為準，只在其缺席時回退用 `size`。
@@ -60,6 +60,25 @@ web/
 > 解壓與完整下載，使用者還永遠停在舊版。
 >
 > 代價：伺服器無法以「調低版本號」做 rollback，需把舊內容以**新時戳**重新發佈。
+
+## 簽章（防止更新來源被入侵或被換包）
+
+`sha256` 與 bundle.zip 來自同一台伺服器，只能發現傳輸損壞，**擋不住伺服器本身被換掉內容**；而網頁包能直接執行並呼叫 bridge。所以殼可以內置公鑰，只接受你用私鑰簽過的網頁包。
+
+| 項目 | 說明 |
+| :--- | :--- |
+| 演算法 | Ed25519（RFC 8032） |
+| 簽章欄位 | `version.json` 的 `signature`：標準 Base64，解碼後 64 位元組 |
+| 簽章訊息 | UTF-8 的 `aqutter-bundle-v1\n{version}\n{sha256 小寫十六進位}\n`。版本被簽進去，舊包不能貼上新版本號 |
+| 公鑰 | 編譯期 `AQUTTER_UPDATE_PUBLIC_KEYS`（見[環境變數](environment.md)），逗號分隔可多把，任一把通過即可（金鑰輪替）。**網頁不能改它**，`update_config_set` 也碰不到 |
+| 沒設公鑰 | 行為與以前完全相同：有 `sha256` 就驗，沒有就不驗，`signature` 被忽略 |
+| 設了公鑰 | `sha256` 與 `signature` 缺一不可；雜湊不符、簽章缺失、格式錯、驗證不過都拒絕，不解包、不動現行網頁包，走和下載失敗相同的路徑（非嚴格模式續用舊版；嚴格模式進「無法確認版本」阻擋頁） |
+| 種子網頁包 | 隨 App 打包，視為可信，不驗簽章 |
+| APK（`updateSha256`） | 不在這個機制內：Android 安裝時由系統比對簽署憑證，換包的 APK 會被擋下 |
+
+簽署端用 CLI：`aqutter bundle keygen` 產生金鑰對（私鑰只留在簽署端，公鑰填進 env），`aqutter bundle sign <bundle.zip> --key <私鑰>` 印出要放進 `version.json` 的 `version`、`sha256`、`signature`。
+
+> **上線順序**：已設公鑰的 App 遇到沒有簽章的 `version.json` 會一律拒絕更新。要先讓伺服器的 `version.json` 帶上簽章，再發佈帶公鑰的新 App。
 
 ## 執行期更新（App 內完成，不需重啟）
 
@@ -126,7 +145,7 @@ web/
 
 ```json
 {
-  "version": "260911063945", "url": "https://…/bundle.zip", "sha256": "<hex>", "size": 1234567,
+  "version": "260911063945", "url": "https://…/bundle.zip", "sha256": "<hex>", "signature": "<base64，設了公鑰才需要>", "size": 1234567,
   "host": {
     "minBuildNumber": 3,
     "updateUrl": "https://example.com/download",

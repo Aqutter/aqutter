@@ -1,7 +1,7 @@
 # 環境變數
 
 ## Summary
-設定以 `.env.example` 為正本，共 11 個變數、1 個模組；secret 類只寫遮罩與長度，範例值一律是安全值。
+設定以 `.env.example` 為正本，共 12 個變數、1 個模組；secret 類只寫遮罩與長度，範例值一律是安全值。
 
 ## 變數
 ### Aqutter 殼（Dart 端以原 key 名 String.fromEnvironment 讀取；一律 AQUTTER_ 前綴）
@@ -14,6 +14,7 @@
 | `AQUTTER_UPDATE_API_KEY_HEADER` | 承載 AQUTTER_UPDATE_API_KEY 的 header 名。留空＝X-Api-Key | — | `X-Api-Key` |
 | `AQUTTER_UPDATE_BUNDLE_AUTH` | 下載 bundle.zip 時是否也帶鑑權 header：true \| false。留空＝true | — | `true` |
 | `AQUTTER_UPDATE_REQUIRED` | 是否要求版本查詢必須成功才能進網頁：true \| false。留空＝false | — | `false` |
+| `AQUTTER_UPDATE_PUBLIC_KEYS` | 網頁包簽章的公鑰（Ed25519，標準 Base64 的 32 位元組原始公鑰，可用逗號分隔多把）。留空＝不驗簽章 | 設了就一律要求 version.json 帶 sha256 與 signature，缺少或驗證不過都拒絕更新並保留現行網頁包。 | — |
 | `AQUTTER_WEB_READY_TIMEOUT_SECONDS` | 網頁就緒的等待上限（秒）。留空＝300 | — | `300` |
 | `AQUTTER_WEBVIEW_DEBUG` | WebView 是否開放遠端檢查（true / false）。留空＝false | — | `false` |
 | `AQUTTER_UPDATE_CONNECT_TIMEOUT_SECONDS` | 更新伺服器的連線逾時（秒）。留空＝30 | — | `30` |
@@ -31,4 +32,4 @@
 
 ---
 [🏠 Wiki](index.md)
-<!-- generated: wiki-env-page.py 331175c0ceee256e727a2f4c71fa16ba3061e3dd251a7f44c6aa25f75a6507c7 -->
+<!-- generated: wiki-env-page.py 0ac59bc16d5f2ba487ad32776170d52393625b28973b57ed2dbad4d0dc5fffbf -->
