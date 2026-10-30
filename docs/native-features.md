@@ -124,7 +124,7 @@ Android：`android/app/src/main/AndroidManifest.xml` 的 `MainActivity` 內加�
 
 App Links 還要在網站放 `https://example.com/.well-known/assetlinks.json`（套件名稱與簽署憑證指紋）。
 
-iOS：`ios/Runner/Info.plist` 加入自訂 scheme：
+iOS 與 macOS：`ios/Runner/Info.plist` 與 `macos/Runner/Info.plist` 都用同一個 `CFBundleURLTypes` 鍵加入自訂 scheme（兩個平台各自的檔案都要加）：
 
 ```xml
 <key>CFBundleURLTypes</key>
@@ -137,6 +137,29 @@ iOS：`ios/Runner/Info.plist` 加入自訂 scheme：
 ```
 
 Universal Links 需要在 Xcode 的 Signing & Capabilities 加入 Associated Domains（`applinks:example.com`），並在網站放 `apple-app-site-association`。
+
+### 自訂 scheme 與行為
+
+**框架與範本不預設任何 scheme**：新建的專案沒有登記任何自訂連結，要用深層連結的 App 自己決定。要改的地方分兩處：
+
+| 想改的 | 改哪裡 |
+| :--- | :--- |
+| scheme、網域（哪些連結會開啟這個 App） | 上面的原生設定：Android 的 `AndroidManifest.xml`、iOS 與 macOS 的 `Info.plist`，換成自己的 scheme 或網域即可 |
+| 收到連結之後做什麼（導到哪一頁、帶什麼參數） | 寫在網頁端。殼只把原始連結字串交給網頁，不檢查、不導航 |
+
+網頁端的處理範例（先驗證，再導航）：
+
+```ts
+const handle = (raw: string) => {
+  const link = new URL(raw)
+  if (link.protocol !== 'myapp:') return // 只認自己的 scheme，其他一律忽略
+  navigateTo(link.pathname) // 依 host／path／參數決定要去哪
+}
+
+const { url } = await callFlutter(BridgeHandler.DeeplinkInitial) // 冷啟動的連結
+if (url) handle(url)
+onFlutterEvent(BridgeEvent.DeepLink, ({ url }) => handle(url)) // 執行中收到的連結
+```
 
 ### 用 adb 測試（Android）
 
