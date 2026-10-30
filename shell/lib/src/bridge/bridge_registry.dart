@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:aqutter_core/aqutter_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -24,10 +25,13 @@ import '../plugin/aqutter_plugin.dart';
 import '../server/update_session.dart';
 import 'bridge_emitter.dart';
 import 'bridge_names.dart';
+import 'deep_link_service.dart';
 import '../error/aqutter_error_reporter.dart';
 import '../error/error_center.dart';
 import 'log_retention.dart';
 import 'log_service.dart';
+import 'native_features.dart';
+import 'notification_service.dart';
 import 'safe_file_name.dart';
 import 'system_ui.dart';
 import 'tcp_service.dart';
@@ -44,8 +48,12 @@ class BridgeRegistry {
     this.errorCenter,
     this.logRetention = const LogRetention(),
     this.permissions = const AqutterPermissions(),
+    NotificationService? notifications,
+    DeepLinkService? deepLinks,
     Dio? dio,
-  }) : _dio = dio ?? Dio(BaseOptions(
+  }) : _notificationsOverride = notifications,
+       _deepLinksOverride = deepLinks,
+       _dio = dio ?? Dio(BaseOptions(
          connectTimeout: _connectTimeout,
          receiveTimeout: _receiveTimeout,
          sendTimeout: _sendTimeout,
@@ -80,6 +88,13 @@ class BridgeRegistry {
   final AqutterPermissions permissions;
 
   final Dio _dio;
+
+  final NotificationService? _notificationsOverride;
+  final DeepLinkService? _deepLinksOverride;
+
+  /// 本機通知與深層連結服務：只在支援的平台、被用到時才建立，其他平台不碰原生外掛。
+  late final NotificationService _notifications = _notificationsOverride ?? NotificationService(permissions: permissions);
+  late final DeepLinkService _deepLinks = _deepLinksOverride ?? DeepLinkService();
 
   /// 網頁與 Dart 之間的多工 RPC（`aqutter_core`）。
   final AqutterRpcHost _rpc = AqutterRpcHost.instance;
@@ -143,6 +158,7 @@ class BridgeRegistry {
     _registerDevice();
     _registerPermissions();
     _registerOpenerAndBrowser();
+    _registerNativeFeatures();
     _registerPicker();
     _registerTcp();
     _registerUi();
@@ -744,6 +760,91 @@ class BridgeRegistry {
     _handle(BridgeHandler.iabClose, (_) async {
       await _iab?.close();
       return {'ok': true};
+    });
+  }
+
+  // ---- 剪貼簿、分享、本機通知、深層連結（參數與限制見 native_features.dart） ----
+
+  /// 通知與深層連結只在這些平台有原生實作。
+  bool get _hasNotificationsAndLinks => Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+
+  /// 兩個服務的啟動只做一次：WebView 重掛時 handler 會重掛，但服務與事件訂閱不該重複。
+  bool _nativeServicesStarted = false;
+
+  /// 把參數驗證失敗轉成回給網頁的錯誤資料，其餘例外照常往外丟。
+  Future<dynamic> _nativeCall(Future<dynamic> Function() body) async {
+    try {
+      return await body();
+    }
+    on NativeArgumentException catch (error) {
+      return error.toPayload();
+    }
+  }
+
+  void _registerNativeFeatures() {
+    _handle(BridgeHandler.clipboardRead, (_) async {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      return {'text': data?.text};
+    });
+    _handle(BridgeHandler.clipboardWrite, (payload) {
+      return _nativeCall(() async {
+        await Clipboard.setData(ClipboardData(text: parseClipboardText(payload)));
+        return {'ok': true};
+      });
+    });
+    _handle(BridgeHandler.shareOpen, (payload) {
+      return _nativeCall(() async {
+        final request = ShareRequest.parse(payload);
+        final text = request.combinedText;
+        final uri = text == null ? Uri.tryParse(request.url ?? '') : null;
+        final result = await SharePlus.instance.share(
+          ShareParams(text: text ?? (uri == null ? request.url : null), uri: uri, subject: request.subject),
+        );
+        return {
+          'status': switch (result.status) {
+            ShareResultStatus.success => 'shared',
+            ShareResultStatus.dismissed => 'dismissed',
+            ShareResultStatus.unavailable => 'unavailable',
+          },
+        };
+      });
+    });
+
+    final supported = _hasNotificationsAndLinks;
+    _handle(BridgeHandler.notifyShow, supported: supported, (payload) {
+      return _nativeCall(() => _notifications.show(payload));
+    });
+    _handle(BridgeHandler.notifySchedule, supported: supported, (payload) {
+      return _nativeCall(() => _notifications.schedule(payload));
+    });
+    _handle(BridgeHandler.notifyCancel, supported: supported, (payload) {
+      return _nativeCall(() => _notifications.cancel(payload));
+    });
+    _handle(BridgeHandler.notifyInitial, supported: supported, (_) async {
+      await _startNativeServices();
+      return _notifications.initial();
+    });
+    _handle(BridgeHandler.deeplinkInitial, supported: supported, (_) async {
+      return {'url': await _deepLinks.initial()};
+    });
+
+    if (supported) {
+      unawaited(_startNativeServices());
+    }
+  }
+
+  /// 初始化通知、開始轉送連結。點通知與連結事件在網頁未連線時會被丟棄（與既有事件一致），
+  /// 冷啟資訊另由 `notify_initial`／`deeplink_initial` 提供。
+  Future<void> _startNativeServices() async {
+    if (_nativeServicesStarted) {
+      return;
+    }
+    _nativeServicesStarted = true;
+    await _notifications.start((id, payload) {
+      unawaited(emitter.emit(BridgeEvent.notifyTapped, {'id': id, 'payload': payload}));
+    });
+    await _deepLinks.listen((url) {
+      unawaited(emitter.emit(BridgeEvent.deepLink, {'url': url}));
     });
   }
 

@@ -99,3 +99,7 @@ class MainActivity : FlutterActivity() {
 範本在 `android/app/proguard-rules.pro` 帶了保留規則，並由 `build.gradle.kts` 的 release 設定載入。**不要刪掉**：部分 plugin 的 Android 實作（`shared_preferences_android` 2.5.0 起）以 JNI 用原名反射呼叫 Kotlin 的 suspend 函式與協程類別，R8 看不到這些呼叫，會把方法刪掉或把 `kotlin.coroutines.Continuation` 這類型別改名，結果 release 版一啟動就丟 `NoSuchMethodError` / `ClassNotFoundException`，殼顯示「啟動失敗」。debug 版不縮減，所以只有 release 會壞；鎖在較舊版本（例如 `shared_preferences_android 2.4.27`）的專案不會遇到。
 
 規則保留：`io.flutter.plugins.**`、`dev.fluttercommunity.plus.**`、`com.github.dart_lang.jni.**`、`com.github.aqutter.**`、`kotlin.**`、`kotlinx.coroutines.**`。自己加了用 JNI 的 plugin 並在 release 遇到同類錯誤時，把該 plugin 的套件加進去。
+
+## 7. 本機通知與深層連結
+
+殼內建本機通知與深層連結。通知需要核心函式庫去糖（新建的 App 範本已含，既有 App 要自己加）；深層連結要在 `AndroidManifest.xml` 宣告 scheme 或網域。設定與範例見[內建原生功能](native-features.md)。
