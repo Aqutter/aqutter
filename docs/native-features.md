@@ -79,32 +79,13 @@ if (status.status === 'granted') {
 - 樣式：只有標題、內文與 `payload`；Android 使用單一頻道 `aqutter_default`（名稱「通知」），圖示用 App 的啟動圖示。
 - 點通知：App 在執行中時收到事件 `notify_tapped`（`{ id, payload }`）；App 被關掉、點通知而啟動時，網頁就緒後呼叫 `notify_initial` 取得。`payload` 殼原樣帶回，不解讀。
 
-### 各 App 要做的原生設定
+### 原生設定
 
-`aqutter init` 展開的原生專案屬於各 App，**CLI 的 upgrade 不會改**。新建的 App 範本已含下列兩項；既有 App 請自己套用：
+**不需要**。通知由殼套件自己的原生程式實作（不依賴外部通知套件）：Android 的接收器、頻道與必要權限（`POST_NOTIFICATIONS` 由 App 範本宣告，`RECEIVE_BOOT_COMPLETED` 由殼宣告）由殼的 manifest 自動合併，iOS 與 macOS 的通知代理由殼在啟動時自己設定。App 的 `AppDelegate` 與 Gradle 設定都不用改。
 
-Android：`android/app/build.gradle.kts` 啟用核心函式庫去糖（本機通知外掛需要）：
-
-```kotlin
-android {
-    compileOptions {
-        isCoreLibraryDesugaringEnabled = true
-    }
-}
-
-dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-}
-```
-
-iOS：`ios/Runner/AppDelegate.swift` 把通知代理設為 App 本身（App 在前景時也能顯示通知）：
-
-```swift
-import UserNotifications
-
-// application(_:didFinishLaunchingWithOptions:) 內，super 呼叫之前
-UNUserNotificationCenter.current().delegate = self
-```
+- **重開機後（Android）**：殼會把尚未到時間的排程通知重新排上，已經過了時間的不補發；App 更新後同樣會重新排上。
+- **iOS** 同時最多 64 則待送通知（系統限制）。
+- 小圖示使用 App 的啟動圖示；想要單色的狀態列圖示，之後可以再加。
 
 ## 深層連結
 

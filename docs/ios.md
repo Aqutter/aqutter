@@ -46,4 +46,4 @@ aqutter build ios            # 或 aqutter dev ios
 
 ## 6. 本機通知與深層連結
 
-殼內建本機通知與深層連結。通知需要在 `AppDelegate.swift` 設定通知代理（新建的 App 範本已含，既有 App 要自己加）；深層連結要在 `Info.plist` 宣告 scheme，Universal Links 另需 Associated Domains。設定與範例見[內建原生功能](native-features.md)。
+殼內建本機通知與深層連結。通知不需要改原生專案（通知代理由殼自己設定）；深層連結要在 `Info.plist` 宣告 scheme，Universal Links 另需 Associated Domains。設定與範例見[內建原生功能](native-features.md)。

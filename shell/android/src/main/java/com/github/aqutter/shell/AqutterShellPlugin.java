@@ -22,6 +22,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 
@@ -32,7 +34,7 @@ import io.flutter.plugin.common.MethodChannel;
  *   readImage  → 剪貼簿裡的圖片（PNG 位元組），沒有圖片回 null
  *   writeImage → { data: bytes, format: "png" | "jpeg" }，放進剪貼簿
  */
-public class AqutterShellPlugin implements FlutterPlugin, MethodChannel.MethodCallHandler {
+public class AqutterShellPlugin implements FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
     private static final String CHANNEL = "com.github.aqutter/clipboard";
     private static final String CACHE_DIR = "aqutter_clipboard";
 
@@ -41,6 +43,8 @@ public class AqutterShellPlugin implements FlutterPlugin, MethodChannel.MethodCa
 
     private Context context;
     private MethodChannel channel;
+    private AqutterNotifications notifications;
+    private ActivityPluginBinding activityBinding;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
 
@@ -49,13 +53,51 @@ public class AqutterShellPlugin implements FlutterPlugin, MethodChannel.MethodCa
         context = binding.getApplicationContext();
         channel = new MethodChannel(binding.getBinaryMessenger(), CHANNEL);
         channel.setMethodCallHandler(this);
+        notifications = new AqutterNotifications(context, new MethodChannel(binding.getBinaryMessenger(), AqutterNotifications.CHANNEL));
     }
 
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
         channel.setMethodCallHandler(null);
         channel = null;
+        notifications.detach();
+        notifications = null;
         context = null;
+    }
+
+    // ---- ActivityAware：點通知時的 Intent（冷啟與執行中） ----
+
+    @Override
+    public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+        attach(binding);
+    }
+
+    @Override
+    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+        attach(binding);
+    }
+
+    @Override
+    public void onDetachedFromActivityForConfigChanges() {
+        detach();
+    }
+
+    @Override
+    public void onDetachedFromActivity() {
+        detach();
+    }
+
+    private void attach(ActivityPluginBinding binding) {
+        activityBinding = binding;
+        notifications.onActivityAttached(binding.getActivity());
+        binding.addOnNewIntentListener(notifications);
+    }
+
+    private void detach() {
+        if (activityBinding != null && notifications != null) {
+            activityBinding.removeOnNewIntentListener(notifications);
+        }
+        activityBinding = null;
     }
 
     @Override

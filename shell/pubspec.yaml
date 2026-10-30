@@ -56,10 +56,8 @@ dependencies:
   crypto: ^3.0.7
   cryptography: ^2.9.0
 
-  # Built-in native features: system share sheet, local notifications (scheduled in UTC), deep links
+  # Built-in native features: system share sheet, deep links (local notifications and the image clipboard are implemented in this package's own native code)
   share_plus: ^13.3.1
-  flutter_local_notifications: ^22.3.3
-  timezone: ^0.11.2
   app_links: ^7.2.2
 
 dev_dependencies:

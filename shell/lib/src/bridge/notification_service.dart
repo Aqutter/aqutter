@@ -1,5 +1,4 @@
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter/services.dart';
 
 import 'native_features.dart';
 import 'permission_service.dart';
@@ -32,73 +31,63 @@ abstract class LocalNotifier {
   Future<NotificationLaunch?> launchedBy();
 }
 
-/// 預設頻道；rev 1 只有這一個（契約 §5）。
-const String notificationChannelId = 'aqutter_default';
-const String notificationChannelName = '通知';
+/// 與原生程式約定的 MethodChannel 名稱。原生端在殼套件自己的 Android（Java）、iOS 與 macOS（Swift）程式內。
+///
+/// Dart → 原生：`initialize`、`show`、`schedule`、`cancel`、`cancelAll`、`launchedBy`；
+/// 原生 → Dart：`tapped`（`{ id, payload }`，App 執行中使用者點了通知）。
+const String notificationsChannel = 'com.github.aqutter/notifications';
 
-/// 包住 `flutter_local_notifications` 的預設實作（Android、iOS、macOS）。
-class PluginLocalNotifier implements LocalNotifier {
-  PluginLocalNotifier([FlutterLocalNotificationsPlugin? plugin]) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+/// 殼自己的原生實作（Android、iOS、macOS），不依賴任何外部通知套件。
+class PlatformLocalNotifier implements LocalNotifier {
+  PlatformLocalNotifier([MethodChannel? channel]) : _channel = channel ?? const MethodChannel(notificationsChannel);
 
-  final FlutterLocalNotificationsPlugin _plugin;
-
-  static const NotificationDetails _details = NotificationDetails(
-    android: AndroidNotificationDetails(notificationChannelId, notificationChannelName),
-    iOS: DarwinNotificationDetails(),
-    macOS: DarwinNotificationDetails(),
-  );
+  final MethodChannel _channel;
 
   @override
   Future<void> initialize(NotificationTapCallback onTap) async {
-    // 權限一律由網頁經殼的權限 handler 處理，初始化時不要自己跳授權視窗
-    const darwin = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
-    await _plugin.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: darwin,
-        macOS: darwin,
-      ),
-      onDidReceiveNotificationResponse: (response) => onTap(response.id ?? 0, response.payload),
-    );
+    _channel.setMethodCallHandler((call) async {
+      if (call.method != 'tapped') {
+        return;
+      }
+      final arguments = call.arguments;
+      if (arguments is Map && arguments['id'] is int) {
+        onTap(arguments['id'] as int, arguments['payload'] as String?);
+      }
+    });
+    // 權限一律由網頁經殼的權限 handler 處理，原生端初始化時不要自己跳授權視窗
+    await _channel.invokeMethod<void>('initialize');
   }
 
   @override
   Future<void> show(int id, String title, String body, String? payload) {
-    return _plugin.show(id: id, title: title, body: body, notificationDetails: _details, payload: payload);
+    return _channel.invokeMethod<void>('show', {'id': id, 'title': title, 'body': body, 'payload': payload});
   }
 
   @override
   Future<void> schedule(int id, String title, String body, String? payload, DateTime atUtc) {
-    return _plugin.zonedSchedule(
-      id: id,
-      title: title,
-      body: body,
-      payload: payload,
-      scheduledDate: tz.TZDateTime.fromMillisecondsSinceEpoch(tz.UTC, atUtc.millisecondsSinceEpoch),
-      notificationDetails: _details,
-      // 不需要精確鬧鐘權限；系統可能延後數分鐘（契約 §5）
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-    );
+    return _channel.invokeMethod<void>('schedule', {
+      'id': id,
+      'title': title,
+      'body': body,
+      'payload': payload,
+      'atMs': atUtc.millisecondsSinceEpoch,
+    });
   }
 
   @override
-  Future<void> cancel(int id) => _plugin.cancel(id: id);
+  Future<void> cancel(int id) => _channel.invokeMethod<void>('cancel', {'id': id});
 
   @override
-  Future<void> cancelAll() => _plugin.cancelAll();
+  Future<void> cancelAll() => _channel.invokeMethod<void>('cancelAll');
 
   @override
   Future<NotificationLaunch?> launchedBy() async {
-    final details = await _plugin.getNotificationAppLaunchDetails();
-    final response = details?.notificationResponse;
-    if (details == null || !details.didNotificationLaunchApp || response == null) {
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>('launchedBy');
+    final id = result?['id'];
+    if (id is! int) {
       return null;
     }
-    return NotificationLaunch(id: response.id ?? 0, payload: response.payload);
+    return NotificationLaunch(id: id, payload: result?['payload'] as String?);
   }
 }
 
@@ -111,7 +100,7 @@ class NotificationService {
     LocalNotifier? notifier,
     AqutterPermissions? permissions,
     DateTime Function()? now,
-  })  : _notifier = notifier ?? PluginLocalNotifier(),
+  })  : _notifier = notifier ?? PlatformLocalNotifier(),
         _permissions = permissions ?? const AqutterPermissions(),
         _now = now ?? DateTime.now;
 

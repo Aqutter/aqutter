@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 本機通知排程在裝置重新開機後要重新排上（AqutterBootReceiver） -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application>
         <!--
           圖片剪貼簿用的 FileProvider。刻意用自己的子類別：App 自己可能已經宣告了
@@ -14,5 +17,20 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/aqutter_clipboard_paths" />
         </provider>
+
+        <!-- 本機通知：排程時間到了顯示通知 -->
+        <receiver
+            android:name="com.github.aqutter.shell.AqutterNotificationReceiver"
+            android:exported="false" />
+
+        <!-- 重新開機、App 更新後重新排程 -->
+        <receiver
+            android:name="com.github.aqutter.shell.AqutterBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

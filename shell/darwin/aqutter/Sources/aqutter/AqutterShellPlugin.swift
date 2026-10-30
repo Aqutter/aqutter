@@ -1,4 +1,4 @@
-// 殼套件自己的 iOS 與 macOS 原生部分：圖片剪貼簿。
+// 殼套件自己的 iOS 與 macOS 原生部分：圖片剪貼簿（本檔）與本機通知（AqutterNotifications.swift）。
 // Dart 端的約定見 shell/lib/src/bridge/clipboard_image_service.dart：
 //   readImage  -> 剪貼簿裡的圖片（PNG 位元組），沒有圖片回 nil
 //   writeImage -> { data: bytes, format: "png" | "jpeg" }
@@ -13,6 +13,9 @@ import Cocoa
 public class AqutterShellPlugin: NSObject, FlutterPlugin {
     private static let channelName = "com.github.aqutter/clipboard"
 
+    /// 本機通知（見 AqutterNotifications.swift）；要活到引擎結束，所以由這裡持有。
+    private static var notifications: AqutterNotifications?
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         #if os(iOS)
         let messenger = registrar.messenger()
@@ -21,6 +24,9 @@ public class AqutterShellPlugin: NSObject, FlutterPlugin {
         #endif
         let channel = FlutterMethodChannel(name: channelName, binaryMessenger: messenger)
         registrar.addMethodCallDelegate(AqutterShellPlugin(), channel: channel)
+        notifications = AqutterNotifications(
+            channel: FlutterMethodChannel(name: AqutterNotifications.channelName, binaryMessenger: messenger)
+        )
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
