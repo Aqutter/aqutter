@@ -25,6 +25,7 @@ import '../plugin/aqutter_plugin.dart';
 import '../server/update_session.dart';
 import 'bridge_emitter.dart';
 import 'bridge_names.dart';
+import 'clipboard_image_service.dart';
 import 'deep_link_service.dart';
 import '../error/aqutter_error_reporter.dart';
 import '../error/error_center.dart';
@@ -33,6 +34,7 @@ import 'log_service.dart';
 import 'native_features.dart';
 import 'notification_service.dart';
 import 'safe_file_name.dart';
+import 'share_files.dart';
 import 'system_ui.dart';
 import 'tcp_service.dart';
 
@@ -50,9 +52,11 @@ class BridgeRegistry {
     this.permissions = const AqutterPermissions(),
     NotificationService? notifications,
     DeepLinkService? deepLinks,
+    ClipboardImageService? clipboardImages,
     Dio? dio,
   }) : _notificationsOverride = notifications,
        _deepLinksOverride = deepLinks,
+       _clipboardImagesOverride = clipboardImages,
        _dio = dio ?? Dio(BaseOptions(
          connectTimeout: _connectTimeout,
          receiveTimeout: _receiveTimeout,
@@ -91,10 +95,12 @@ class BridgeRegistry {
 
   final NotificationService? _notificationsOverride;
   final DeepLinkService? _deepLinksOverride;
+  final ClipboardImageService? _clipboardImagesOverride;
 
   /// 本機通知與深層連結服務：只在支援的平台、被用到時才建立，其他平台不碰原生外掛。
   late final NotificationService _notifications = _notificationsOverride ?? NotificationService(permissions: permissions);
   late final DeepLinkService _deepLinks = _deepLinksOverride ?? DeepLinkService();
+  late final ClipboardImageService _clipboardImages = _clipboardImagesOverride ?? ClipboardImageService();
 
   /// 網頁與 Dart 之間的多工 RPC（`aqutter_core`）。
   final AqutterRpcHost _rpc = AqutterRpcHost.instance;
@@ -781,6 +787,14 @@ class BridgeRegistry {
     }
   }
 
+  String _shareStatus(ShareResult result) {
+    return switch (result.status) {
+      ShareResultStatus.success => 'shared',
+      ShareResultStatus.dismissed => 'dismissed',
+      ShareResultStatus.unavailable => 'unavailable',
+    };
+  }
+
   void _registerNativeFeatures() {
     _handle(BridgeHandler.clipboardRead, (_) async {
       final data = await Clipboard.getData(Clipboard.kTextPlain);
@@ -795,19 +809,25 @@ class BridgeRegistry {
     _handle(BridgeHandler.shareOpen, (payload) {
       return _nativeCall(() async {
         final request = ShareRequest.parse(payload);
+        final ShareResult result;
+        if (request.files.isNotEmpty) {
+          result = await shareFiles(request, tempRoot: await getTemporaryDirectory());
+          return {'status': _shareStatus(result)};
+        }
         final text = request.combinedText;
         final uri = text == null ? Uri.tryParse(request.url ?? '') : null;
-        final result = await SharePlus.instance.share(
+        result = await SharePlus.instance.share(
           ShareParams(text: text ?? (uri == null ? request.url : null), uri: uri, subject: request.subject),
         );
-        return {
-          'status': switch (result.status) {
-            ShareResultStatus.success => 'shared',
-            ShareResultStatus.dismissed => 'dismissed',
-            ShareResultStatus.unavailable => 'unavailable',
-          },
-        };
+        return {'status': _shareStatus(result)};
       });
+    });
+    final imageSupported = Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isWindows;
+    _handle(BridgeHandler.clipboardReadImage, supported: imageSupported, (_) {
+      return _nativeCall(() => _clipboardImages.read());
+    });
+    _handle(BridgeHandler.clipboardWriteImage, supported: imageSupported, (payload) {
+      return _nativeCall(() => _clipboardImages.write(payload));
     });
 
     final supported = _hasNotificationsAndLinks;

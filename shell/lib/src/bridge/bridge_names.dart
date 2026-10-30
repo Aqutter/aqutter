@@ -102,6 +102,10 @@ class BridgeHandler {
   static const String clipboardRead = 'clipboard_read';
   static const String clipboardWrite = 'clipboard_write';
 
+  /// 剪貼簿圖片（Android、iOS、macOS、Windows；原生程式在殼套件本身）。
+  static const String clipboardReadImage = 'clipboard_read_image';
+  static const String clipboardWriteImage = 'clipboard_write_image';
+
   /// 系統分享面板（文字與網址）。
   static const String shareOpen = 'share_open';
 

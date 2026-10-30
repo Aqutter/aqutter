@@ -1,0 +1,18 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!--
+          圖片剪貼簿用的 FileProvider。刻意用自己的子類別：App 自己可能已經宣告了
+          androidx.core.content.FileProvider（例如自主更新 APK 用的），兩個同名元素在 manifest 合併時會互相衝突。
+          檔案白名單只有 cache/aqutter_clipboard/。
+        -->
+        <provider
+            android:name="com.github.aqutter.shell.AqutterClipboardProvider"
+            android:authorities="${applicationId}.aqutter.clipboard"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/aqutter_clipboard_paths" />
+        </provider>
+    </application>
+</manifest>

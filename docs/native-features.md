@@ -6,8 +6,9 @@
 
 | 能力 | handler | 平台 |
 | :--- | :--- | :--- |
-| 剪貼簿 | `clipboard_read`、`clipboard_write` | 全部 |
-| 分享 | `share_open` | 全部 |
+| 剪貼簿（文字） | `clipboard_read`、`clipboard_write` | 全部 |
+| 剪貼簿（圖片） | `clipboard_read_image`、`clipboard_write_image` | Android、iOS、macOS、Windows |
+| 分享（文字、網址、檔案） | `share_open` | 全部 |
 | 本機通知 | `notify_show`、`notify_schedule`、`notify_cancel`、`notify_initial`；事件 `notify_tapped` | Android、iOS、macOS |
 | 深層連結 | `deeplink_initial`；事件 `deep_link` | Android、iOS、macOS |
 
@@ -18,7 +19,18 @@ await callFlutter(BridgeHandler.ClipboardWrite, { text: '要複製的內容' })
 const { text } = await callFlutter(BridgeHandler.ClipboardRead) // 沒有文字時 text 為 null
 ```
 
-只處理純文字，上限 1,000,000 字；讀取是明確呼叫，沒有背景監聽。
+純文字上限 1,000,000 字；讀取是明確呼叫，沒有背景監聽。
+
+### 剪貼簿圖片
+
+```ts
+await callFlutter(BridgeHandler.ClipboardWriteImage, { data: pngBytes, mimeType: 'image/png' }) // PNG 或 JPEG，≤ 5 MiB
+const { image } = await callFlutter(BridgeHandler.ClipboardReadImage) // { mimeType: 'image/png', data } 或 null
+```
+
+- 讀出來的圖片一律是 PNG；其他格式（JPEG、BMP…）由殼轉成 PNG。圖片超過 5,242,880 位元組時回錯誤 `too_large`，不截斷。
+- 寫入前殼會檢查位元組開頭與 `mimeType` 相符，不符回 `invalid_argument`。
+- 由殼套件自己的原生程式實作（殼套件本身是 Flutter plugin，不依賴外部剪貼簿套件），**App 不需要改自己的原生專案**；Android 的 provider 由殼自己宣告。Linux 不支援。
 
 ## 分享
 
@@ -27,7 +39,21 @@ const { status } = await callFlutter(BridgeHandler.ShareOpen, { text: '看看這
 // status: 'shared' | 'dismissed' | 'unavailable'
 ```
 
-`text` 與 `url` 至少一個非空；兩個都給時合成一段文字（`text`、換行、`url`）。`unavailable` 代表系統無法回報結果（例如部分 Android 的分享管道）。目前不支援分享檔案。
+`text`、`url`、`files` 至少一個有內容；`text` 與 `url` 都給時合成一段文字（`text`、換行、`url`）。`unavailable` 代表系統無法回報結果（例如部分 Android 的分享管道）。
+
+### 分享檔案（含圖片）
+
+```ts
+const logo = new Uint8Array(await (await fetch('/assets/logo.png')).arrayBuffer())
+await callFlutter(BridgeHandler.ShareOpen, {
+  text: 'Aqutter',
+  files: [{ name: 'logo.png', mimeType: 'image/png', data: logo }],
+})
+```
+
+- 最多 5 個檔案，每個 ≤ 5 MiB；`name` 必須是單一檔名（不含路徑分隔、不為 `.`／`..`、≤ 128 字）。
+- `mimeType` 省略時依副檔名判斷；分享圖片請給 `image/png`／`image/jpeg`，系統才會用圖片的方式處理。
+- 殼把檔案暫存到暫存目錄（每次分享一個獨立資料夾）交給系統分享面板，分享結束後盡力刪除，不修改內容。
 
 ## 本機通知
 
@@ -141,6 +167,7 @@ adb shell am start -a android.intent.action.VIEW -d "myapp://open/1" <套件名�
 
 | 錯誤碼 | 觸發條件 | 處置 |
 | :--- | :--- | :--- |
-| `invalid_argument` | 欄位缺漏、型別錯、超過上限、`atMs` 已過 | 修正參數，不要重試 |
+| `invalid_argument` | 欄位缺漏、型別錯、超過上限、`atMs` 已過、圖片格式與 `mimeType` 不符 | 修正參數，不要重試 |
+| `too_large` | 剪貼簿裡的圖片超過 5 MiB（`clipboard_read_image`） | 改用較小的圖片，不要重試 |
 | `permission_denied` | 通知權限未授權 | 先用權限 handler 要求 `notifications`；永久拒絕時引導到系統設定 |
-| `UNSUPPORTED_PLATFORM` | 本平台不支援（通知、深層連結在 Windows、Linux） | 用 `isBridgeSupported` 先判斷 |
+| `UNSUPPORTED_PLATFORM` | 本平台不支援（通知、深層連結在 Windows、Linux；圖片剪貼簿在 Linux） | 用 `isBridgeSupported` 先判斷 |

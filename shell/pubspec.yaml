@@ -68,6 +68,21 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
+  # 殼套件本身也是 Flutter plugin：圖片剪貼簿的原生程式放在各平台資料夾內，不需要各 App 改自己的原生專案。
+  plugin:
+    platforms:
+      android:
+        package: com.github.aqutter.shell
+        pluginClass: AqutterShellPlugin
+      ios:
+        pluginClass: AqutterShellPlugin
+        sharedDarwinSource: true
+      macos:
+        pluginClass: AqutterShellPlugin
+        sharedDarwinSource: true
+      windows:
+        pluginClass: AqutterShellPluginCApi
+
   assets:
     # Web-layer fonts (FontBootstrapper copies them to a writable directory; the shelf server serves them at /_flutter/fonts/).
     # Deliberately kept out of the web bundle: hot update downloads the whole zip, so fonts inside it would be re-downloaded on every OTA.
