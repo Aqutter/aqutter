@@ -178,8 +178,9 @@ class BridgeRegistry {
 
   /// 掛上各 plugin 的 handler（名稱 `<id>.<method>`，列入 capabilities），並於首次呼叫時 attach。
   ///
-  /// plugin 宣告了 `supportedPlatforms` 且不含目前平台時：handler 仍註冊但不列入 capabilities，被呼叫時
-  /// 回傳 `aqutterError`（`UNSUPPORTED_PLATFORM`）而不執行 plugin 的函式，也不呼叫 `attach`。
+  /// 方法在目前平台不支援（plugin 的 `supportedPlatforms`，或該方法的 `supportedPlatformsFor`）時：handler 仍註冊但
+  /// 不列入 capabilities，被呼叫時回傳 `aqutterError`（`UNSUPPORTED_PLATFORM`）而不執行 plugin 的函式。
+  /// plugin 層與所有方法都不支援目前平台時不呼叫 `attach`。
   ///
   /// id 不合法或兩個 plugin 同 id 會直接拋錯：這是 App 組裝期的程式錯誤，不該拖到網頁呼叫時才發現。
   void _registerPlugins() {
@@ -194,10 +195,9 @@ class BridgeRegistry {
       if (!seen.add(plugin.id)) {
         throw ArgumentError.value(plugin.id, 'AqutterPlugin.id', 'Duplicate plugin id');
       }
-      final supported = aqutterPluginSupports(plugin, defaultTargetPlatform);
       for (final entry in plugin.handlers.entries) {
         final name = aqutterPluginHandlerName(plugin.id, entry.key);
-        if (supported) {
+        if (aqutterPluginSupportsMethod(plugin, entry.key, defaultTargetPlatform)) {
           _handle(name, entry.value);
         }
         else {
@@ -217,7 +217,7 @@ class BridgeRegistry {
     }
     _pluginsAttached = true;
     for (final plugin in plugins) {
-      if (aqutterPluginSupports(plugin, defaultTargetPlatform)) {
+      if (aqutterPluginActiveOn(plugin, defaultTargetPlatform)) {
         plugin.attach(_PluginContext(plugin.id, emitter, permissions));
       }
     }

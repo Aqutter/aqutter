@@ -38,6 +38,29 @@ void main() {
       expect(aqutterPluginSupports(_Plugin(const {}), TargetPlatform.android), isFalse);
     });
 
+    test('methods follow the plugin platforms unless they declare their own', () {
+      final plugin = _Plugin({TargetPlatform.android}, methodPlatforms: {
+        'readImage': {TargetPlatform.android, TargetPlatform.windows},
+      });
+      expect(aqutterPluginSupportsMethod(plugin, 'read', TargetPlatform.android), isTrue);
+      expect(aqutterPluginSupportsMethod(plugin, 'read', TargetPlatform.windows), isFalse);
+      expect(aqutterPluginSupportsMethod(plugin, 'readImage', TargetPlatform.windows), isTrue);
+      expect(aqutterPluginSupportsMethod(plugin, 'readImage', TargetPlatform.linux), isFalse);
+    });
+
+    test('a method that declares null is supported everywhere even when the plugin is not', () {
+      final plugin = _Plugin({TargetPlatform.android}, methodPlatforms: {'read': null});
+      expect(aqutterPluginSupportsMethod(plugin, 'read', TargetPlatform.linux), isTrue);
+      expect(aqutterPluginSupportsMethod(plugin, 'write', TargetPlatform.linux), isFalse);
+    });
+
+    test('a plugin is active when the plugin or any of its methods supports the platform', () {
+      final plugin = _Plugin(const {}, methodPlatforms: {'read': {TargetPlatform.macOS}});
+      expect(aqutterPluginActiveOn(plugin, TargetPlatform.macOS), isTrue);
+      expect(aqutterPluginActiveOn(plugin, TargetPlatform.linux), isFalse);
+      expect(aqutterPluginActiveOn(_Plugin(null), TargetPlatform.linux), isTrue);
+    });
+
     test('the error payload uses the reserved key with a code and a message', () {
       final payload = aqutterErrorPayload(aqutterUnsupportedPlatform, 'maps.moveTo is not supported on linux');
       expect(aqutterErrorKey, 'aqutterError');
@@ -69,9 +92,21 @@ void main() {
 }
 
 class _Plugin extends AqutterPlugin {
-  _Plugin(this._platforms);
+  _Plugin(this._platforms, {this.methodPlatforms = const {}});
 
   final Set<TargetPlatform>? _platforms;
+  final Map<String, Set<TargetPlatform>?> methodPlatforms;
+
+  @override
+  Map<String, AqutterPluginHandler> get handlers => {
+        'read': (_) async => const {},
+        'write': (_) async => const {},
+        'readImage': (_) async => const {},
+      };
+
+  @override
+  Set<TargetPlatform>? supportedPlatformsFor(String method) =>
+      methodPlatforms.containsKey(method) ? methodPlatforms[method] : super.supportedPlatformsFor(method);
 
   @override
   String get id => 'maps';

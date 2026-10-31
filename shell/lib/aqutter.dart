@@ -18,9 +18,11 @@ export 'src/plugin/aqutter_plugin.dart'
         aqutterErrorOf,
         aqutterErrorPayload,
         aqutterPluginEventChannel,
+        aqutterPluginActiveOn,
         aqutterPluginHandlerName,
         aqutterPluginIdPattern,
         aqutterPluginSupports,
+        aqutterPluginSupportsMethod,
         aqutterReservedPluginId,
         aqutterUnsupportedPlatform;
 export 'package:aqutter_core/aqutter_core.dart'

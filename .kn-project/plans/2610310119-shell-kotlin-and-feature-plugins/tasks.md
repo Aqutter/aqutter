@@ -11,9 +11,9 @@
 - [x] [aqutter] 驗證：`flutter build apk --debug` 與 `--release`（R8 規則已保留 `com.github.aqutter.**`、`kotlin.**`，仍需實測）
 
 ## Phase 2 — `AqutterPlugin` 逐方法平台（Contract §4）　可平行（與 aqutter-js 的 Phase 1）
-- [ ] [aqutter] `aqutter_plugin.dart` 新增 `supportedPlatformsFor(String method)`，預設沿用 `supportedPlatforms`
-- [ ] [aqutter] `aqutterPluginSupports` 與 `_registerPlugins` 改以方法為單位判斷；`attach` 只在至少支援一個方法的平台呼叫
-- [ ] [aqutter] `test/plugin_test.dart` 補測試：預設行為不變、逐方法覆寫、不支援方法仍註冊但不列入能力表並回 `UNSUPPORTED_PLATFORM`
+- [x] [aqutter] `aqutter_plugin.dart` 新增 `supportedPlatformsFor(String method)`，預設沿用 `supportedPlatforms`
+- [x] [aqutter] `aqutterPluginSupports` 與 `_registerPlugins` 改以方法為單位判斷；`attach` 只在至少支援一個方法的平台呼叫
+- [x] [aqutter] `test/plugin_test.dart` 補測試：預設行為不變、逐方法覆寫、不支援方法仍註冊但不列入能力表並回 `UNSUPPORTED_PLATFORM`
 
 ## Phase 3 — 四個功能搬成內建 plugin（依賴 Contract §1；每搬一個跑 `flutter analyze && flutter test`）
 - [ ] [aqutter] 建 `plugins/builtin_plugins.dart` 與 `plugins/_shared/`（搬 `native_features.dart`），`BridgeRegistry` 的 plugin 清單 = 內建四個 + App 傳入

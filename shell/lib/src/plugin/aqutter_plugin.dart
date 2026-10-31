@@ -57,6 +57,18 @@ bool aqutterPluginSupports(AqutterPlugin plugin, TargetPlatform platform) {
   return supported == null || supported.contains(platform);
 }
 
+/// [plugin] 的 [method] 是否支援 [platform]：以 [AqutterPlugin.supportedPlatformsFor] 判斷，`null` 代表所有平台。
+bool aqutterPluginSupportsMethod(AqutterPlugin plugin, String method, TargetPlatform platform) {
+  final supported = plugin.supportedPlatformsFor(method);
+  return supported == null || supported.contains(platform);
+}
+
+/// 殼是否要在 [platform] 啟用 [plugin]（呼叫 [AqutterPlugin.attach]）：plugin 層支援，或至少有一個方法支援。
+bool aqutterPluginActiveOn(AqutterPlugin plugin, TargetPlatform platform) {
+  return aqutterPluginSupports(plugin, platform) ||
+      plugin.handlers.keys.any((method) => aqutterPluginSupportsMethod(plugin, method, platform));
+}
+
 /// plugin 與殼互動的入口，於 [AqutterPlugin.attach] 交給 plugin。
 abstract class AqutterPluginContext {
   /// 對網頁派送事件；頻道自動加上 `<pluginId>.` 前綴。
@@ -98,6 +110,13 @@ abstract class AqutterPlugin {
   ///     網頁端的 `callPlugin` 會把它轉成拋出的 `AqutterPluginError`（不會卡住）；
   ///   - 殼不呼叫 [attach]、[buildUnderlay]、[buildOverlay]；[dispose] 仍會呼叫（必須可安全呼叫）。
   Set<TargetPlatform>? get supportedPlatforms => null;
+
+  /// 單一方法支援的平台；預設沿用 [supportedPlatforms]，所以沒有覆寫的 plugin 行為不變。
+  ///
+  /// 同一個 plugin 內各方法的平台不同時覆寫它（例如剪貼簿的文字全平台可用、圖片只有部分平台）。
+  /// 方法不支援目前平台時的行為與 [supportedPlatforms] 相同：仍註冊、不列入能力表、被呼叫時回
+  /// `UNSUPPORTED_PLATFORM`。方法層的宣告只影響該方法；[attach] 在 plugin 層支援或任一方法支援時呼叫。
+  Set<TargetPlatform>? supportedPlatformsFor(String method) => supportedPlatforms;
 
   /// 暴露給網頁的方法，鍵為方法名（不含 id 前綴）。
   Map<String, AqutterPluginHandler> get handlers => const {};
