@@ -9,7 +9,7 @@
 namespace aqutter_shell {
 
 // 殼套件自己的 Windows 原生部分：圖片剪貼簿。
-// Dart 端的約定見 shell/lib/src/bridge/clipboard_image_service.dart：
+// Dart 端的約定見 shell/lib/src/plugins/clipboard/clipboard_image_service.dart：
 //   readImage  -> 剪貼簿裡的圖片（PNG 位元組），沒有圖片回 null
 //   writeImage -> { data: bytes, format: "png" | "jpeg" }
 class AqutterShellPlugin : public flutter::Plugin {

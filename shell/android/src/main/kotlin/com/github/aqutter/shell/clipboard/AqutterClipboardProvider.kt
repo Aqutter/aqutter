@@ -1,4 +1,4 @@
-package com.github.aqutter.shell
+package com.github.aqutter.shell.clipboard
 
 import androidx.core.content.FileProvider
 

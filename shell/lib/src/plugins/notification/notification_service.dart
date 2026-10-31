@@ -31,7 +31,7 @@ abstract class LocalNotifier {
   Future<NotificationLaunch?> launchedBy();
 }
 
-/// 與原生程式約定的 MethodChannel 名稱。原生端在殼套件自己的 Android（Java）、iOS 與 macOS（Swift）程式內。
+/// 與原生程式約定的 MethodChannel 名稱。原生端在殼套件自己的 Android（Kotlin）、iOS 與 macOS（Swift）程式內。
 ///
 /// Dart → 原生：`initialize`、`show`、`schedule`、`cancel`、`cancelAll`、`launchedBy`；
 /// 原生 → Dart：`tapped`（`{ id, payload }`，App 執行中使用者點了通知）。

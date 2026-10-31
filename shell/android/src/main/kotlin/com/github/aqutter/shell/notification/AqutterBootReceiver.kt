@@ -1,4 +1,4 @@
-package com.github.aqutter.shell
+package com.github.aqutter.shell.notification
 
 import android.content.BroadcastReceiver
 import android.content.Context

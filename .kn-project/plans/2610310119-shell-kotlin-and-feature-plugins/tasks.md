@@ -27,9 +27,9 @@
 - [ ] [aqutter] 測試補一條：第三方 plugin 取名 `share` 等保留 id 會丟 `ArgumentError`
 
 ## Phase 4 — 原生按功能分資料夾
-- [ ] [aqutter] Android 分 Kotlin 子套件 `clipboard`、`notification`，同步 `AndroidManifest.xml`，確認 R8 規則仍涵蓋
-- [ ] [aqutter] Apple：`AqutterNotifications.swift` 移到 `Notifications/`，確認 `Package.swift` 與 podspec 涵蓋
-- [ ] [aqutter] 驗證：`flutter build apk --debug`、`flutter build macos`、`flutter build ios --no-codesign`
+- [x] [aqutter] Android 分 Kotlin 子套件 `clipboard`、`notification`，同步 `AndroidManifest.xml`，確認 R8 規則仍涵蓋
+- [x] [aqutter] Apple：`AqutterNotifications.swift` 移到 `Notifications/`，確認 `Package.swift` 與 podspec 涵蓋
+- [x] [aqutter] 驗證：`flutter build apk --debug`、`flutter build macos`、`flutter build ios --no-codesign`
 
 ## Phase 5 — 文件與整體驗證
 - [ ] [aqutter] 同步 `docs/native-features.md`（`callPlugin` 範例與新舊名稱對照表）、`docs/plugins.md`、`docs/android.md`、`shell/README.md`、`.kn-project/project.md`、`AGENTS.md` 紅線 2
