@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
-import 'native_features.dart';
-import 'permission_service.dart';
+import '../_shared/native_features.dart';
+import '../../bridge/permission_service.dart';
 
 /// 使用者點了通知的回呼：[id] 為通知 id，[payload] 為顯示時帶的字串。
 typedef NotificationTapCallback = void Function(int id, String? payload);

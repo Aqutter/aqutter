@@ -1,4 +1,4 @@
-import 'package:aqutter/src/bridge/native_features.dart';
+import 'package:aqutter/src/plugins/_shared/native_features.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

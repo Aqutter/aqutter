@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-import 'native_features.dart';
+import '../_shared/native_features.dart';
 
 /// 剪貼簿圖片的平台層；與 [ClipboardImageService] 分開，測試才能不碰原生程式。
 abstract class ClipboardImageSource {

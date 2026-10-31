@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import '../plugin/aqutter_plugin.dart';
-import 'safe_file_name.dart';
+import '../../plugin/aqutter_plugin.dart';
+import '../../bridge/safe_file_name.dart';
 
 /// 剪貼簿、分享與本機通知的參數驗證。
 ///
@@ -265,5 +265,15 @@ class ClipboardImageWrite {
       case ClipboardImageFormat.jpeg:
         return bytes.length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF;
     }
+  }
+}
+
+/// 把參數驗證失敗轉成回給網頁的錯誤資料，其餘例外照常往外丟。內建 plugin 的 handler 都經由它呼叫服務。
+Future<dynamic> nativeCall(Future<dynamic> Function() body) async {
+  try {
+    return await body();
+  }
+  on NativeArgumentException catch (error) {
+    return error.toPayload();
   }
 }

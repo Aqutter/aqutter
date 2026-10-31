@@ -16,14 +16,14 @@
 - [x] [aqutter] `test/plugin_test.dart` 補測試：預設行為不變、逐方法覆寫、不支援方法仍註冊但不列入能力表並回 `UNSUPPORTED_PLATFORM`
 
 ## Phase 3 — 四個功能搬成內建 plugin（依賴 Contract §1；每搬一個跑 `flutter analyze && flutter test`）
-- [ ] [aqutter] 建 `plugins/builtin_plugins.dart` 與 `plugins/_shared/`（搬 `native_features.dart`），`BridgeRegistry` 的 plugin 清單 = 內建四個 + App 傳入
-- [ ] [aqutter] 搬 `share`（`share.open`、`share_files.dart`）
-- [ ] [aqutter] 搬 `clipboard`（四個方法，圖片方法逐方法平台宣告）
-- [ ] [aqutter] 搬 `deeplink`（`deeplink.initial`、`deeplink.received`）
-- [ ] [aqutter] 搬 `notification`（四個方法、`notification.tapped`）
-- [ ] [aqutter] 刪除 `bridge_names.dart` 的 10 個 handler 與 2 個事件常數，`BridgeRegistry` 刪除 `_registerNativeFeatures`、`_startNativeServices`、服務欄位與 import
-- [ ] [aqutter] 能力表比對測試：新名稱與支援平台逐項符合 Contract §1
-- [ ] [aqutter] 冷啟測試：`initial` 與事件的啟動時機、只啟動一次
+- [x] [aqutter] 建 `plugins/builtin_plugins.dart` 與 `plugins/_shared/`（搬 `native_features.dart`），`BridgeRegistry` 的 plugin 清單 = 內建四個 + App 傳入
+- [x] [aqutter] 搬 `share`（`share.open`、`share_files.dart`）
+- [x] [aqutter] 搬 `clipboard`（四個方法，圖片方法逐方法平台宣告）
+- [x] [aqutter] 搬 `deeplink`（`deeplink.initial`、`deeplink.received`）
+- [x] [aqutter] 搬 `notification`（四個方法、`notification.tapped`）
+- [x] [aqutter] 刪除 `bridge_names.dart` 的 10 個 handler 與 2 個事件常數，`BridgeRegistry` 刪除 `_registerNativeFeatures`、`_startNativeServices`、服務欄位與 import
+- [x] [aqutter] 能力表比對測試：新名稱與支援平台逐項符合 Contract §1
+- [x] [aqutter] 冷啟測試：`initial` 與事件的啟動時機、只啟動一次
 - [ ] [aqutter] 測試補一條：第三方 plugin 取名 `share` 等保留 id 會丟 `ArgumentError`
 
 ## Phase 4 — 原生按功能分資料夾

@@ -1,5 +1,5 @@
-import 'package:aqutter/src/bridge/native_features.dart';
-import 'package:aqutter/src/bridge/notification_service.dart';
+import 'package:aqutter/src/plugins/_shared/native_features.dart';
+import 'package:aqutter/src/plugins/notification/notification_service.dart';
 import 'package:aqutter/src/bridge/permission_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
