@@ -11,6 +11,7 @@
 4. **CLI 在獨立 repo**：`Aqutter/aqutter-cli`（含範本與 `dist/`）。本 repo 不放 CLI 程式碼；框架版本相容性以 `manifest/releases.json` 為準（見 `docs/releases.md`），shell 或 aqutter_core 有變更要同步更新清單。
 4.1. **Flutter 版本成對**：`shell/pubspec.yaml`、`aqutter-cli` 範本 `template/app|plugin/pubspec.yaml` 的 `environment.flutter`（另一個 repo）、`docs/getting-started.md` 的需求表，以及 `aqutter_core` 的 `pubspec.yaml`、`manifest/releases.json` 的 `flutter.baseline`，必須指向同一個 Flutter 基準版本（下限）；**不設上限**，較新的版本由 `aqutter doctor` 以警告提示；升 Flutter 時一次同步。`aqutter doctor` / `upgrade` 以 manifest 的 `flutter.baseline` 作為基準版本（CI 會比對它與 shell、aqutter_core）。`shell/.fvmrc` 與 `aqutter_core/.fvmrc` 只是給本 repo 貢獻者的便利檔，需一併更新；**專案端不產生、不要求 `.fvmrc`**（FVM 是選配，不強迫使用者用任何版本管理工具）。
 5. **範本變數**屬 `aqutter-cli` repo：範本內只能使用該 repo 的 `src/commands/init.ts` / `plugin.ts` 提供的 `{{變數}}`，由它的測試檢查。
+6. **原生程式碼語言**：Android 原生一律 Kotlin（`src/main/kotlin`），不寫 Java；Apple 平台（iOS、macOS）一律 Swift。殼與 plugin 都適用；Gradle 依 `aqutter_core` 的做法使用 AGP 9 內建 Kotlin（不另套 Kotlin 外掛，`jvmTarget` 17）。
 
 ## 驗證指令
 

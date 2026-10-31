@@ -1,5 +1,5 @@
-// 殼套件本身的 Android 原生部分（目前只有圖片剪貼簿）。純 Java，不依賴 Kotlin 外掛，
-// 避免與 App 端 AGP 9 的內建 Kotlin 設定互相牽制；寫法對照 battery_plus。
+// 殼套件本身的 Android 原生部分（圖片剪貼簿、本機通知）。一律 Kotlin：用 AGP 9 內建的 Kotlin 支援，
+// 不另套 Kotlin 外掛；寫法對照 aqutter_core（android/build.gradle）。
 group = "com.github.aqutter.shell"
 version = "1.0-SNAPSHOT"
 
@@ -10,7 +10,7 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.12.1")
+        classpath("com.android.tools.build:gradle:9.3.0")
     }
 }
 
@@ -23,6 +23,13 @@ allprojects {
 
 plugins {
     id("com.android.library")
+}
+
+// Kotlin 與 Java 的 JVM target 必須一致，否則 Gradle 會拒絕編譯
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
 }
 
 android {
