@@ -1,7 +1,7 @@
 # 原生功能
 
 ## Summary
-殼把網頁最常需要的四個原生能力直接內建在 bridge：剪貼簿（文字與圖片）、系統分享（文字、網址、檔案）、本機通知與深層連結，網頁不必另外安裝 plugin。文字剪貼簿與分享在所有平台可用；圖片剪貼簿在 Android、iOS、macOS、Windows，通知與連結在 Android、iOS、macOS。通知不自動要權限，排程為非精確；啟動 App 的連結與由通知冷啟的資訊都由網頁主動讀取，不走事件。通知不需要改原生專案；連結的 scheme 與網域屬於各 App。
+殼內建四個原生功能 plugin：剪貼簿（文字與圖片）、系統分享（文字、網址、檔案）、本機通知與深層連結。它們與 App 傳入的 plugin 走同一條註冊路徑，網頁以「plugin 編號＋方法」呼叫、以「plugin 編號＋事件」接收，不必另外安裝。文字剪貼簿與分享在所有平台可用；圖片剪貼簿在 Android、iOS、macOS、Windows，通知與連結在 Android、iOS、macOS，平台逐方法宣告。通知不自動要權限，排程為非精確；啟動 App 的連結與由通知冷啟的資訊由網頁主動讀取，不走事件。
 
 ## 運作方式
 
@@ -19,7 +19,7 @@
     {"from": "網頁", "to": "殼", "text": "就緒後讀取啟動連結與通知"},
     {"from": "殼", "to": "網頁", "text": "回傳啟動資訊", "reply": true},
     {"from": "使用者", "to": "殼", "text": "點通知或開連結（App 執行中）"},
-    {"from": "殼", "to": "網頁", "text": "推送新資訊", "emit": "deep_link"},
+    {"from": "殼", "to": "網頁", "text": "推送新資訊", "emit": "deeplink.received"},
     {"from": "網頁", "to": "網頁", "text": "驗證後導航"}
   ]
 }
@@ -27,14 +27,14 @@
 
 ![通知與連結如何到達網頁](native-features.送達.svg)
 
-1. 通知與連結的服務在殼啟動時就開始運作，不必等網頁。
+1. 通知與連結的 plugin 在殼啟動時就開始運作，不必等網頁。
 2. App 被關掉後由通知或連結啟動時，殼記下那一筆資訊，不以事件送出。
 3. 事件在網頁尚未連線時會被丟棄，所以冷啟的資訊改由網頁就緒後主動讀取，可重複讀取且內容一致。
-4. App 執行中收到新的通知點擊或連結，殼以事件推送。
+4. App 執行中收到新的通知點擊或連結，殼以 plugin 事件推送：通知是 notification 的 tapped，連結是 deeplink 的 received。
 5. 部分平台的連結串流會把啟動連結再送一次，殼把這個重複的第一筆濾掉。
 6. 殼不檢查連結內容，網頁要自行驗證再導航。
 
-來源：1. [bridge_registry.dart](../../../shell/lib/src/bridge/bridge_registry.dart)　2. [deep_link_service.dart](../../../shell/lib/src/bridge/deep_link_service.dart)　3. [notification_service.dart](../../../shell/lib/src/bridge/notification_service.dart)
+來源：1. [builtin_plugins.dart](../../../shell/lib/src/plugins/builtin_plugins.dart)　2. [deeplink_plugin.dart](../../../shell/lib/src/plugins/deeplink/deeplink_plugin.dart)　3. [notification_plugin.dart](../../../shell/lib/src/plugins/notification/notification_plugin.dart)
 
 ## 規則
 
@@ -47,12 +47,25 @@
 | 通知排程 | 以絕對時間點排程、必須晚於現在；非精確，系統可能延後數分鐘 |
 | 通知編號 | 省略時從 1 遞增配發；同編號再次顯示會取代原通知；殼重啟後配發重來 |
 | 通知內容上限 | 標題 200、內文 2,000、附帶字串 1,000，超過拒絕、不截斷 |
-| 不支援的平台 | 通知與連結在 Windows、Linux、圖片剪貼簿在 Linux 不列入能力表，呼叫回 UNSUPPORTED_PLATFORM |
+| 不支援的平台 | 通知與連結在 Windows、Linux、圖片剪貼簿在 Linux 不列入能力表，呼叫回 UNSUPPORTED_PLATFORM；平台可逐方法宣告，網頁用能力表判斷 |
+| 命名 | handler 是「plugin 編號.方法」、事件是「plugin 編號.事件」；四個編號為保留字，App 的 plugin 不得同名，否則組裝時報重複編號 |
+| 舊名稱 | 原本固定的剪貼簿、分享、通知、連結 handler 與兩個事件名稱已移除，沒有別名；對照表在使用文件 |
 | 通知的原生設定 | 不需要：接收器、開機重新排程與通知代理都由殼自己實作與宣告，不依賴外部通知套件 |
 | 重開機後（Android） | 尚未到時間的排程通知重新排上，已過時間的不補發；iOS 同時最多 64 則待送通知 |
 | 連結的原生設定 | scheme 與網域屬於各 App，CLI 升級不會改 |
 
-來源：1. [native_features.dart](../../../shell/lib/src/bridge/native_features.dart)　2. [native-features.md](../../../docs/native-features.md)
+來源：1. [native_features.dart](../../../shell/lib/src/plugins/_shared/native_features.dart)　2. [native-features.md](../../../docs/native-features.md)
+
+## 程式碼分區
+
+| 層 | 位置 | 分法 |
+|---|---|---|
+| Dart | 殼的 plugins 目錄 | 每個功能一個子資料夾（剪貼簿、分享、通知、連結），共用的呼叫與驗證放在 _shared |
+| Android | 殼的 kotlin 目錄 | 一律 Kotlin，入口只負責註冊與生命週期，功能依子套件分（剪貼簿、通知） |
+| Apple | 殼的 darwin 目錄 | 一律 Swift，入口之外每個功能一個子資料夾 |
+| Windows | 殼的 windows 目錄 | 剪貼簿為 C++，不在上述語言規範內 |
+
+來源：1. [AGENTS.md](../../../AGENTS.md#L18)　2. [AqutterShellPlugin.kt](../../../shell/android/src/main/kotlin/com/github/aqutter/shell/AqutterShellPlugin.kt)　3. [AqutterShellPlugin.swift](../../../shell/darwin/aqutter/Sources/aqutter/AqutterShellPlugin.swift)
 
 ## 錯誤與提示
 
@@ -62,7 +75,7 @@
 | 圖片太大 | 剪貼簿裡的圖片超過 5 MiB | 改用較小的圖片，不要重試 |
 | 通知權限未授權 | 顯示或排程時沒有 notifications 權限 | 先要求權限；永久拒絕時引導到系統設定 |
 
-來源：1. [native_features.dart](../../../shell/lib/src/bridge/native_features.dart#L1-L40)
+來源：1. [native_features.dart](../../../shell/lib/src/plugins/_shared/native_features.dart#L1-L40)
 
 ---
 [⚙️ Env](../environment.md) | [🏠 Wiki](../index.md)

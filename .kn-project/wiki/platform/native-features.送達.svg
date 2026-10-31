@@ -1,4 +1,4 @@
-<!-- wiki-diagram aaf634acc19c00caf7e863bb5480d06295bbd9907312e3d2ba789ba783803d9b 85d77e21bb2a85474de85a8744162c91a7f8916e1e8559d2e15362ab337f39b7 -->
+<!-- wiki-diagram 5a9d53bc66243f3bc799048209202ef9ef579a7e32a9c953263feb8ffa7c0bbc 681c496c72cf36ff7c209c258e26420a0b9e126ce5f9808dd6d5b946ace7a1cd -->
 <svg class="dg seq" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 603 348" width="603" height="348" role="img" aria-label="通知與連結如何到達網頁 內部時序">
 <title>通知與連結如何到達網頁 內部時序</title>
 <desc>冷啟時網頁就緒後主動讀取；執行中由殼以事件推送</desc>
@@ -72,7 +72,7 @@ svg.dg{font-family:-apple-system,"PingFang TC","Noto Sans TC",Segoe UI,Roboto,sa
 </g>
 <g data-step="6">
 <line class="msg evt" x1="285" y1="260" x2="449" y2="260" marker-end="url(#seqAr)"/>
-<text class="lab" x="370" y="254" text-anchor="middle">⚡ deep_link</text>
+<text class="lab" x="370" y="254" text-anchor="middle">⚡ deeplink.received</text>
 </g>
 <g data-step="7">
 <path class="msg " d="M455 294 h28 v18 h-28" marker-end="url(#seqAr)"/>

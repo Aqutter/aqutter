@@ -6,7 +6,7 @@ Aqutter 把既有的網頁專案包成原生 App：網頁跑在 Flutter 殼的 W
 ## 組成
 | 元件 | 位置 | 角色 |
 |---|---|---|
-| shell | 本 repo 的 shell 目錄 | Dart 套件，Flutter 殼本體：本機 server、熱更新、bridge handler、plugin 介面 |
+| shell | 本 repo 的 shell 目錄 | Dart 套件，Flutter 殼本體：本機 server、熱更新、bridge handler、plugin 介面，以及內建的剪貼簿、分享、通知、連結 plugin |
 | client | 獨立 repo aqutter-js | npm 套件，網頁端的 bridge client、plugin API 與跨層契約型別，以 TypeScript 原始碼發佈 |
 | cli | 獨立 repo aqutter-cli | npm 套件，提供 aqutter 指令，並內含 App 與 plugin 的專案範本 |
 | aqutter_core | 獨立 repo | WebView 與 in-app browser 的核心，由 shell 以 git 依賴 |
@@ -15,7 +15,7 @@ Aqutter 把既有的網頁專案包成原生 App：網頁跑在 Flutter 殼的 W
 來源：1. [project.md](../../project.md#L5-L17)　2. [README.md](../../../README.md)
 
 ## 依賴方向
-網頁專案透過 client 呼叫原生；殼把呼叫分派給 bridge handler 或 plugin；cli 在開發者的電腦上把這些組起來。
+網頁專案透過 client 呼叫原生；殼把呼叫分派給 bridge handler 或 plugin（剪貼簿、分享、通知、連結也是內建 plugin）；cli 在開發者的電腦上把這些組起來。
 
 | 起點 | 終點 | 關係 |
 |---|---|---|
@@ -32,6 +32,7 @@ Aqutter 把既有的網頁專案包成原生 App：網頁跑在 Flutter 殼的 W
 | 項目 | 兩端 |
 |---|---|
 | bridge 的 handler 與事件名稱 | shell 與 client（另一個 repo） |
+| 內建 plugin 的方法與事件（剪貼簿、分享、通知、連結） | shell 的 plugins 目錄與 client 的內建 plugin 契約（另一個 repo） |
 | 鏡像協定的幀格式與手勢訊息 | aqutter_core 與 client（兩個獨立 repo） |
 | 統一傳輸的訊框格式（`/channel/aqutter.rpc`：呼叫、回應、事件、二進位、分段） | aqutter_core 與 client（兩個 repo，共用測試向量）；shell 只界接 |
 | 傳輸的連線資訊（網頁全域 `window.aqutterEndpoint`：埠與令牌） | shell 的注入腳本與 client 的讀取（另一個 repo）；端點由 aqutter_core 的伺服器提供，重啟後 shell 會更新它 |
