@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:aqutter/src/bridge/deep_link_service.dart';
+import 'package:aqutter/src/plugins/deeplink/deep_link_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeSource implements DeepLinkSource {

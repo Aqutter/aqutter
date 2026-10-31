@@ -12,7 +12,6 @@ import 'package:flutter/services.dart';
 import 'package:aqutter_core/aqutter_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -22,19 +21,18 @@ import '../server/host_version.dart';
 import 'permission_service.dart';
 import '../server/update_config.dart';
 import '../plugin/aqutter_plugin.dart';
+import '../plugins/builtin_plugins.dart';
+import '../plugins/clipboard/clipboard_image_service.dart';
+import '../plugins/deeplink/deep_link_service.dart';
+import '../plugins/notification/notification_service.dart';
 import '../server/update_session.dart';
 import 'bridge_emitter.dart';
 import 'bridge_names.dart';
-import 'clipboard_image_service.dart';
-import 'deep_link_service.dart';
 import '../error/aqutter_error_reporter.dart';
 import '../error/error_center.dart';
 import 'log_retention.dart';
 import 'log_service.dart';
-import 'native_features.dart';
-import 'notification_service.dart';
 import 'safe_file_name.dart';
-import 'share_files.dart';
 import 'system_ui.dart';
 import 'tcp_service.dart';
 
@@ -54,14 +52,21 @@ class BridgeRegistry {
     DeepLinkService? deepLinks,
     ClipboardImageService? clipboardImages,
     Dio? dio,
-  }) : _notificationsOverride = notifications,
-       _deepLinksOverride = deepLinks,
-       _clipboardImagesOverride = clipboardImages,
-       _dio = dio ?? Dio(BaseOptions(
+  }) : _dio = dio ?? Dio(BaseOptions(
          connectTimeout: _connectTimeout,
          receiveTimeout: _receiveTimeout,
          sendTimeout: _sendTimeout,
-       ));
+       )) {
+    _allPlugins = [
+      ...builtinPlugins(
+        permissions: permissions,
+        notifications: notifications,
+        deepLinks: deepLinks,
+        clipboardImages: clipboardImages,
+      ),
+      ...plugins,
+    ];
+  }
 
   final BridgeEmitter emitter;
   final SharedPreferences preferences;
@@ -93,14 +98,8 @@ class BridgeRegistry {
 
   final Dio _dio;
 
-  final NotificationService? _notificationsOverride;
-  final DeepLinkService? _deepLinksOverride;
-  final ClipboardImageService? _clipboardImagesOverride;
-
-  /// 本機通知與深層連結服務：只在支援的平台、被用到時才建立，其他平台不碰原生外掛。
-  late final NotificationService _notifications = _notificationsOverride ?? NotificationService(permissions: permissions);
-  late final DeepLinkService _deepLinks = _deepLinksOverride ?? DeepLinkService();
-  late final ClipboardImageService _clipboardImages = _clipboardImagesOverride ?? ClipboardImageService();
+  /// 殼內建的 plugin（剪貼簿、分享、本機通知、深層連結）加上 [plugins]；全部走同一條註冊路徑。
+  late final List<AqutterPlugin> _allPlugins;
 
   /// 網頁與 Dart 之間的多工 RPC（`aqutter_core`）。
   final AqutterRpcHost _rpc = AqutterRpcHost.instance;
@@ -164,7 +163,6 @@ class BridgeRegistry {
     _registerDevice();
     _registerPermissions();
     _registerOpenerAndBrowser();
-    _registerNativeFeatures();
     _registerPicker();
     _registerTcp();
     _registerUi();
@@ -178,13 +176,14 @@ class BridgeRegistry {
 
   /// 掛上各 plugin 的 handler（名稱 `<id>.<method>`，列入 capabilities），並於首次呼叫時 attach。
   ///
-  /// plugin 宣告了 `supportedPlatforms` 且不含目前平台時：handler 仍註冊但不列入 capabilities，被呼叫時
-  /// 回傳 `aqutterError`（`UNSUPPORTED_PLATFORM`）而不執行 plugin 的函式，也不呼叫 `attach`。
+  /// 方法在目前平台不支援（plugin 的 `supportedPlatforms`，或該方法的 `supportedPlatformsFor`）時：handler 仍註冊但
+  /// 不列入 capabilities，被呼叫時回傳 `aqutterError`（`UNSUPPORTED_PLATFORM`）而不執行 plugin 的函式。
+  /// plugin 層與所有方法都不支援目前平台時不呼叫 `attach`。
   ///
   /// id 不合法或兩個 plugin 同 id 會直接拋錯：這是 App 組裝期的程式錯誤，不該拖到網頁呼叫時才發現。
   void _registerPlugins() {
     final seen = <String>{};
-    for (final plugin in plugins) {
+    for (final plugin in _allPlugins) {
       if (!aqutterPluginIdPattern.hasMatch(plugin.id)) {
         throw ArgumentError.value(plugin.id, 'AqutterPlugin.id', 'Must match ${aqutterPluginIdPattern.pattern}');
       }
@@ -194,10 +193,9 @@ class BridgeRegistry {
       if (!seen.add(plugin.id)) {
         throw ArgumentError.value(plugin.id, 'AqutterPlugin.id', 'Duplicate plugin id');
       }
-      final supported = aqutterPluginSupports(plugin, defaultTargetPlatform);
       for (final entry in plugin.handlers.entries) {
         final name = aqutterPluginHandlerName(plugin.id, entry.key);
-        if (supported) {
+        if (aqutterPluginSupportsMethod(plugin, entry.key, defaultTargetPlatform)) {
           _handle(name, entry.value);
         }
         else {
@@ -216,8 +214,8 @@ class BridgeRegistry {
       return;
     }
     _pluginsAttached = true;
-    for (final plugin in plugins) {
-      if (aqutterPluginSupports(plugin, defaultTargetPlatform)) {
+    for (final plugin in _allPlugins) {
+      if (aqutterPluginActiveOn(plugin, defaultTargetPlatform)) {
         plugin.attach(_PluginContext(plugin.id, emitter, permissions));
       }
     }
@@ -225,7 +223,7 @@ class BridgeRegistry {
 
   /// 釋放 plugin 資源。
   void disposePlugins() {
-    for (final plugin in plugins) {
+    for (final plugin in _allPlugins) {
       plugin.dispose();
     }
   }
@@ -766,105 +764,6 @@ class BridgeRegistry {
     _handle(BridgeHandler.iabClose, (_) async {
       await _iab?.close();
       return {'ok': true};
-    });
-  }
-
-  // ---- 剪貼簿、分享、本機通知、深層連結（參數與限制見 native_features.dart） ----
-
-  /// 通知與深層連結只在這些平台有原生實作。
-  bool get _hasNotificationsAndLinks => Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
-
-  /// 兩個服務的啟動只做一次：WebView 重掛時 handler 會重掛，但服務與事件訂閱不該重複。
-  bool _nativeServicesStarted = false;
-
-  /// 把參數驗證失敗轉成回給網頁的錯誤資料，其餘例外照常往外丟。
-  Future<dynamic> _nativeCall(Future<dynamic> Function() body) async {
-    try {
-      return await body();
-    }
-    on NativeArgumentException catch (error) {
-      return error.toPayload();
-    }
-  }
-
-  String _shareStatus(ShareResult result) {
-    return switch (result.status) {
-      ShareResultStatus.success => 'shared',
-      ShareResultStatus.dismissed => 'dismissed',
-      ShareResultStatus.unavailable => 'unavailable',
-    };
-  }
-
-  void _registerNativeFeatures() {
-    _handle(BridgeHandler.clipboardRead, (_) async {
-      final data = await Clipboard.getData(Clipboard.kTextPlain);
-      return {'text': data?.text};
-    });
-    _handle(BridgeHandler.clipboardWrite, (payload) {
-      return _nativeCall(() async {
-        await Clipboard.setData(ClipboardData(text: parseClipboardText(payload)));
-        return {'ok': true};
-      });
-    });
-    _handle(BridgeHandler.shareOpen, (payload) {
-      return _nativeCall(() async {
-        final request = ShareRequest.parse(payload);
-        final ShareResult result;
-        if (request.files.isNotEmpty) {
-          result = await shareFiles(request, tempRoot: await getTemporaryDirectory());
-          return {'status': _shareStatus(result)};
-        }
-        final text = request.combinedText;
-        final uri = text == null ? Uri.tryParse(request.url ?? '') : null;
-        result = await SharePlus.instance.share(
-          ShareParams(text: text ?? (uri == null ? request.url : null), uri: uri, subject: request.subject),
-        );
-        return {'status': _shareStatus(result)};
-      });
-    });
-    final imageSupported = Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isWindows;
-    _handle(BridgeHandler.clipboardReadImage, supported: imageSupported, (_) {
-      return _nativeCall(() => _clipboardImages.read());
-    });
-    _handle(BridgeHandler.clipboardWriteImage, supported: imageSupported, (payload) {
-      return _nativeCall(() => _clipboardImages.write(payload));
-    });
-
-    final supported = _hasNotificationsAndLinks;
-    _handle(BridgeHandler.notifyShow, supported: supported, (payload) {
-      return _nativeCall(() => _notifications.show(payload));
-    });
-    _handle(BridgeHandler.notifySchedule, supported: supported, (payload) {
-      return _nativeCall(() => _notifications.schedule(payload));
-    });
-    _handle(BridgeHandler.notifyCancel, supported: supported, (payload) {
-      return _nativeCall(() => _notifications.cancel(payload));
-    });
-    _handle(BridgeHandler.notifyInitial, supported: supported, (_) async {
-      await _startNativeServices();
-      return _notifications.initial();
-    });
-    _handle(BridgeHandler.deeplinkInitial, supported: supported, (_) async {
-      return {'url': await _deepLinks.initial()};
-    });
-
-    if (supported) {
-      unawaited(_startNativeServices());
-    }
-  }
-
-  /// 初始化通知、開始轉送連結。點通知與連結事件在網頁未連線時會被丟棄（與既有事件一致），
-  /// 冷啟資訊另由 `notify_initial`／`deeplink_initial` 提供。
-  Future<void> _startNativeServices() async {
-    if (_nativeServicesStarted) {
-      return;
-    }
-    _nativeServicesStarted = true;
-    await _notifications.start((id, payload) {
-      unawaited(emitter.emit(BridgeEvent.notifyTapped, {'id': id, 'payload': payload}));
-    });
-    await _deepLinks.listen((url) {
-      unawaited(emitter.emit(BridgeEvent.deepLink, {'url': url}));
     });
   }
 

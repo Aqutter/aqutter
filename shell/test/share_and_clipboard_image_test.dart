@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:aqutter/src/bridge/clipboard_image_service.dart';
-import 'package:aqutter/src/bridge/native_features.dart';
-import 'package:aqutter/src/bridge/share_files.dart';
+import 'package:aqutter/src/plugins/clipboard/clipboard_image_service.dart';
+import 'package:aqutter/src/plugins/_shared/native_features.dart';
+import 'package:aqutter/src/plugins/share/share_files.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:share_plus/share_plus.dart';
 

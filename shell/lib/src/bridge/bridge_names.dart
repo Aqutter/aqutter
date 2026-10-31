@@ -97,26 +97,6 @@ class BridgeHandler {
   static const String themeSet = 'theme_set';
 
   static const String minimizeApp = 'minimize_app';
-
-  /// 剪貼簿（純文字）。
-  static const String clipboardRead = 'clipboard_read';
-  static const String clipboardWrite = 'clipboard_write';
-
-  /// 剪貼簿圖片（Android、iOS、macOS、Windows；原生程式在殼套件本身）。
-  static const String clipboardReadImage = 'clipboard_read_image';
-  static const String clipboardWriteImage = 'clipboard_write_image';
-
-  /// 系統分享面板（文字與網址）。
-  static const String shareOpen = 'share_open';
-
-  /// 本機通知：立即顯示、排程、取消，以及「點通知而冷啟 App」的資訊。
-  static const String notifyShow = 'notify_show';
-  static const String notifySchedule = 'notify_schedule';
-  static const String notifyCancel = 'notify_cancel';
-  static const String notifyInitial = 'notify_initial';
-
-  /// 啟動 App 的深層連結。
-  static const String deeplinkInitial = 'deeplink_initial';
 }
 
 /// Dart→原生宿主的 MethodChannel 名稱與方法，對映 `android/app/src/main/kotlin/.../MainActivity.kt`。
@@ -161,10 +141,4 @@ class BridgeEvent {
   /// 殼端新記下的 crash／錯誤紀錄（一次一筆），payload `{'reports': [...]}`（見 `AqutterErrorReport.toJson`）；
   /// 只在網頁呼叫過 `crash_take` 之後才送。
   static const String crashReports = 'crash_reports';
-
-  /// App 執行中使用者點了本機通知，payload `{'id': int, 'payload': String?}`。
-  static const String notifyTapped = 'notify_tapped';
-
-  /// App 執行中收到新的深層連結，payload `{'url': String}`；啟動 App 的那一個連結不走事件。
-  static const String deepLink = 'deep_link';
 }

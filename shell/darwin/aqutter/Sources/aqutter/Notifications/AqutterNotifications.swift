@@ -1,5 +1,5 @@
 // 殼套件自己的本機通知（iOS、macOS）。
-// Dart 端的約定見 shell/lib/src/bridge/notification_service.dart 的 PlatformLocalNotifier：
+// Dart 端的約定見 shell/lib/src/plugins/notification/notification_service.dart 的 PlatformLocalNotifier：
 //   initialize / show / schedule / cancel / cancelAll / launchedBy（Dart -> 原生）
 //   tapped（原生 -> Dart，App 執行中使用者點了通知）
 //

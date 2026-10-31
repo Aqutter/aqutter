@@ -1,22 +1,44 @@
 # 內建原生功能：剪貼簿、分享、本機通知、深層連結
 
-這四個能力直接內建在殼的 bridge，網頁用 `callFlutter` 呼叫、用 `onFlutterEvent` 接事件，不需要另外安裝 plugin。代價是每個 App 都會帶這些原生依賴。
+這四個能力是殼內建的 plugin（`clipboard`、`share`、`notification`、`deeplink`），不需要另外安裝，也不需要在 `runAqutter(plugins: …)` 傳入；寫法和一般 plugin 完全一樣：網頁用 `callPlugin(id, method, payload)` 呼叫、用 `onPluginEvent(id, event, listener)` 接事件，handler 名稱是 `<id>.<method>`、事件頻道是 `<id>.<event>`。代價是每個 App 都會帶這些原生依賴。
 
-網頁端先用 `isBridgeSupported(BridgeHandler.X)` 判斷本平台能不能用；不支援的平台上，handler 不在能力表內，呼叫會回 `UNSUPPORTED_PLATFORM`。
+網頁端先用 `isPluginSupported(id, method)` 判斷本平台能不能用；不支援的平台上，該方法不在能力表內，呼叫會回 `UNSUPPORTED_PLATFORM`。
 
-| 能力 | handler | 平台 |
-| :--- | :--- | :--- |
-| 剪貼簿（文字） | `clipboard_read`、`clipboard_write` | 全部 |
-| 剪貼簿（圖片） | `clipboard_read_image`、`clipboard_write_image` | Android、iOS、macOS、Windows |
-| 分享（文字、網址、檔案） | `share_open` | 全部 |
-| 本機通知 | `notify_show`、`notify_schedule`、`notify_cancel`、`notify_initial`；事件 `notify_tapped` | Android、iOS、macOS |
-| 深層連結 | `deeplink_initial`；事件 `deep_link` | Android、iOS、macOS |
+| plugin | 方法 | 事件 | 平台 |
+| :--- | :--- | :--- | :--- |
+| `clipboard`（文字） | `read`、`write` | — | 全部 |
+| `clipboard`（圖片） | `readImage`、`writeImage` | — | Android、iOS、macOS、Windows |
+| `share`（文字、網址、檔案） | `open` | — | 全部 |
+| `notification` | `show`、`schedule`、`cancel`、`initial` | `tapped` | Android、iOS、macOS |
+| `deeplink` | `initial` | `received` | Android、iOS、macOS |
+
+`clipboard`、`share`、`notification`、`deeplink` 是保留的 plugin id：自己寫的 plugin 不能取同名，否則組裝時會丟 `ArgumentError`（重複的 plugin id）。
+
+### 從舊名稱遷移
+
+以前這四個功能是殼的固定 handler（`callFlutter(BridgeHandler.X)`、`onFlutterEvent(BridgeEvent.X)`）。現在舊名稱**已移除**，沒有別名，請改用下表的新名稱（網頁端型別在 `@aqutter/aqutter` 的 `AqutterPluginRegistry`，請求與回應的欄位都沒變）：
+
+| 舊名稱 | 新寫法 |
+| :--- | :--- |
+| `BridgeHandler.ClipboardRead`（`clipboard_read`） | `callPlugin('clipboard', 'read')` |
+| `BridgeHandler.ClipboardWrite`（`clipboard_write`） | `callPlugin('clipboard', 'write', { text })` |
+| `BridgeHandler.ClipboardReadImage`（`clipboard_read_image`） | `callPlugin('clipboard', 'readImage')` |
+| `BridgeHandler.ClipboardWriteImage`（`clipboard_write_image`） | `callPlugin('clipboard', 'writeImage', { data, mimeType })` |
+| `BridgeHandler.ShareOpen`（`share_open`） | `callPlugin('share', 'open', request)` |
+| `BridgeHandler.NotifyShow`（`notify_show`） | `callPlugin('notification', 'show', request)` |
+| `BridgeHandler.NotifySchedule`（`notify_schedule`） | `callPlugin('notification', 'schedule', request)` |
+| `BridgeHandler.NotifyCancel`（`notify_cancel`） | `callPlugin('notification', 'cancel', { id })` |
+| `BridgeHandler.NotifyInitial`（`notify_initial`） | `callPlugin('notification', 'initial')` |
+| `BridgeEvent.NotifyTapped`（`notify_tapped`） | `onPluginEvent('notification', 'tapped', listener)` |
+| `BridgeHandler.DeeplinkInitial`（`deeplink_initial`） | `callPlugin('deeplink', 'initial')` |
+| `BridgeEvent.DeepLink`（`deep_link`） | `onPluginEvent('deeplink', 'received', listener)` |
+| `isBridgeSupported(BridgeHandler.X)` | `isPluginSupported('<id>', '<method>')` |
 
 ## 剪貼簿
 
 ```ts
-await callFlutter(BridgeHandler.ClipboardWrite, { text: '要複製的內容' })
-const { text } = await callFlutter(BridgeHandler.ClipboardRead) // 沒有文字時 text 為 null
+await callPlugin('clipboard', 'write', { text: '要複製的內容' })
+const { text } = await callPlugin('clipboard', 'read') // 沒有文字時 text 為 null
 ```
 
 純文字上限 1,000,000 字；讀取是明確呼叫，沒有背景監聽。
@@ -24,8 +46,8 @@ const { text } = await callFlutter(BridgeHandler.ClipboardRead) // 沒有文字�
 ### 剪貼簿圖片
 
 ```ts
-await callFlutter(BridgeHandler.ClipboardWriteImage, { data: pngBytes, mimeType: 'image/png' }) // PNG 或 JPEG，≤ 5 MiB
-const { image } = await callFlutter(BridgeHandler.ClipboardReadImage) // { mimeType: 'image/png', data } 或 null
+await callPlugin('clipboard', 'writeImage', { data: pngBytes, mimeType: 'image/png' }) // PNG 或 JPEG，≤ 5 MiB
+const { image } = await callPlugin('clipboard', 'readImage') // { mimeType: 'image/png', data } 或 null
 ```
 
 - 讀出來的圖片一律是 PNG；其他格式（JPEG、BMP…）由殼轉成 PNG。圖片超過 5,242,880 位元組時回錯誤 `too_large`，不截斷。
@@ -35,7 +57,7 @@ const { image } = await callFlutter(BridgeHandler.ClipboardReadImage) // { mimeT
 ## 分享
 
 ```ts
-const { status } = await callFlutter(BridgeHandler.ShareOpen, { text: '看看這個', url: 'https://example.com' })
+const { status } = await callPlugin('share', 'open', { text: '看看這個', url: 'https://example.com' })
 // status: 'shared' | 'dismissed' | 'unavailable'
 ```
 
@@ -45,7 +67,7 @@ const { status } = await callFlutter(BridgeHandler.ShareOpen, { text: '看看這
 
 ```ts
 const logo = new Uint8Array(await (await fetch('/assets/logo.png')).arrayBuffer())
-await callFlutter(BridgeHandler.ShareOpen, {
+await callPlugin('share', 'open', {
   text: 'Aqutter',
   files: [{ name: 'logo.png', mimeType: 'image/png', data: logo }],
 })
@@ -57,27 +79,27 @@ await callFlutter(BridgeHandler.ShareOpen, {
 
 ## 本機通知
 
-通知**不會自動要權限**。先用既有的權限 handler 取得 `notifications`，沒授權時 `notify_show`／`notify_schedule` 會回錯誤 `permission_denied`：
+通知**不會自動要權限**。先用既有的權限 handler 取得 `notifications`，沒授權時 `notification.show`／`notification.schedule` 會回錯誤 `permission_denied`：
 
 ```ts
 const status = await callFlutter(BridgeHandler.PermRequest, { permission: 'notifications' })
 if (status.status === 'granted') {
-  await callFlutter(BridgeHandler.NotifyShow, { title: '訂單已出貨', body: '點擊查看', payload: 'order/42' })
+  await callPlugin('notification', 'show', { title: '訂單已出貨', body: '點擊查看', payload: 'order/42' })
 }
 ```
 
-| handler | 請求 | 回應 |
+| 方法 | 請求 | 回應 |
 | :--- | :--- | :--- |
-| `notify_show` | `{ id?, title, body?, payload? }` | `{ id }` |
-| `notify_schedule` | 同上，另加必填 `atMs`（epoch 毫秒，須晚於現在） | `{ id }` |
-| `notify_cancel` | `{ id? }`（省略＝取消全部） | `{ ok: true }` |
-| `notify_initial` | 無 | `{ id, payload }`（點通知而冷啟時有值，否則兩者皆 `null`） |
+| `notification.show` | `{ id?, title, body?, payload? }` | `{ id }` |
+| `notification.schedule` | 同上，另加必填 `atMs`（epoch 毫秒，須晚於現在） | `{ id }` |
+| `notification.cancel` | `{ id? }`（省略＝取消全部） | `{ ok: true }` |
+| `notification.initial` | 無 | `{ id, payload }`（點通知而冷啟時有值，否則兩者皆 `null`） |
 
 - `id` 省略時由殼從 1 遞增配發；同一個 `id` 再次顯示或排程會取代原通知。殼重啟後配發從 1 重來，要跨重啟穩定請自己給 `id`。
 - 限制：`title` 1–200 字、`body` ≤ 2,000 字、`payload` ≤ 1,000 字；超過回 `invalid_argument`，不截斷。
 - **排程是非精確的**：Android 以不需要精確鬧鐘權限的方式排程，系統可能延後數分鐘。
 - 樣式：只有標題、內文與 `payload`；Android 使用單一頻道 `aqutter_default`（名稱「通知」），圖示用 App 的啟動圖示。
-- 點通知：App 在執行中時收到事件 `notify_tapped`（`{ id, payload }`）；App 被關掉、點通知而啟動時，網頁就緒後呼叫 `notify_initial` 取得。`payload` 殼原樣帶回，不解讀。
+- 點通知：App 在執行中時收到事件 `notification.tapped`（`{ id, payload }`）；App 被關掉、點通知而啟動時，網頁就緒後呼叫 `notification.initial` 取得。`payload` 殼原樣帶回，不解讀。
 
 ### 原生設定
 
@@ -92,11 +114,11 @@ if (status.status === 'granted') {
 啟動 App 的連結與執行中收到的連結分開處理：
 
 ```ts
-const { url } = await callFlutter(BridgeHandler.DeeplinkInitial) // 啟動 App 的連結，沒有則 null；重複呼叫回傳相同值
-onFlutterEvent(BridgeEvent.DeepLink, ({ url }) => { /* App 執行中收到的新連結 */ })
+const { url } = await callPlugin('deeplink', 'initial') // 啟動 App 的連結，沒有則 null；重複呼叫回傳相同值
+onPluginEvent('deeplink', 'received', ({ url }) => { /* App 執行中收到的新連結 */ })
 ```
 
-啟動 App 的那一個連結**只由 `deeplink_initial` 取得，不會再以事件送一次**：事件在網頁尚未連線時會被丟棄，冷啟必須有可重複讀取的來源。**殼不檢查連結內容，網頁收到後要自行驗證（scheme、網域、路徑）再導航。**
+啟動 App 的那一個連結**只由 `deeplink.initial` 取得，不會再以事件送一次**：事件在網頁尚未連線時會被丟棄，冷啟必須有可重複讀取的來源。**殼不檢查連結內容，網頁收到後要自行驗證（scheme、網域、路徑）再導航。**
 
 ### 各 App 要做的原生設定
 
@@ -156,9 +178,9 @@ const handle = (raw: string) => {
   navigateTo(link.pathname) // 依 host／path／參數決定要去哪
 }
 
-const { url } = await callFlutter(BridgeHandler.DeeplinkInitial) // 冷啟動的連結
+const { url } = await callPlugin('deeplink', 'initial') // 冷啟動的連結
 if (url) handle(url)
-onFlutterEvent(BridgeEvent.DeepLink, ({ url }) => handle(url)) // 執行中收到的連結
+onPluginEvent('deeplink', 'received', ({ url }) => handle(url)) // 執行中收到的連結
 ```
 
 ### 用 adb 測試（Android）
@@ -172,6 +194,6 @@ adb shell am start -a android.intent.action.VIEW -d "myapp://open/1" <套件名�
 | 錯誤碼 | 觸發條件 | 處置 |
 | :--- | :--- | :--- |
 | `invalid_argument` | 欄位缺漏、型別錯、超過上限、`atMs` 已過、圖片格式與 `mimeType` 不符 | 修正參數，不要重試 |
-| `too_large` | 剪貼簿裡的圖片超過 5 MiB（`clipboard_read_image`） | 改用較小的圖片，不要重試 |
+| `too_large` | 剪貼簿裡的圖片超過 5 MiB（`clipboard.readImage`） | 改用較小的圖片，不要重試 |
 | `permission_denied` | 通知權限未授權 | 先用權限 handler 要求 `notifications`；永久拒絕時引導到系統設定 |
-| `UNSUPPORTED_PLATFORM` | 本平台不支援（通知、深層連結在 Windows、Linux；圖片剪貼簿在 Linux） | 用 `isBridgeSupported` 先判斷 |
+| `UNSUPPORTED_PLATFORM` | 本平台不支援（通知、深層連結在 Windows、Linux；圖片剪貼簿在 Linux） | 用 `isPluginSupported` 先判斷 |

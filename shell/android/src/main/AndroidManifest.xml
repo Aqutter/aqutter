@@ -9,7 +9,7 @@
           檔案白名單只有 cache/aqutter_clipboard/。
         -->
         <provider
-            android:name="com.github.aqutter.shell.AqutterClipboardProvider"
+            android:name="com.github.aqutter.shell.clipboard.AqutterClipboardProvider"
             android:authorities="${applicationId}.aqutter.clipboard"
             android:exported="false"
             android:grantUriPermissions="true">
@@ -20,12 +20,12 @@
 
         <!-- 本機通知：排程時間到了顯示通知 -->
         <receiver
-            android:name="com.github.aqutter.shell.AqutterNotificationReceiver"
+            android:name="com.github.aqutter.shell.notification.AqutterNotificationReceiver"
             android:exported="false" />
 
         <!-- 重新開機、App 更新後重新排程 -->
         <receiver
-            android:name="com.github.aqutter.shell.AqutterBootReceiver"
+            android:name="com.github.aqutter.shell.notification.AqutterBootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

@@ -102,4 +102,4 @@ class MainActivity : FlutterActivity() {
 
 ## 7. 本機通知與深層連結
 
-殼內建本機通知與深層連結。通知不需要改原生專案（接收器與開機重新排程由殼自己宣告）；深層連結要在 `AndroidManifest.xml` 宣告 scheme 或網域。設定與範例見[內建原生功能](native-features.md)。
+殼內建本機通知與深層連結（內建 plugin `notification`、`deeplink`）。殼自己的 Android 原生程式一律是 Kotlin（`com.github.aqutter.shell`，依功能分成 `clipboard`、`notification` 子套件）。通知不需要改原生專案（接收器與開機重新排程由殼自己宣告）；深層連結要在 `AndroidManifest.xml` 宣告 scheme 或網域。設定與範例見[內建原生功能](native-features.md)。

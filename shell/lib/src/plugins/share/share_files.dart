@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:share_plus/share_plus.dart';
 
-import 'native_features.dart';
+import '../_shared/native_features.dart';
 
 /// 交給系統分享面板；測試時以假的取代。
 typedef ShareFunction = Future<ShareResult> Function(ShareParams params);

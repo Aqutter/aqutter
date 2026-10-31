@@ -1,4 +1,4 @@
-import 'package:aqutter/src/bridge/notification_service.dart';
+import 'package:aqutter/src/plugins/notification/notification_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
