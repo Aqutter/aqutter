@@ -32,7 +32,7 @@
 - [x] [aqutter] 驗證：`flutter build apk --debug`、`flutter build macos`、`flutter build ios --no-codesign`
 
 ## Phase 5 — 文件與整體驗證
-- [ ] [aqutter] 同步 `docs/native-features.md`（`callPlugin` 範例與新舊名稱對照表）、`docs/plugins.md`、`docs/android.md`、`shell/README.md`、`.kn-project/project.md`、`AGENTS.md` 紅線 2
+- [x] [aqutter] 同步 `docs/native-features.md`（`callPlugin` 範例與新舊名稱對照表）、`docs/plugins.md`、`docs/android.md`、`shell/README.md`、`.kn-project/project.md`、`AGENTS.md` 紅線 2
 - [ ] [aqutter] `cd shell && flutter analyze && flutter test`
 - [ ] [aqutter] 需等待 [aqutter-js]：型別與契約 rev 1 完成並 commit → 更新 `manifest/releases.json`（合併後，見 Manual Follow-ups）
 - [ ] [aqutter] 需等待 [aqutter-nuxt-app]：跟版完成 → 在範例 App 上跑 Native features 頁：剪貼簿文字與圖片、分享、通知（即時與排程）、深層連結

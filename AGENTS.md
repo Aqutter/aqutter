@@ -5,7 +5,7 @@
 ## 紅線
 
 1. **名稱定案**：npm 套件 `@aqutter/aqutter`（client）、`@aqutter/aqutter-cli`（CLI，指令 `aqutter`）；Dart 套件 `aqutter`（shell）；環境變數前綴 `AQUTTER_`；JS 全域 `window.aqutter`；channel 前綴 `com.github.aqutter/`。改名須同步 Dart、TS、範本、文件。
-2. **跨語言名稱成對**：handler / 事件名稱存在於 `shell/lib/src/bridge/bridge_names.dart` 與 `Aqutter/aqutter-js` 的 `src/contract/bridge.ts`，plugin 命名規則存在於 `shell/lib/src/plugin/aqutter_plugin.dart` 與 `Aqutter/aqutter-js` 的 `src/index.ts`；兩者分屬兩個 repo，只改一邊就是錯，改完要同步更新 manifest 的 `client.spec`。
+2. **跨語言名稱成對**：handler / 事件名稱存在於 `shell/lib/src/bridge/bridge_names.dart` 與 `Aqutter/aqutter-js` 的 `src/contract/bridge.ts`；殼內建的四個 plugin（`clipboard`、`share`、`notification`、`deeplink`）的方法與事件存在於 `shell/lib/src/plugins/<功能>/` 與 `Aqutter/aqutter-js` 的 `src/contract/builtinPlugins.ts`（契約說明在 `docs/native-features.md`）；plugin 命名規則存在於 `shell/lib/src/plugin/aqutter_plugin.dart` 與 `Aqutter/aqutter-js` 的 `src/index.ts`；兩者分屬兩個 repo，只改一邊就是錯，改完要同步更新 manifest 的 `client.spec`。
 2.1. **鏡像協定兩端成對**：`aqutter_core` 的 `native_frame.dart`（幀標頭、訊息欄位）與 `Aqutter/aqutter-js` 的 `src/nativeview/{frame,gestures}.ts`（另一個 repo）。
 3. **env 鍵三處成對（跨 repo）**：Dart `fromEnvironment` 鍵（本 repo）、`aqutter-cli` 的 `template/env/.env.example`、`docs/environment.md`，另有 `docs/env.example` 是 aqutter-cli 範本的快照（wiki 環境變數頁的生成來源），改範本後要手動同步。改任一處要同步另一個 repo；目前沒有自動檢查，只靠這條規則。
 4. **CLI 在獨立 repo**：`Aqutter/aqutter-cli`（含範本與 `dist/`）。本 repo 不放 CLI 程式碼；框架版本相容性以 `manifest/releases.json` 為準（見 `docs/releases.md`），shell 或 aqutter_core 有變更要同步更新清單。

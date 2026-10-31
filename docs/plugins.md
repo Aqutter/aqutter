@@ -32,6 +32,8 @@ aqutter plugin create haptics
 
 兩端各自用同一條規則組名：Dart `aqutterPluginHandlerName` / `aqutterPluginEventChannel`，TS `pluginHandlerName` / `pluginEventChannel`。
 
+殼自己的剪貼簿、分享、本機通知、深層連結也是 plugin（內建，不必傳入 `plugins:`），所以 `clipboard`、`share`、`notification`、`deeplink` 是保留的 id：自己的 plugin 取這些名字會在組裝時丟 `ArgumentError`（重複的 plugin id）。它們的用法見[內建原生功能](native-features.md)。
+
 ## Dart 端
 
 ```dart
@@ -118,6 +120,24 @@ else {
   // 替代方案，例如純網頁的實作
 }
 ```
+
+#### 逐方法宣告平台
+
+同一個 plugin 的各方法平台不同時（例如內建的 `clipboard`：文字全平台可用，圖片只有部分平台），覆寫 `supportedPlatformsFor(method)`；沒有覆寫的方法沿用 `supportedPlatforms`：
+
+```dart
+class ClipboardLikePlugin extends AqutterPlugin {
+  @override
+  String get id => 'clip';
+
+  @override
+  Set<TargetPlatform>? supportedPlatformsFor(String method) {
+    return method == 'readImage' ? {TargetPlatform.android, TargetPlatform.iOS} : super.supportedPlatformsFor(method);
+  }
+}
+```
+
+不支援的方法行為和上表相同（仍註冊、不列入 `capabilities`、呼叫回 `UNSUPPORTED_PLATFORM`），只影響那一個方法。`attach` 在 plugin 層或任一方法支援目前平台時呼叫。
 
 `aqutterError` 是殼的保留欄位，plugin 自己的回傳不得使用這個名稱。
 
