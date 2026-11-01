@@ -1,13 +1,21 @@
 import 'dart:async';
 
 import 'package:aqutter/aqutter.dart';
+import 'package:aqutter/src/bridge/bridge_emitter.dart';
+import 'package:aqutter/src/bridge/bridge_registry.dart';
 import 'package:aqutter/src/plugins/builtin_plugins.dart';
 import 'package:aqutter/src/plugins/deeplink/deep_link_service.dart';
 import 'package:aqutter/src/plugins/deeplink/deeplink_plugin.dart';
 import 'package:aqutter/src/plugins/notification/notification_plugin.dart';
 import 'package:aqutter/src/plugins/notification/notification_service.dart';
+import 'package:aqutter/src/server/bundle_manager.dart';
+import 'package:aqutter/src/server/host_updater.dart';
+import 'package:aqutter/src/server/update_config.dart';
+import 'package:aqutter/src/server/update_config_store.dart';
+import 'package:aqutter/src/server/update_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 內建 plugin 的契約 rev 1：方法名稱與支援平台（plan 2610310119 的 Contract §1）。
 const _everywhere = {
@@ -78,6 +86,66 @@ void main() {
     });
   });
 
+  group('plugin id checks at assembly time', () {
+    late SharedPreferences preferences;
+
+    setUp(() async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
+      preferences = await SharedPreferences.getInstance();
+    });
+
+    /// 檢查在 `register()` 才執行，不是建構時。
+    void assemble(List<AqutterPlugin> plugins) {
+      final store = UpdateConfigStore(defaults: const BundleUpdateConfig(baseUrl: 'https://example.com/app'));
+      BridgeRegistry(
+        emitter: BridgeEmitter(),
+        preferences: preferences,
+        bundle: BundleManager(),
+        session: UpdateSession(
+          bundle: BundleManager(),
+          hostUpdater: HostUpdater(configStore: store),
+          configStore: store,
+          devMode: true,
+          onState: (_) {},
+          onApplyBundle: () async {},
+          onHostTooOld: (_) {},
+          onCheckFailed: (_) {},
+        ),
+        onWebReady: () {},
+        plugins: plugins,
+        notifications: NotificationService(notifier: _FakeNotifier()),
+        deepLinks: DeepLinkService(source: _FakeSource(null)),
+      ).register();
+    }
+
+    Matcher rejects(String message) => throwsA(
+      isA<ArgumentError>().having((error) => error.message, 'message', contains(message)),
+    );
+
+    test('a user plugin cannot take a built-in plugin id', () {
+      for (final id in builtinPluginIds) {
+        expect(() => assemble([_IdOnlyPlugin(id)]), rejects('Duplicate plugin id'), reason: id);
+      }
+    });
+
+    test('the id reserved for the host is rejected', () {
+      expect(() => assemble([_IdOnlyPlugin(aqutterReservedPluginId)]), rejects('Reserved for the host'));
+    });
+
+    test('an id that does not match the pattern is rejected', () {
+      expect(() => assemble([_IdOnlyPlugin('Bad_Id')]), rejects('Must match'));
+    });
+
+    test('two user plugins with the same id are rejected', () {
+      expect(() => assemble([_IdOnlyPlugin('haptics'), _IdOnlyPlugin('haptics')]), rejects('Duplicate plugin id'));
+    });
+
+    test('a distinct valid id is accepted', () {
+      assemble([_IdOnlyPlugin('haptics')]);
+    });
+  });
+
   group('notification plugin', () {
     test('attach starts the service once and forwards taps as the tapped event', () async {
       final notifier = _FakeNotifier()..launch = const NotificationLaunch(id: 7, payload: 'p');
@@ -134,6 +202,16 @@ void main() {
       DeeplinkPlugin().dispose();
     });
   });
+}
+
+class _IdOnlyPlugin extends AqutterPlugin {
+  _IdOnlyPlugin(this.id);
+
+  @override
+  final String id;
+
+  @override
+  Map<String, AqutterPluginHandler> get handlers => const {};
 }
 
 class _FakeContext implements AqutterPluginContext {
