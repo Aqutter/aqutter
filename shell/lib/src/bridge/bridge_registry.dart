@@ -7,7 +7,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:aqutter_core/aqutter_core.dart';
 import 'package:path/path.dart' as p;
@@ -38,6 +38,15 @@ import 'system_ui.dart';
 import 'tcp_service.dart';
 
 /// 統一在 AqutterWebViewController 上註冊所有 bridge handler，並串接各服務。
+/// 殼是否在開發階段：連 dev server，或是 debug 建置。回報給網頁（`platform_info.dev`），
+/// 網頁只在開發階段為「用不了的 plugin 呼叫」印警告，正式版完全安靜。
+bool bridgeDevMode({required bool sessionDevMode, required bool debugBuild}) => sessionDevMode || debugBuild;
+
+/// debug 建置時，plugin 方法在本平台不支援而被呼叫的日誌訊息。
+String unsupportedPluginCallMessage(String handlerName, String platform) {
+  return '[aqutter] plugin call skipped: $handlerName is not supported on $platform';
+}
+
 class BridgeRegistry {
   BridgeRegistry({
     required this.emitter,
@@ -53,6 +62,7 @@ class BridgeRegistry {
     DeepLinkService? deepLinks,
     DeepLinkOptions deepLinkOptions = const DeepLinkOptions(),
     ClipboardImageService? clipboardImages,
+    this.debugBuild = kDebugMode,
     Dio? dio,
   }) : _dio = dio ?? Dio(BaseOptions(
          connectTimeout: _connectTimeout,
@@ -73,6 +83,9 @@ class BridgeRegistry {
 
   final BridgeEmitter emitter;
   final SharedPreferences preferences;
+
+  /// 是否為 debug 建置；預設是 Flutter 的 `kDebugMode`，測試可注入。與連 dev server 一起決定 `platform_info.dev`。
+  final bool debugBuild;
 
   /// 供網頁端查詢網頁包版本；更新流程走 [session]。
   final BundleManager bundle;
@@ -205,10 +218,16 @@ class BridgeRegistry {
           _handle(
             name,
             supported: false,
-            (_) async => throw AqutterRpcException(
-              aqutterUnsupportedPlatform,
-              '$name is not supported on ${_currentPlatform()}',
-            ),
+            (_) async {
+              // 傳輸語意不變（仍回 UNSUPPORTED_PLATFORM）；網頁端把它轉成 undefined，debug 建置才在這裡留一行日誌
+              if (debugBuild) {
+                debugPrint(unsupportedPluginCallMessage(name, _currentPlatform()));
+              }
+              throw AqutterRpcException(
+                aqutterUnsupportedPlatform,
+                '$name is not supported on ${_currentPlatform()}',
+              );
+            },
           );
         }
       }
@@ -339,6 +358,7 @@ class BridgeRegistry {
       'osVersion': Platform.operatingSystemVersion,
       'arch': await _arch(),
       'capabilities': _capabilities.toList()..sort(),
+      'dev': bridgeDevMode(sessionDevMode: session.devMode, debugBuild: debugBuild),
     };
   }
 

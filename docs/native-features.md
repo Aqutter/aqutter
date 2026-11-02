@@ -2,7 +2,7 @@
 
 這四個能力是殼內建的 plugin（`clipboard`、`share`、`notification`、`deeplink`），不需要另外安裝，也不需要在 `runAqutter(plugins: …)` 傳入；寫法和一般 plugin 完全一樣：網頁用 `callPlugin(id, method, payload)` 呼叫、用 `onPluginEvent(id, event, listener)` 接事件，handler 名稱是 `<id>.<method>`、事件頻道是 `<id>.<event>`。代價是每個 App 都會帶這些原生依賴。
 
-網頁端先用 `isPluginSupported(id, method)` 判斷本平台能不能用；不支援的平台上，該方法不在能力表內，呼叫會回 `UNSUPPORTED_PLATFORM`。
+網頁端先用 `isPluginSupported(id, method)` 判斷本平台能不能用；不支援的平台上，該方法不在能力表內，`callPlugin` 回 `undefined` 而不是拋錯（開發階段 console 警告一次，正式版安靜），所以呼叫端要處理 `undefined`。
 
 | plugin | 方法 | 事件 | 平台 |
 | :--- | :--- | :--- | :--- |
@@ -221,4 +221,4 @@ adb shell am start -a android.intent.action.VIEW -d "myapp://open/1" <套件名�
 | `invalid_argument` | 欄位缺漏、型別錯、超過上限、`atMs` 已過、圖片格式與 `mimeType` 不符 | 修正參數，不要重試 |
 | `too_large` | 剪貼簿裡的圖片超過 5 MiB（`clipboard.readImage`） | 改用較小的圖片，不要重試 |
 | `permission_denied` | 通知權限未授權 | 先用權限 handler 要求 `notifications`；永久拒絕時引導到系統設定 |
-| `UNSUPPORTED_PLATFORM` | 本平台不支援（通知、深層連結在 Windows、Linux；圖片剪貼簿在 Linux） | 用 `isPluginSupported` 先判斷 |
+| `UNSUPPORTED_PLATFORM` | 本平台不支援（通知、深層連結在 Windows、Linux；圖片剪貼簿在 Linux）；**網頁端的 `callPlugin` 不會拋出它**，轉成回傳 `undefined` | 用 `isPluginSupported` 先判斷，或處理 `undefined` |

@@ -106,7 +106,7 @@ class MapsPlugin extends AqutterPlugin {
 | 項目 | 行為 |
 |---|---|
 | handler | 仍註冊（呼叫不會是 handler not found），但**不列入** `capabilities`，所以 `isPluginSupported(id, method)` 回 `false` |
-| 被呼叫時 | 殼**不執行**你的 handler，回傳 `{ aqutterError: { code: 'UNSUPPORTED_PLATFORM', message } }`；網頁端 `callPlugin` 把它轉成拋出的 `AqutterPluginError`（`error.code === 'UNSUPPORTED_PLATFORM'`），不會卡住 |
+| 被呼叫時 | 殼**不執行**你的 handler，回傳 `{ aqutterError: { code: 'UNSUPPORTED_PLATFORM', message } }`；網頁端 `callPlugin` 把它轉成回傳 `undefined`（**不拋錯**，正式版才不會因為缺少某個平台的實作而壞掉；開發階段在 console 警告一次），不會卡住。回傳型別因此是 `Res \| undefined`，呼叫端必須處理 |
 | `attach`、`buildUnderlay`、`buildOverlay` | 殼不呼叫 |
 | `dispose` | 仍會呼叫，必須可安全呼叫 |
 
@@ -137,7 +137,7 @@ class ClipboardLikePlugin extends AqutterPlugin {
 }
 ```
 
-不支援的方法行為和上表相同（仍註冊、不列入 `capabilities`、呼叫回 `UNSUPPORTED_PLATFORM`），只影響那一個方法。`attach` 在 plugin 層或任一方法支援目前平台時呼叫。
+不支援的方法行為和上表相同（仍註冊、不列入 `capabilities`、呼叫端收到 `undefined`），只影響那一個方法。`attach` 在 plugin 層或任一方法支援目前平台時呼叫。
 
 `aqutterError` 是殼的保留欄位，plugin 自己的回傳不得使用這個名稱。
 
@@ -335,3 +335,18 @@ const level = await withTimeout(battery.level()).catch(() => null)
 ```
 
 範本專案的 `/plugins` 頁就是因為先 `await` battery 再建立鏡像元素，在 Linux 上鏡像整塊空白（見 [Linux](linux.md)）。
+
+## 用不了的 plugin 呼叫
+
+網頁端 `callPlugin` 在 plugin「用不了」時**回 `undefined`、不拋錯**，正式版就不會因為缺少某個平台的實作而壞掉：
+
+| 情況 | 結果 |
+|---|---|
+| 這個平台沒有實作（殼回 `UNSUPPORTED_PLATFORM`） | `undefined` |
+| 這個 App 的殼沒有裝該 plugin（殼回 `HANDLER_NOT_FOUND`，例如網頁包已經 OTA 更新、殼還是舊版） | `undefined` |
+| 不在 Flutter 內（純瀏覽器開發） | `undefined` |
+| plugin 自己的錯誤碼、`HANDLER_FAILED`、傳輸錯誤 | 照舊拋出 `AqutterPluginError` |
+
+- **開發階段警告**：殼在 `platform_info` 回報 `dev`（連 dev server 或 debug 建置為 true），網頁端 `setBridgeCapabilities(names, { dev })` 收下後，對每個（呼叫、原因）在 console 警告一次；正式版完全安靜。debug 建置的殼也會在日誌留一行。
+- **型別**：`callPlugin` 的回傳是 `Res | undefined`，呼叫端要用 `?.` 或先判斷；plugin 的網頁 API 應在 `undefined` 時回安全的預設值（例如列表回 `[]`、讀取回 `null`），不要讓使用者碰到 `TypeError`。
+- 想事先知道可不可用，仍然用 `isPluginSupported(id, method)`。
