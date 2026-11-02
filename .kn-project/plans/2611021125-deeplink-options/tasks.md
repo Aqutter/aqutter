@@ -7,7 +7,7 @@
 
 ## Phase 2 — 驗證
 - [x] 單元測試、`flutter analyze`、全套測試
-- [ ] Android 實機：未做（範例 App 尚未設定 deepLink 選項，需另行接上並重建）
+- [x] Android 實機：範例 App 暫時接上選項驗證後已還原
 
 ## Phase 3 — 文件與收尾
 - [x] docs、wiki、wiki-lint/build
