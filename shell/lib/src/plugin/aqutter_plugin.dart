@@ -1,6 +1,11 @@
 import 'package:aqutter_core/aqutter_core.dart';
 import 'package:flutter/widgets.dart';
 
+/// 可以放進 plugin 清單的東西：現成的 [AqutterPlugin]，或建立它的 `AqutterPluginBuilder`。
+///
+/// `runAqutter(plugins: …)` 收這個型別，所以原本傳 `List<AqutterPlugin>` 的寫法不用改。
+abstract interface class AqutterPluginEntry {}
+
 /// plugin 暴露給網頁的方法：吃單一 JSON 物件，回傳可 JSON 序列化的結果。
 typedef AqutterPluginHandler = Future<dynamic> Function(Map<String, dynamic> payload);
 
@@ -97,7 +102,7 @@ abstract class AqutterPluginContext {
 ///   - 以 [attach] 取得 [AqutterPluginContext]，主動對網頁派送事件
 ///   - 以 [buildOverlay] 在 WebView 之上、以 [buildUnderlay] 在 WebView 之下掛原生 Flutter UI
 ///   - 自由相依其他 Flutter plugin（例如 battery_plus），其原生部分由 Flutter 工具鏈照常整合
-abstract class AqutterPlugin {
+abstract class AqutterPlugin implements AqutterPluginEntry {
   /// plugin 識別字，須符合 [aqutterPluginIdPattern]，並與網頁端套件使用的 id 一致。
   String get id;
 

@@ -7,6 +7,7 @@
 - [日誌檔](platform/log-file.md)
 - [原生功能](platform/native-features.md)
 - [權限入口](platform/permissions.md)
+- [plugin 註冊](platform/plugin-registration.md)
 - [更新簽章](platform/update-signature.md)
 
 ## 維運

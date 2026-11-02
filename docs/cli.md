@@ -84,9 +84,9 @@
 | 指令 | 說明 |
 |---|---|
 | `plugin create <id> [--npm-name=<名>] [--dir=<目錄>] [--shell-ref=<tag>] [--shell-path=<殼目錄>]` | 由範本建立 plugin 專案 |
-| `plugin add <來源>` | 以套件管理器安裝（套件名、`github:owner/repo`、`file:路徑`），登記並同步 pubspec 與註冊清單；`--no-install` 只登記 |
-| `plugin remove <id>` | 移除 |
-| `plugin sync` | 依 `aqutter.config.json` 重寫 pubspec 與 `lib/aqutter_plugins.dart` |
+| `plugin add <來源>` | 以套件管理器安裝（套件名、`github:owner/repo`、`file:路徑`），登記並同步 pubspec 與註冊清單，並建立該 plugin 的使用者檔案 `lib/plugins/<id>_plugin.dart`（已存在就不動）；`--no-install` 只登記 |
+| `plugin remove <id> [--purge]` | 移除；預設保留 `lib/plugins/<id>_plugin.dart` 並印出路徑，加 `--purge` 才一併刪除 |
+| `plugin sync` | 依 `aqutter.config.json` 重寫 pubspec 與 `lib/aqutter_plugins.dart`，並補建缺少的 `lib/plugins/*.dart`；不覆蓋任何既有的使用者檔案 |
 | `plugin list` | 列出已安裝 plugin |
 
 見 [Plugin 開發](plugins.md)。

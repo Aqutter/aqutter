@@ -13,6 +13,7 @@ export 'src/plugin/aqutter_plugin.dart'
     show
         AqutterPlugin,
         AqutterPluginContext,
+        AqutterPluginEntry,
         AqutterPluginHandler,
         aqutterErrorKey,
         aqutterErrorOf,
@@ -25,6 +26,8 @@ export 'src/plugin/aqutter_plugin.dart'
         aqutterPluginSupportsMethod,
         aqutterReservedPluginId,
         aqutterUnsupportedPlatform;
+export 'src/plugin/plugin_entry.dart'
+    show AqutterBootContext, AqutterPluginBuilder, AqutterPluginFactory, AqutterPluginInitException;
 export 'package:aqutter_core/aqutter_core.dart'
     show
         AqutterNative,

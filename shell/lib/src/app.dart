@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'aqutter_config.dart';
 import 'plugin/aqutter_plugin.dart';
+import 'plugin/plugin_entry.dart';
 import 'bridge/bridge_emitter.dart';
 import 'bridge/bridge_names.dart';
 import 'bridge/bridge_registry.dart';
@@ -51,7 +52,7 @@ const String _envWebViewDebug = String.fromEnvironment('AQUTTER_WEBVIEW_DEBUG');
 /// 啟動 Aqutter 殼。App 的 `main()` 只需呼叫本函式。
 Future<void> runAqutter({
   AqutterConfig config = const AqutterConfig(),
-  List<AqutterPlugin> plugins = const [],
+  List<AqutterPluginEntry> plugins = const [],
   List<AqutterErrorReporter> errorReporters = const [],
   bool crashSpool = true,
 }) async {
@@ -122,7 +123,7 @@ class AqutterApp extends StatelessWidget {
   });
 
   final AqutterConfig config;
-  final List<AqutterPlugin> plugins;
+  final List<AqutterPluginEntry> plugins;
 
   /// 錯誤集散點（由 [runAqutter] 建立）；為 null 時不處理錯誤紀錄。
   final ErrorCenter? errorCenter;
@@ -151,7 +152,7 @@ class AqutterPage extends StatefulWidget {
   });
 
   final AqutterConfig config;
-  final List<AqutterPlugin> plugins;
+  final List<AqutterPluginEntry> plugins;
   final ErrorCenter? errorCenter;
 
   @override
@@ -190,6 +191,9 @@ class _AqutterPageState extends State<AqutterPage> {
   /// 而非直接崩潰。另一個讀取點 [_session] 由 WebView 內的 bridge 觸發，
   /// 而 WebView 只在 [_bootstrap] 走完後才掛載，屆時本欄位必然已賦值。
   late final UpdateConfigStore _configStore;
+
+  /// 解析後的 plugin；[_bootstrap] 完成解析前為空，畫面上的 plugin（underlay、overlay）在那之後才掛上。
+  List<AqutterPlugin> _plugins = const [];
 
   Uri? _baseUrl;
   String? _error;
@@ -325,6 +329,12 @@ class _AqutterPageState extends State<AqutterPage> {
   Future<void> _bootstrap() async {
     try {
       final preferences = await SharedPreferences.getInstance();
+      // 工廠在這裡解析而不是 runApp 之前：失敗才有既有的錯誤畫面可以顯示是哪個 plugin
+      final plugins = await resolvePluginEntries(widget.plugins, AqutterBootContext(preferences: Future.value(preferences)));
+      if (!mounted) {
+        return;
+      }
+      setState(() => _plugins = plugins);
       _bundleManager = BundleManager(signatureVerifier: BundleSignatureVerifier.fromEnvironment());
       _configStore = UpdateConfigStore(
         defaults: BundleUpdateConfig.fromEnvironment(),
@@ -346,7 +356,7 @@ class _AqutterPageState extends State<AqutterPage> {
         bundle: _bundleManager,
         session: _session,
         onWebReady: _onWebReady,
-        plugins: widget.plugins,
+        plugins: plugins,
         errorCenter: widget.errorCenter,
         logRetention: widget.config.logRetention,
       );
@@ -846,12 +856,12 @@ class _AqutterPageState extends State<AqutterPage> {
         fit: StackFit.expand,
         children: [
           // plugin 的墊底內容：被網頁蓋住但仍在 Flutter 裡渲染（供鏡像擷取）
-          for (final plugin in widget.plugins)
+          for (final plugin in _plugins)
             if (aqutterPluginSupports(plugin, defaultTargetPlatform)) ?plugin.buildUnderlay(context),
           if (baseUrl != null) _buildWebView(baseUrl),
           // plugin 的原生 UI：在 WebView 之上、啟動過場之下
           if (baseUrl != null)
-            for (final plugin in widget.plugins)
+            for (final plugin in _plugins)
               if (aqutterPluginSupports(plugin, defaultTargetPlatform)) ?plugin.buildOverlay(context),
           if (_overlayMounted)
             StartupOverlay(

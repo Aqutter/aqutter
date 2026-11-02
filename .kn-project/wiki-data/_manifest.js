@@ -14,6 +14,7 @@ window.WIKI_MANIFEST={
 "platform/log-file.md",
 "platform/native-features.md",
 "platform/permissions.md",
+"platform/plugin-registration.md",
 "platform/update-signature.md",
 ]
 };

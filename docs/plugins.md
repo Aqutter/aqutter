@@ -211,8 +211,59 @@ aqutter plugin add file:../aqutter-plugin-haptics   # 本機開發
 1. 以專案的套件管理器安裝 npm 套件（Dart 原始碼隨套件一起進 `node_modules`）
 2. 讀 `aqutter-plugin.json`，登記到 `aqutter.config.json` 的 `plugins`
 3. 在 `<appDir>/pubspec.yaml` 的受管區塊加 Dart 路徑依賴，並重寫 `<appDir>/lib/aqutter_plugins.dart`
+4. 為這個 plugin 建立使用者檔案 `<appDir>/lib/plugins/<id>_plugin.dart`（已存在就不動）
 
 之後在 `<appDir>` 執行 `flutter pub get` 即可。移除用 `aqutter plugin remove <id>`。
+
+### 檔案分工
+
+| 檔案 | 誰管 | 說明 |
+|---|---|---|
+| `lib/aqutter_plugins.dart` | CLI，每次重寫 | 總清單：`AqutterPluginBuilder('<id>', build<Class>)` 的列表，請勿手改 |
+| `lib/plugins/<id>_plugin.dart` | **你**，CLI 只在不存在時建立，永遠不覆蓋 | 這個 plugin 的建立函式，客製寫在這裡 |
+| `lib/main.dart` | 你 | `plugins: aqutterPlugins` 一行，不用因為增減 plugin 而改 |
+
+`id` 的連字號在檔名轉成底線（`google-maps` 變 `google_maps_plugin.dart`），函式名稱是 `build` 加上 plugin 的 Dart 類別名（`buildGoogleMapsPlugin`）。
+
+### 帶參數、非同步地建立 plugin
+
+預設的檔案長這樣，沒有選項的 plugin 不用動：
+
+```dart
+import 'dart:async';
+
+import 'package:aqutter/aqutter.dart';
+import 'package:aqutter_plugin_haptics/aqutter_plugin_haptics.dart';
+
+/// 要給 plugin 帶參數就改這裡；aqutter CLI 之後不會覆蓋這個檔案。
+FutureOr<AqutterPlugin> buildHapticsPlugin(AqutterBootContext context) => HapticsPlugin();
+```
+
+要客製就直接改這個函式，可以同步也可以非同步，需要的 `import` 也寫在這個檔案：
+
+```dart
+Future<AqutterPlugin> buildGoogleMapsPlugin(AqutterBootContext context) async {
+  final prefs = await context.preferences;
+  return GoogleMapsPlugin(
+    apiKey: const String.fromEnvironment('MAPS_API_KEY'),   // 編譯期的 env，直接讀
+    initialCamera: lastCamera(prefs),
+  );
+}
+```
+
+`AqutterBootContext` 提供啟動期間可安全取得的資源：
+
+| 成員 | 說明 |
+|---|---|
+| `preferences` | `Future<SharedPreferences>`，與殼自己用的是同一份 |
+| `supportDirectory` | `Future<Directory>`，App 的支援目錄 |
+| `platform` | `TargetPlatform` |
+
+規則：
+- **這不是 `BuildContext`**：建立 plugin 時畫面還不存在。要用樹內的資源（主題、`MediaQuery`），請在 plugin 的 `buildUnderlay`、`buildOverlay` 取得 `BuildContext`，或在 `attach` 取得 `AqutterPluginContext`。
+- **編譯期的 env（`--dart-define-from-file`）不經由 context**，用 `const String.fromEnvironment('KEY')`，鍵必須寫成字串常數。
+- 工廠依清單順序逐一執行，每個最長 30 秒。**任何一個丟例外或逾時，整個啟動失敗**，錯誤畫面顯示 `plugin '<id>' 初始化失敗：<原因>`；殼不會略過那個 plugin 繼續啟動。
+- 不使用 CLI 的人也可以自己寫：`runAqutter(plugins: [BatteryPlugin(), AqutterPluginBuilder('maps', buildMaps)])`，清單裡可以混用現成的 plugin 與工廠。
 
 ## 版本相容
 
