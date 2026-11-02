@@ -18,7 +18,7 @@
       },
       "core": {
         "url": "https://github.com/Aqutter/aqutter_core.git",
-        "ref": "5867d89ccda8df13454716b53dcf499cd8f64d80"
+        "ref": "8833f948c6e3a38cd2ad3cca4b849759d9a83104"
       },
       "client": {
         "spec": "github:Aqutter/aqutter-js#5cfb3fe82ba46a37117454ee132863faf4990663"
