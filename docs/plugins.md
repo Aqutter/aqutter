@@ -190,7 +190,7 @@ plugin 需要使用者在原生專案補權限或 `Info.plist` 說明文字時�
 使用者可以只選用部分功能：
 
 ```bash
-aqutter plugin add aqutter-plugin-save --features gallery   # 省略 --features＝全部功能
+aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/file-manager" --features sandbox   # 省略 --features＝全部功能
 ```
 
 選擇記在 `aqutter.config.json` 該 plugin 項目的 `features`。CLI 只檢查所選功能的需求：
@@ -203,9 +203,17 @@ aqutter plugin add aqutter-plugin-save --features gallery   # 省略 --features�
 
 殼只保留傳輸、plugin 載入、本機伺服器與網頁包更新這類核心；依賴較重、不是每個 App 都需要的功能做成各自獨立的官方 plugin，需要才安裝：
 
+官方 plugin 都在同一個 repo [aqutter-plugins](https://github.com/Aqutter/aqutter-plugins)（`packages/<資料夾>/`），可以只安裝其中一個；發佈到 npm 之後也能用套件名安裝。plugin id、npm 套件名與 Dart 套件名不因為放在同一個 repo 而改變。
+
 | plugin | 功能 | 安裝 |
 |---|---|---|
-| [aqutter-plugin-sqlite-drift](https://github.com/Aqutter/aqutter-plugin-sqlite-drift) | SQLite 資料庫：Dart 端以 drift 當 raw SQL 執行器，網頁端是 Kysely dialect `AqutterSqliteDialect`；BLOB 直接傳二進位 | `aqutter plugin add aqutter-plugin-sqlite-drift` |
+| [aqutter-plugin-battery](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/battery) | 電量與充電狀態 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/battery"` |
+| [aqutter-plugin-file-manager](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/file-manager) | 檔案管理：App 資料夾、使用者授權的資料夾、存到相簿與下載 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/file-manager"` |
+| [aqutter-plugin-google-maps](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/google-maps) | 地圖鏡像到網頁，可在地圖上疊 HTML | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/google-maps"` |
+| [aqutter-plugin-haptics](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/haptics) | 觸覺回饋 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/haptics"` |
+| [aqutter-plugin-mirror-demo](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/mirror-demo) | 原生 view 鏡像的示範 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/mirror-demo"` |
+| [aqutter-plugin-secure-storage](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/secure-storage) | 安全儲存（Keychain／Keystore），可要求生物辨識或裝置密碼才能讀出 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/secure-storage"` |
+| [aqutter-plugin-sqlite-drift](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/sqlite-drift) | SQLite 資料庫：Dart 端以 drift 當 raw SQL 執行器，網頁端是 Kysely dialect `AqutterSqliteDialect`；BLOB 直接傳二進位 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/sqlite-drift"` |
 
 拆出資料庫的實際效果（同一個暫存 App、同一台機器、各做一次完整的 Android release 建置，殼分別是拆前與拆後）：
 
