@@ -157,6 +157,48 @@ await context.openPermissionSettings();                    // 被永久拒絕後
 
 網頁 `getUserMedia` 等 WebView 授權由殼決定，不開放 plugin 各自回答：只放行殼自己供應的頁面，資源以 `AqutterConfig(webPermissions: {...})` 設定（預設相機與麥克風）。App 仍要在 `AndroidManifest.xml`／`Info.plist` 宣告對應權限。
 
+## 宣告原生設定
+
+plugin 需要使用者在原生專案補權限或 `Info.plist` 說明文字時，在 `aqutter-plugin.json` 用選填的 `native` 區塊宣告。沒有這個區塊的 plugin 行為完全不變。
+
+```json
+{
+  "schema": 1,
+  "id": "biometrics",
+  "dart": { "package": "aqutter_plugin_biometrics", "class": "BiometricsPlugin" },
+  "native": {
+    "features": {
+      "unlock": {
+        "android": { "permissions": [{ "name": "android.permission.USE_BIOMETRIC" }] },
+        "ios": { "infoPlist": { "NSFaceIDUsageDescription": "Use Face ID to unlock the app" } },
+        "note": "Android 的 MainActivity 必須繼承 FlutterFragmentActivity"
+      }
+    }
+  }
+}
+```
+
+| 欄位 | 說明 |
+|---|---|
+| `native.features` | 必填（有 `native` 時）：功能名（`^[a-z][a-z0-9-]*$`）對應各自的需求；一個 plugin 可有多個功能 |
+| `<feature>.android.permissions[]` | `{ name, maxSdkVersion? }`：要在 `AndroidManifest.xml` 有的 `uses-permission` |
+| `<feature>.ios.infoPlist`、`<feature>.macos.infoPlist` | 要在 `Info.plist` 有的鍵；值是**建議文字**，使用者可以改，只檢查鍵存在且非空 |
+| `<feature>.note` | 無法機器檢查的要求，只顯示給人看 |
+
+未知的子欄位會被忽略，日後擴充不必升 `schema`。
+
+使用者可以只選用部分功能：
+
+```bash
+aqutter plugin add aqutter-plugin-save --features gallery   # 省略 --features＝全部功能
+```
+
+選擇記在 `aqutter.config.json` 該 plugin 項目的 `features`。CLI 只檢查所選功能的需求：
+
+- `plugin add` 結束時印出還缺的設定與 `note`。
+- `aqutter doctor` 把仍然缺的列為**警告**（建置不受影響，執行時才會出問題）。
+- CLI **不會修改** `AndroidManifest.xml` 與 `Info.plist`；那是使用者的檔案。
+
 ## 官方 plugin
 
 殼只保留傳輸、plugin 載入、本機伺服器與網頁包更新這類核心；依賴較重、不是每個 App 都需要的功能做成各自獨立的官方 plugin，需要才安裝：

@@ -84,7 +84,7 @@
 | 指令 | 說明 |
 |---|---|
 | `plugin create <id> [--npm-name=<名>] [--dir=<目錄>] [--shell-ref=<tag>] [--shell-path=<殼目錄>]` | 由範本建立 plugin 專案 |
-| `plugin add <來源>` | 以套件管理器安裝（套件名、`github:owner/repo`、`file:路徑`），登記並同步 pubspec 與註冊清單，並建立該 plugin 的使用者檔案 `lib/plugins/<id>_plugin.dart`（已存在就不動）；`--no-install` 只登記 |
+| `plugin add <來源>` | 以套件管理器安裝（套件名、`github:owner/repo`、`file:路徑`），登記並同步 pubspec 與註冊清單，並建立該 plugin 的使用者檔案 `lib/plugins/<id>_plugin.dart`（已存在就不動）；`--no-install` 只登記；`--features a,b` 只選用 plugin 宣告的部分功能（省略＝全部），完成後印出還缺的原生設定（[宣告原生設定](plugins.md#宣告原生設定)） |
 | `plugin remove <id> [--purge]` | 移除；預設保留 `lib/plugins/<id>_plugin.dart` 並印出路徑，加 `--purge` 才一併刪除 |
 | `plugin sync` | 依 `aqutter.config.json` 重寫 pubspec 與 `lib/aqutter_plugins.dart`，並補建缺少的 `lib/plugins/*.dart`；不覆蓋任何既有的使用者檔案 |
 | `plugin list` | 列出已安裝 plugin |
@@ -103,6 +103,7 @@
 | `.fvmrc`（選配） | 只在 `<appDir>/.fvmrc` 已存在時才檢查版本是否為框架基準；沒有這個檔案不會有任何提示（框架不要求使用 FVM） |
 | npm 依賴 | `package.json` 內以 github 指定的 `@aqutter/aqutter`、`@aqutter/aqutter-cli` ref |
 | lock | `pubspec.lock` 鎖定的 commit 是否落後遠端 ref（需連網；開發階段 tag 會隨 `main` 移動，lock 不會自動跟上） |
+| plugin 的原生設定 | 已登記 plugin 所選功能宣告的權限與 `Info.plist` 鍵是否都在 App 的原生檔裡；缺漏為警告，只讀不改 |
 
 | 旗標 | 說明 |
 |---|---|

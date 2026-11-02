@@ -59,6 +59,7 @@ plugin 在啟動時拿到的 context 提供三個動作：查詢現況（不跳�
 | 來源限制 | 只放行殼自己供應的頁面，不隨設定改變 |
 | plugin 不能自己回答 | 不開放 plugin 對 WebView 授權各自決定，避免把決定權分散 |
 | 可注入 | 權限服務可被替換，測試不碰平台 |
+| 原生宣告 | 外部 plugin 在描述檔宣告需要的原生權限與說明文字鍵，使用者自己補到原生檔；診斷指令檢查缺漏並警告 |
 
 來源：1. [permission_service.dart](../../../shell/lib/src/bridge/permission_service.dart)　2. [plugins.md](../../../docs/plugins.md)
 
