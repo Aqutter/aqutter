@@ -208,6 +208,7 @@ aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/file-manager" 
 | plugin | 功能 | 安裝 |
 |---|---|---|
 | [aqutter-plugin-battery](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/battery) | 電量與充電狀態 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/battery"` |
+| [aqutter-plugin-biometrics](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/biometrics) | 叫起系統的驗證視窗（生物辨識或裝置密碼），任何時候都能呼叫；結果是客戶端判斷，不是伺服器憑證 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/biometrics"` |
 | [aqutter-plugin-file-manager](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/file-manager) | 檔案管理：App 資料夾、使用者授權的資料夾、存到相簿與下載 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/file-manager"` |
 | [aqutter-plugin-google-maps](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/google-maps) | 地圖鏡像到網頁，可在地圖上疊 HTML | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/google-maps"` |
 | [aqutter-plugin-haptics](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/haptics) | 觸覺回饋 | `aqutter plugin add "github:Aqutter/aqutter-plugins#path:/packages/haptics"` |
