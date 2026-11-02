@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 
+import 'deep_link_options.dart';
+
 /// 深層連結的平台層；與 [DeepLinkService] 分開，測試才能不碰原生外掛。
 abstract class DeepLinkSource {
   /// 啟動 App 的連結；不是由連結啟動則回 null。
@@ -28,18 +30,26 @@ class AppLinksSource implements DeepLinkSource {
 ///
 /// 啟動 App 的那一個連結只由 [initial] 取得、不走事件（契約 §2）：事件在網頁尚未連線時會被丟棄，
 /// 冷啟必須有可重複讀取的來源。部分平台的連結串流會把啟動連結也送一次，這裡把「第一筆等於啟動連結」的事件濾掉。
-/// 殼不過濾連結內容，網頁收到後要自行驗證。
+/// 預設不過濾連結內容；App 可用 [DeepLinkOptions] 設定白名單與轉換，網頁收到後仍要自行驗證。
 class DeepLinkService {
-  DeepLinkService({DeepLinkSource? source}) : _source = source ?? AppLinksSource();
+  DeepLinkService({DeepLinkSource? source, DeepLinkOptions? options})
+      : _source = source ?? AppLinksSource(),
+        _options = options ?? const DeepLinkOptions();
 
   final DeepLinkSource _source;
+  final DeepLinkOptions _options;
 
   Future<String?>? _initial;
+  Future<String?>? _rawInitial;
   StreamSubscription<String>? _subscription;
 
   /// 啟動 App 的連結；同一個程序內重複呼叫回傳相同值。取得失敗視為沒有連結。
   Future<String?> initial() {
-    return _initial ??= _source.initialLink().catchError((Object _) => null);
+    return _initial ??= _readRawInitial().then((url) => url == null ? null : _options.apply(url));
+  }
+
+  Future<String?> _readRawInitial() {
+    return _rawInitial ??= _source.initialLink().catchError((Object _) => null);
   }
 
   /// 開始轉送執行中的連結（可重複呼叫，只訂閱一次）。
@@ -47,7 +57,8 @@ class DeepLinkService {
     if (_subscription != null) {
       return;
     }
-    final launchLink = await initial();
+    // 去重用原始連結比較：轉換後的值與串流送來的原始值不會相等。
+    final launchLink = await _readRawInitial();
     var first = true;
     _subscription = _source.links.listen((url) {
       final duplicateOfLaunch = first && url == launchLink;
@@ -55,7 +66,10 @@ class DeepLinkService {
       if (duplicateOfLaunch) {
         return;
       }
-      onLink(url);
+      final converted = _options.apply(url);
+      if (converted != null) {
+        onLink(converted);
+      }
     });
   }
 

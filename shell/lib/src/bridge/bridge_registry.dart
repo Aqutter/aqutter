@@ -23,6 +23,7 @@ import '../server/update_config.dart';
 import '../plugin/aqutter_plugin.dart';
 import '../plugins/builtin_plugins.dart';
 import '../plugins/clipboard/clipboard_image_service.dart';
+import '../plugins/deeplink/deep_link_options.dart';
 import '../plugins/deeplink/deep_link_service.dart';
 import '../plugins/notification/notification_service.dart';
 import '../server/update_session.dart';
@@ -50,6 +51,7 @@ class BridgeRegistry {
     this.permissions = const AqutterPermissions(),
     NotificationService? notifications,
     DeepLinkService? deepLinks,
+    DeepLinkOptions deepLinkOptions = const DeepLinkOptions(),
     ClipboardImageService? clipboardImages,
     Dio? dio,
   }) : _dio = dio ?? Dio(BaseOptions(
@@ -62,6 +64,7 @@ class BridgeRegistry {
         permissions: permissions,
         notifications: notifications,
         deepLinks: deepLinks,
+        deepLinkOptions: deepLinkOptions,
         clipboardImages: clipboardImages,
       ),
       ...plugins,

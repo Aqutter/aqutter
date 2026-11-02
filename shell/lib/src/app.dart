@@ -359,6 +359,7 @@ class _AqutterPageState extends State<AqutterPage> {
         plugins: plugins,
         errorCenter: widget.errorCenter,
         logRetention: widget.config.logRetention,
+        deepLinkOptions: widget.config.deepLink,
       );
 
       // dev：直接載入 web dev server，橋接照常註冊於 onWebViewCreated。

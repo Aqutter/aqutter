@@ -2,6 +2,7 @@ import '../bridge/permission_service.dart';
 import '../plugin/aqutter_plugin.dart';
 import 'clipboard/clipboard_image_service.dart';
 import 'clipboard/clipboard_plugin.dart';
+import 'deeplink/deep_link_options.dart';
 import 'deeplink/deep_link_service.dart';
 import 'deeplink/deeplink_plugin.dart';
 import 'notification/notification_plugin.dart';
@@ -18,12 +19,13 @@ List<AqutterPlugin> builtinPlugins({
   required AqutterPermissions permissions,
   NotificationService? notifications,
   DeepLinkService? deepLinks,
+  DeepLinkOptions deepLinkOptions = const DeepLinkOptions(),
   ClipboardImageService? clipboardImages,
 }) {
   return [
     ClipboardPlugin(images: clipboardImages),
     SharePlugin(),
     NotificationPlugin(permissions: permissions, service: notifications),
-    DeeplinkPlugin(service: deepLinks),
+    DeeplinkPlugin(service: deepLinks, options: deepLinkOptions),
   ];
 }

@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:aqutter_core/aqutter_core.dart';
 
 import 'bridge/log_retention.dart';
+import 'plugins/deeplink/deep_link_options.dart';
 
 /// 殼的外觀設定，由 App 的 `main()` 傳給 `runAqutter`。
 ///
@@ -30,6 +31,7 @@ class AqutterConfig {
     this.primaryDark = const Color(0xFF80D5D4),
     this.logRetention = const LogRetention(),
     this.webPermissions,
+    this.deepLink = const DeepLinkOptions(),
   });
 
   /// `MaterialApp.title`（工作切換器中顯示的名稱）。
@@ -56,6 +58,9 @@ class AqutterConfig {
   /// 系統層仍要使用者授權，plugin 可用 `AqutterPluginContext.requestPermission` 先要。
   /// null（預設）代表 [defaultWebPermissions]。
   final Set<AqutterPermissionResourceType>? webPermissions;
+
+  /// 內建 `deeplink` plugin 的連結白名單與轉換；預設不過濾、不轉換。
+  final DeepLinkOptions deepLink;
 
   /// 依深淺色取用底色。
   Color surfaceOf(Brightness brightness) {

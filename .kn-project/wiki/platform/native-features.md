@@ -1,7 +1,7 @@
 # 原生功能
 
 ## Summary
-殼內建四個原生功能 plugin：剪貼簿（文字與圖片）、系統分享（文字、網址、檔案）、本機通知與深層連結。它們與 App 傳入的 plugin 走同一條註冊路徑，網頁以「plugin 編號＋方法」呼叫、以「plugin 編號＋事件」接收，不必另外安裝。文字剪貼簿與分享在所有平台可用；圖片剪貼簿在 Android、iOS、macOS、Windows，通知與連結在 Android、iOS、macOS，平台逐方法宣告。通知不自動要權限，排程為非精確；啟動 App 的連結與由通知冷啟的資訊由網頁主動讀取，不走事件。
+殼內建四個原生功能 plugin：剪貼簿（文字與圖片）、系統分享（文字、網址、檔案）、本機通知與深層連結。它們與 App 傳入的 plugin 走同一條註冊路徑，網頁以「plugin 編號＋方法」呼叫、以「plugin 編號＋事件」接收，不必另外安裝。文字剪貼簿與分享在所有平台可用；圖片剪貼簿在 Android、iOS、macOS、Windows，通知與連結在 Android、iOS、macOS，平台逐方法宣告。通知不自動要權限，排程為非精確；啟動 App 的連結與由通知冷啟的資訊由網頁主動讀取，不走事件；連結可由 App 設定白名單與轉換。
 
 ## 運作方式
 
@@ -32,7 +32,8 @@
 3. 事件在網頁尚未連線時會被丟棄，所以冷啟的資訊改由網頁就緒後主動讀取，可重複讀取且內容一致。
 4. App 執行中收到新的通知點擊或連結，殼以 plugin 事件推送：通知是 notification 的 tapped，連結是 deeplink 的 received。
 5. 部分平台的連結串流會把啟動連結再送一次，殼把這個重複的第一筆濾掉。
-6. 殼不檢查連結內容，網頁要自行驗證再導航。
+6. 連結預設原樣送出；App 可設定 scheme／網域白名單與轉換函式，先篩選與改寫，再同時作用於啟動連結與執行中的連結。
+7. 殼不替 App 判斷連結可不可信，網頁仍要自行驗證再導航。
 
 來源：1. [builtin_plugins.dart](../../../shell/lib/src/plugins/builtin_plugins.dart)　2. [deeplink_plugin.dart](../../../shell/lib/src/plugins/deeplink/deeplink_plugin.dart)　3. [notification_plugin.dart](../../../shell/lib/src/plugins/notification/notification_plugin.dart)
 
@@ -52,6 +53,7 @@
 | 舊名稱 | 原本固定的剪貼簿、分享、通知、連結 handler 與兩個事件名稱已移除，沒有別名；對照表在使用文件 |
 | 通知的原生設定 | 不需要：接收器、開機重新排程與通知代理都由殼自己實作與宣告，不依賴外部通知套件 |
 | 重開機後（Android） | 尚未到時間的排程通知重新排上，已過時間的不補發；iOS 同時最多 64 則待送通知 |
+| 連結的過濾與轉換 | 由 App 設定白名單與轉換，順序是白名單再轉換；不設定時原樣送出。被丟棄的啟動連結讀取時回空，執行中的連結不產生事件；去重以原始連結比較 |
 | 連結的原生設定 | scheme 與網域屬於各 App，CLI 升級不會改 |
 
 來源：1. [native_features.dart](../../../shell/lib/src/plugins/_shared/native_features.dart)　2. [native-features.md](../../../docs/native-features.md)

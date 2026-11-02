@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:aqutter/src/plugins/deeplink/deep_link_options.dart';
 import 'package:aqutter/src/plugins/deeplink/deep_link_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -94,5 +95,80 @@ void main() {
     source.controller.add('myapp://b');
     await _settle();
     expect(received, ['myapp://a']);
+  });
+
+  group('DeepLinkOptions', () {
+    test('without options every link passes unchanged', () {
+      expect(const DeepLinkOptions().apply('anything://x/y'), 'anything://x/y');
+    });
+
+    test('allowedSchemes and allowedHosts are case-insensitive and both must match', () {
+      const options = DeepLinkOptions(allowedSchemes: {'HTTPS'}, allowedHosts: {'Example.com'});
+
+      expect(options.apply('https://example.com/a'), 'https://example.com/a');
+      expect(options.apply('http://example.com/a'), isNull);
+      expect(options.apply('https://other.com/a'), isNull);
+    });
+
+    test('allowedHosts drops links that have no host', () {
+      expect(const DeepLinkOptions(allowedHosts: {'open'}).apply('myapp:///open/1'), isNull);
+    });
+
+    test('transform rewrites the link, and null or a throw drops it', () {
+      final rewrite = DeepLinkOptions(transform: (url) => url.replaceFirst('myapp://', '/'));
+      expect(rewrite.apply('myapp://open/1'), '/open/1');
+      expect(DeepLinkOptions(transform: (_) => null).apply('myapp://x'), isNull);
+      expect(DeepLinkOptions(transform: (_) => throw StateError('bad')).apply('myapp://x'), isNull);
+    });
+
+    test('transform only sees links that passed the allow lists', () {
+      var calls = 0;
+      final options = DeepLinkOptions(allowedSchemes: {'myapp'}, transform: (url) {
+        calls += 1;
+        return url;
+      });
+
+      options.apply('evil://x');
+      expect(calls, 0);
+    });
+  });
+
+  group('DeepLinkService with options', () {
+    const options = DeepLinkOptions(allowedSchemes: {'myapp'});
+
+    test('initial applies the options; a rejected launch link becomes null', () async {
+      expect(await DeepLinkService(source: _FakeSource(launch: 'myapp://a'), options: options).initial(), 'myapp://a');
+      expect(await DeepLinkService(source: _FakeSource(launch: 'evil://a'), options: options).initial(), isNull);
+    });
+
+    test('running links are filtered and transformed', () async {
+      final source = _FakeSource();
+      final received = <String>[];
+      final service = DeepLinkService(
+        source: source,
+        options: DeepLinkOptions(allowedSchemes: {'myapp'}, transform: (url) => url.toUpperCase()),
+      );
+      await service.listen(received.add);
+
+      source.controller.add('evil://x');
+      source.controller.add('myapp://a');
+      await _settle();
+
+      expect(received, ['MYAPP://A']);
+    });
+
+    test('the launch link repeated by the stream is still filtered out when it is transformed', () async {
+      final source = _FakeSource(launch: 'myapp://launch');
+      final received = <String>[];
+      final service = DeepLinkService(source: source, options: DeepLinkOptions(transform: (url) => '/x'));
+      await service.listen(received.add);
+
+      source.controller.add('myapp://launch');
+      source.controller.add('myapp://next');
+      await _settle();
+
+      expect(await service.initial(), '/x');
+      expect(received, ['/x']);
+    });
   });
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show TargetPlatform;
 
 import '../../plugin/aqutter_plugin.dart';
+import 'deep_link_options.dart';
 import 'deep_link_service.dart';
 
 /// 內建 plugin `deeplink`：啟動 App 的連結（`initial`）與執行中收到的連結（事件 `received`）。
@@ -10,12 +11,14 @@ import 'deep_link_service.dart';
 /// 只有 Android、iOS、macOS 有實作。啟動 App 的那一個連結不走事件；事件在網頁未連線時會被丟棄，
 /// 冷啟資訊由 `initial` 提供。
 class DeeplinkPlugin extends AqutterPlugin {
-  DeeplinkPlugin({this._service});
+  DeeplinkPlugin({this._service, this._options = const DeepLinkOptions()});
+
+  final DeepLinkOptions _options;
 
   /// 只在支援的平台、被用到時才建立，其他平台不碰原生外掛。
   DeepLinkService? _service;
 
-  DeepLinkService get _resolved => _service ??= DeepLinkService();
+  DeepLinkService get _resolved => _service ??= DeepLinkService(options: _options);
 
   @override
   String get id => 'deeplink';

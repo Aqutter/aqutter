@@ -118,7 +118,32 @@ const { url } = await callPlugin('deeplink', 'initial') // 啟動 App 的連結�
 onPluginEvent('deeplink', 'received', ({ url }) => { /* App 執行中收到的新連結 */ })
 ```
 
-啟動 App 的那一個連結**只由 `deeplink.initial` 取得，不會再以事件送一次**：事件在網頁尚未連線時會被丟棄，冷啟必須有可重複讀取的來源。**殼不檢查連結內容，網頁收到後要自行驗證（scheme、網域、路徑）再導航。**
+啟動 App 的那一個連結**只由 `deeplink.initial` 取得，不會再以事件送一次**：事件在網頁尚未連線時會被丟棄，冷啟必須有可重複讀取的來源。**殼預設不檢查連結內容，網頁收到後要自行驗證（scheme、網域、路徑）再導航。**
+
+### 在殼層過濾與轉換連結
+
+`AqutterConfig.deepLink` 可以在連結進網頁前先篩一次、改寫一次；不設定時連結原樣送出。順序是 scheme／網域白名單，再轉換，`initial` 與 `received` 走同一條。
+
+```dart
+await runAqutter(
+  config: AqutterConfig(
+    deepLink: DeepLinkOptions(
+      allowedSchemes: {'myapp', 'https'},
+      allowedHosts: {'open', 'example.com'},
+      transform: (url) => url.replaceFirst('myapp://open', ''), // 回 null 或丟例外＝丟棄
+    ),
+  ),
+  plugins: aqutterPlugins,
+);
+```
+
+| 選項 | 說明 |
+|---|---|
+| `allowedSchemes` | 允許的 scheme，不分大小寫；null＝不限制 |
+| `allowedHosts` | 允許的主機，不分大小寫；null＝不限制；設定後沒有主機的連結一律丟棄 |
+| `transform` | 轉成網頁要的形態；回 null 或丟例外＝丟棄 |
+
+被丟棄的啟動連結，`initial` 回 null；被丟棄的連結不會有事件。網頁仍應自行驗證，這一層只是縮小範圍。
 
 ### 各 App 要做的原生設定
 

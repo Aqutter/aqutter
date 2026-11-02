@@ -7,6 +7,7 @@ export 'src/app.dart' show runAqutter, AqutterApp;
 export 'src/aqutter_config.dart' show AqutterConfig, defaultWebPermissions;
 export 'src/bridge/permission_service.dart' show AqutterPermissions;
 export 'src/bridge/log_retention.dart' show LogRetention;
+export 'src/plugins/deeplink/deep_link_options.dart' show DeepLinkOptions;
 export 'src/error/aqutter_error_reporter.dart'
     show AqutterErrorReport, AqutterErrorReporter, AqutterErrorSource;
 export 'src/plugin/aqutter_plugin.dart'
