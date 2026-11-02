@@ -13,6 +13,7 @@ window.WIKI_MANIFEST={
 "platform/error-capture.md",
 "platform/log-file.md",
 "platform/native-features.md",
+"platform/permissions.md",
 "platform/update-signature.md",
 ]
 };
