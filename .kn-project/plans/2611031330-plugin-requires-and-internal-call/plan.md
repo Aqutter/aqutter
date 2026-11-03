@@ -4,7 +4,7 @@
 - Issue: N/A（無 issue 追蹤基準）
 - Milestone: N/A（未指定）
 - Base Branch: main
-- Status: In Progress
+- Status: Awaiting Archive
 - Completed: [Wait for Finish]
 
 ## Goals
@@ -132,3 +132,4 @@
 
 ## Manual Follow-ups / 人工收尾事項
 - **[合併後]** 把 `aqutter` 的 `0.0.0` tag 移到本次 shell commit 並強推 — `git tag -f 0.0.0 <hash>`、`git push -f origin 0.0.0` — 強推 tag 需要使用者明確同意
+- **[合併後]** `aqutter-plugins/packages/location/test/location_plugin_test.dart:63` 的 `_FakeContext` 要補 `callPlugin` — 在該 fake 加 `@override Future<dynamic> callPlugin(...) async => null;` — `AqutterPluginContext` 多了抽象方法，`0.0.0` tag 移動後該測試會編譯失敗；屬另一個 repo，需另案核准
