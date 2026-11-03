@@ -21,7 +21,7 @@
         "ref": "8833f948c6e3a38cd2ad3cca4b849759d9a83104"
       },
       "client": {
-        "spec": "github:Aqutter/aqutter-js#b200b9314a23531aee698238506cd9a9f762990f"
+        "spec": "github:Aqutter/aqutter-js#bc84de7498fadd4263c1a2cf11a1af64fa8063db"
       },
       "cli": {
         "min": "0.0.0"
