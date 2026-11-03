@@ -50,8 +50,6 @@ class BridgeHandler {
   static const String iabOpen = 'iab_open';
   static const String iabClose = 'iab_close';
 
-  static const String pickerPick = 'picker_pick';
-
   static const String httpFetch = 'http_fetch';
   static const String httpAbort = 'http_abort';
 

@@ -6,7 +6,6 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:aqutter_core/aqutter_core.dart';
@@ -179,7 +178,6 @@ class BridgeRegistry {
     _registerDevice();
     _registerPermissions();
     _registerOpenerAndBrowser();
-    _registerPicker();
     _registerTcp();
     _registerUi();
     _registerPlugins();
@@ -787,34 +785,6 @@ class BridgeRegistry {
     _handle(BridgeHandler.iabClose, (_) async {
       await _iab?.close();
       return {'ok': true};
-    });
-  }
-
-  // ---- File Picker ----
-  void _registerPicker() {
-    _handle(BridgeHandler.pickerPick, (payload) async {
-      final mode = payload['mode'] as String? ?? 'file';
-      final options = Map<String, dynamic>.from(payload['options'] as Map? ?? const {});
-      final extensions = (options['extensions'] as List<dynamic>?)?.cast<String>();
-
-      if (mode == 'directory') {
-        final dir = await FilePicker.getDirectoryPath();
-        return {'paths': dir != null ? [dir] : <String>[]};
-      }
-
-      final type = extensions != null ? FileType.custom : FileType.any;
-
-      // file_picker 12 起單選改用 pickFile（pickFiles 的 allowMultiple 已標記淘汰）
-      if (mode != 'files') {
-        final file = await FilePicker.pickFile(type: type, allowedExtensions: extensions);
-        return {'paths': file?.path != null ? [file!.path!] : <String>[]};
-      }
-
-      // file_picker 12 正式版起 pickFiles 回傳非空的 List<PlatformFile>（不再是 FilePickerResult?）；
-      // 取消選取以空 list 表示。
-      final files = await FilePicker.pickFiles(type: type, allowedExtensions: extensions);
-      final paths = files.map((f) => f.path).whereType<String>().toList();
-      return {'paths': paths};
     });
   }
 

@@ -81,7 +81,7 @@ dbus-run-session -- pnpm exec aqutter dev linux --port=4827
 |---|---|---|
 | 載入卡在約 75%，`WebProcess terminated (reason=CRASHED)` | 缺 GStreamer 外掛，網頁含 `<video>` 時 WebKit 初始化媒體失敗 | 安裝 GStreamer 外掛（第 2 節） |
 | 點影片後整個頁面卡住；網頁行程 CPU 為 0%，GStreamer 的 GL、h264 解碼、佇列執行緒全部睡眠 | WebKit 的影片輸出走 DMA-BUF／GL 路徑，在軟體 GL（`llvmpipe`）環境接不起來。啟動 log 同時顯示畫面紋理零拷貝失敗、退回 `SHM mode` | 設環境變數 `WEBKIT_GST_DMABUF_SINK_DISABLED=1` 後影片正常（其他 GPU／驅動環境是否需要，**未驗證**） |
-| 檔案選取失敗 | `file_picker_linux` 走 XDG Desktop Portal（D-Bus session bus），WSL 預設沒有 | 裝 D-Bus 與 portal，並用 `dbus-run-session` 執行（第 2、3 節） |
+| 檔案選取失敗 | file-manager plugin 的 `pick`／`grant`（底層 `file_picker_linux`）走 XDG Desktop Portal（D-Bus session bus），WSL 預設沒有 | 裝 D-Bus 與 portal，並用 `dbus-run-session` 執行（第 2、3 節） |
 | 首次載入畫面是 `500 … null is not an object (evaluating 'currentRenderingInstance.ce')` | Vite 冷快取的已知現象：第一次在 WebKit 載入 Nuxt dev server，依賴還在預先打包 | 重啟一次即可（Chrome 不會出現） |
 | `<aqutter-native>`（mirror-demo）整塊黑色、`fps: 0` | **不是鏡像本身的問題**：測試頁在建立元素**之前**先 `await` 了 battery 的呼叫，而 battery 在這個環境永遠不回應（見下一列），頁面卡在那裡，元素從未被建立。殼端的鏡像在 Linux 上正常（`native_endpoint` 回埠號、WebSocket 連線與收幀都成功） | 先建立鏡像元素，再讀電量；所有 plugin 呼叫加逾時（範本專案的 `/plugins` 頁已修正） |
 | battery、connectivity 的呼叫**永遠不回應**，log 出現 `Unhandled Exception: SocketException … /var/run/dbus/system_bus_socket` | 這兩者走系統 D-Bus（UPower、NetworkManager）。WSL 沒有這些服務；例外在套件內部的非同步串流裡拋出，呼叫端的 `try/catch` 接不到，`await` 因此永遠不會結束 | 環境限制（真正的 Linux 桌面有這些服務）。網頁端對 plugin 呼叫一律加逾時，不要假設一定會回應（見 [Plugin 開發](plugins.md)） |

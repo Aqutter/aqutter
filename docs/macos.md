@@ -13,7 +13,7 @@
 <!-- dio HTTP / dev server / TCP 印表機連出 -->
 <key>com.apple.security.network.client</key>
 <true/>
-<!-- file_picker：使用者選取的檔案讀寫 -->
+<!-- file-manager plugin（file_picker）：使用者選取的檔案；pick 只需 read-only，授權資料夾（grant）要 read-write -->
 <key>com.apple.security.files.user-selected.read-write</key>
 <true/>
 <!-- permission_plus：沙盒下取得相機 / 麥克風 / 定位 -->
