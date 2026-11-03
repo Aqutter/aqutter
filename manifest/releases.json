@@ -14,7 +14,7 @@
       "shell": {
         "url": "https://github.com/Aqutter/aqutter.git",
         "path": "shell",
-        "ref": "7a40cf61407406dbbf4d313b4d80b7cc1059d608"
+        "ref": "b5f60fde4aef06b9d129ef1abb0ff5bdcea11320"
       },
       "core": {
         "url": "https://github.com/Aqutter/aqutter_core.git",
