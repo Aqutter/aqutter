@@ -193,6 +193,7 @@ class BridgeRegistry {
   /// 方法在目前平台不支援（plugin 的 `supportedPlatforms`，或該方法的 `supportedPlatformsFor`）時：handler 仍註冊但
   /// 不列入 capabilities，被呼叫時回傳 `aqutterError`（`UNSUPPORTED_PLATFORM`）而不執行 plugin 的函式。
   /// plugin 層與所有方法都不支援目前平台時不呼叫 `attach`。
+  /// `internal` 的 plugin 完全不註冊網頁 handler（只供 `AqutterPluginContext.callPlugin` 使用）。
   ///
   /// id 不合法或兩個 plugin 同 id 會直接拋錯：這是 App 組裝期的程式錯誤，不該拖到網頁呼叫時才發現。
   void _registerPlugins() {
@@ -206,6 +207,9 @@ class BridgeRegistry {
       }
       if (!seen.add(plugin.id)) {
         throw ArgumentError.value(plugin.id, 'AqutterPlugin.id', 'Duplicate plugin id');
+      }
+      if (plugin.internal) {
+        continue;
       }
       for (final entry in plugin.handlers.entries) {
         final name = aqutterPluginHandlerName(plugin.id, entry.key);
@@ -236,7 +240,7 @@ class BridgeRegistry {
     _pluginsAttached = true;
     for (final plugin in _allPlugins) {
       if (aqutterPluginActiveOn(plugin, defaultTargetPlatform)) {
-        plugin.attach(_PluginContext(plugin.id, emitter, permissions));
+        plugin.attach(_PluginContext(plugin.id, emitter, permissions, _allPlugins));
       }
     }
   }
@@ -875,11 +879,12 @@ class BridgeRegistry {
 }
 
 class _PluginContext implements AqutterPluginContext {
-  _PluginContext(this._pluginId, this._emitter, this._permissions);
+  _PluginContext(this._pluginId, this._emitter, this._permissions, this._plugins);
 
   final String _pluginId;
   final BridgeEmitter _emitter;
   final AqutterPermissions _permissions;
+  final List<AqutterPlugin> _plugins;
 
   @override
   Future<String> checkPermission(String type) => _permissions.check(type);
@@ -889,6 +894,11 @@ class _PluginContext implements AqutterPluginContext {
 
   @override
   Future<void> openPermissionSettings() => _permissions.openSettings();
+
+  @override
+  Future<dynamic> callPlugin(String pluginId, String method, [Map<String, dynamic> payload = const {}]) {
+    return aqutterCallPlugin(_plugins, defaultTargetPlatform, pluginId, method, payload);
+  }
 
   @override
   Future<void> emit(String event, Object? payload) {

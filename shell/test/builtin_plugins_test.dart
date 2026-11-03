@@ -228,6 +228,9 @@ class _FakeContext implements AqutterPluginContext {
 
   @override
   Future<void> openPermissionSettings() async {}
+
+  @override
+  Future<dynamic> callPlugin(String pluginId, String method, [Map<String, dynamic> payload = const {}]) async => null;
 }
 
 class _FakeNotifier implements LocalNotifier {

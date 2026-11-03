@@ -85,6 +85,49 @@ void main() {
     });
   });
 
+  group('internal', () {
+    test('plugins are public by default', () {
+      expect(_Plugin(null).internal, isFalse);
+    });
+  });
+
+  group('aqutterCallPlugin', () {
+    final target = _Callee(
+      'location',
+      handlers: {
+        'echo': (payload) async => {'got': payload['n']},
+        'fail': (_) async => aqutterErrorPayload('DENIED', 'no'),
+        'android-only': (_) async => const {'ok': true},
+      },
+      methodPlatforms: {'android-only': {TargetPlatform.android}},
+      isInternal: true,
+    );
+    Future<dynamic> call(String id, String method, [Map<String, dynamic> payload = const {}]) =>
+        aqutterCallPlugin([target], TargetPlatform.windows, id, method, payload);
+
+    test('runs the handler and returns its result, also for an internal plugin', () async {
+      expect(target.internal, isTrue);
+      expect(await call('location', 'echo', {'n': 3}), {'got': 3});
+    });
+
+    test('an unknown plugin throws PLUGIN_NOT_FOUND', () async {
+      await expectLater(call('missing', 'echo'), throwsA(isA<AqutterRpcException>().having((e) => e.code, 'code', 'PLUGIN_NOT_FOUND')));
+    });
+
+    test('an unknown method throws HANDLER_NOT_FOUND', () async {
+      await expectLater(call('location', 'nope'), throwsA(isA<AqutterRpcException>().having((e) => e.code, 'code', 'HANDLER_NOT_FOUND')));
+    });
+
+    test('a method that the platform does not support throws UNSUPPORTED_PLATFORM without running', () async {
+      await expectLater(call('location', 'android-only'), throwsA(isA<AqutterRpcException>().having((e) => e.code, 'code', 'UNSUPPORTED_PLATFORM')));
+      expect(await aqutterCallPlugin([target], TargetPlatform.android, 'location', 'android-only', const {}), {'ok': true});
+    });
+
+    test('an error payload from the handler becomes an exception', () async {
+      await expectLater(call('location', 'fail'), throwsA(isA<AqutterRpcException>().having((e) => e.code, 'code', 'DENIED')));
+    });
+  });
+
   test('the host id is reserved', () {
     expect(aqutterReservedPluginId, 'aqutter');
     expect(aqutterPluginIdPattern.hasMatch(aqutterReservedPluginId), isTrue);
@@ -113,4 +156,25 @@ class _Plugin extends AqutterPlugin {
 
   @override
   Set<TargetPlatform>? get supportedPlatforms => _platforms;
+}
+
+class _Callee extends AqutterPlugin {
+  _Callee(this._id, {required this.handlers, this.methodPlatforms = const {}, this.isInternal = false});
+
+  final String _id;
+  final bool isInternal;
+  final Map<String, Set<TargetPlatform>?> methodPlatforms;
+
+  @override
+  final Map<String, AqutterPluginHandler> handlers;
+
+  @override
+  String get id => _id;
+
+  @override
+  bool get internal => isInternal;
+
+  @override
+  Set<TargetPlatform>? supportedPlatformsFor(String method) =>
+      methodPlatforms.containsKey(method) ? methodPlatforms[method] : super.supportedPlatformsFor(method);
 }

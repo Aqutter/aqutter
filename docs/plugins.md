@@ -157,6 +157,45 @@ await context.openPermissionSettings();                    // 被永久拒絕後
 
 網頁 `getUserMedia` 等 WebView 授權由殼決定，不開放 plugin 各自回答：只放行殼自己供應的頁面，資源以 `AqutterConfig(webPermissions: {...})` 設定（預設相機與麥克風）。App 仍要在 `AndroidManifest.xml`／`Info.plist` 宣告對應權限。
 
+## 相依其他 plugin
+
+plugin A 要用 plugin B（例如地圖用定位）時，在 Dart 端經 `context.callPlugin` 呼叫，不要自己 new B 的類別——那不是殼註冊的實例，狀態不共用：
+
+```dart
+final result = await context.callPlugin('location', 'getCurrentPosition', {'accuracy': 'high'});
+```
+
+找不到 B（`PLUGIN_NOT_FOUND`）、B 沒有該方法（`HANDLER_NOT_FOUND`）、該方法不支援目前平台（`UNSUPPORTED_PLATFORM`）、B 的 handler 回傳錯誤資料時，都會拋 `AqutterRpcException`。**不要形成循環**（A 呼叫 B、B 又呼叫 A），殼不防護。
+
+想讓 B 只供 A 使用、不讓網頁直接呼叫，B 覆寫 `internal`：
+
+```dart
+@override
+bool get internal => true;
+```
+
+internal plugin 不對網頁註冊 handler、也不列入 `capabilities`，網頁呼叫它得到 `HANDLER_NOT_FOUND`（`callPlugin` 回 `undefined`）。A 在自己的方法裡包裝 B 的能力再暴露給網頁。
+
+A 在 `aqutter-plugin.json` 用選填的 `requires` 宣告它需要哪些 plugin，鍵是 B 的 npm 套件名，值是版本範圍：
+
+```json
+{
+  "schema": 1,
+  "id": "map-with-location",
+  "dart": { "package": "aqutter_plugin_map_with_location", "class": "MapWithLocationPlugin" },
+  "requires": { "aqutter-plugin-location": "^0.0.0" }
+}
+```
+
+| 規則 | 說明 |
+|---|---|
+| 連帶登記 | `aqutter plugin add A` 會一併安裝並登記 B；B 的來源取自 A 的 `package.json` 的 `dependencies`，所以 B 要同時列在那裡 |
+| 版本範圍 | 支援 `^`、`~` 與精確版本。已安裝的 B 不滿足範圍時 `plugin add` 失敗，`aqutter doctor` 列為錯誤 |
+| 單一版本 | 一個 App 每個 plugin 只能有一個版本；兩個 plugin 要求 B 的不相交範圍時沒有解 |
+| 移除 | 仍有 plugin 的 `requires` 指向 B 時，`aqutter plugin remove B` 會拒絕 |
+
+沒有 `requires` 的 plugin 行為完全不變。
+
 ## 宣告原生設定
 
 plugin 需要使用者在原生專案補權限或 `Info.plist` 說明文字時，在 `aqutter-plugin.json` 用選填的 `native` 區塊宣告。沒有這個區塊的 plugin 行為完全不變。

@@ -74,6 +74,43 @@ bool aqutterPluginActiveOn(AqutterPlugin plugin, TargetPlatform platform) {
       plugin.handlers.keys.any((method) => aqutterPluginSupportsMethod(plugin, method, platform));
 }
 
+/// `callPlugin` 找不到目標 plugin 時的錯誤碼。
+const String aqutterPluginNotFound = 'PLUGIN_NOT_FOUND';
+
+/// `callPlugin` 或網頁呼叫找不到方法時的錯誤碼。
+const String aqutterHandlerNotFound = 'HANDLER_NOT_FOUND';
+
+/// 以 [pluginId]、[method] 在 [plugins] 中找到 handler 並直接執行，不經網頁與 bridge（plugin 之間的呼叫）。
+///
+/// 找不到 plugin 拋 [aqutterPluginNotFound]、沒有該方法拋 [aqutterHandlerNotFound]、方法不支援 [platform] 拋
+/// [aqutterUnsupportedPlatform]（不執行 handler）；handler 回傳 [aqutterErrorPayload] 的結果時轉成例外。
+/// [AqutterPlugin.internal] 的 plugin 同樣可被呼叫——那正是它存在的用途。
+Future<dynamic> aqutterCallPlugin(
+  Iterable<AqutterPlugin> plugins,
+  TargetPlatform platform,
+  String pluginId,
+  String method,
+  Map<String, dynamic> payload,
+) async {
+  final plugin = plugins.where((candidate) => candidate.id == pluginId).firstOrNull;
+  if (plugin == null) {
+    throw AqutterRpcException(aqutterPluginNotFound, 'Plugin "$pluginId" is not registered');
+  }
+  final handler = plugin.handlers[method];
+  if (handler == null) {
+    throw AqutterRpcException(aqutterHandlerNotFound, 'Plugin "$pluginId" has no method "$method"');
+  }
+  if (!aqutterPluginSupportsMethod(plugin, method, platform)) {
+    throw AqutterRpcException(aqutterUnsupportedPlatform, '$pluginId.$method is not supported on ${platform.name}');
+  }
+  final result = await handler(payload);
+  final error = aqutterErrorOf(result);
+  if (error != null) {
+    throw error;
+  }
+  return result;
+}
+
 /// plugin 與殼互動的入口，於 [AqutterPlugin.attach] 交給 plugin。
 abstract class AqutterPluginContext {
   /// 對網頁派送事件；頻道自動加上 `<pluginId>.` 前綴。
@@ -92,6 +129,14 @@ abstract class AqutterPluginContext {
 
   /// 開啟本 App 的系統設定頁（權限被永久拒絕後只能由使用者在這裡改）。
   Future<void> openPermissionSettings();
+
+  /// 呼叫另一個已登記 plugin 的方法，不經網頁；plugin 之間的相依用這個，不要自己 new 對方的類別
+  /// （那不是殼註冊的實例，狀態不共用）。
+  ///
+  /// 找不到 plugin、沒有該方法、該方法不支援目前平台時拋 [AqutterRpcException]，錯誤碼分別是
+  /// `PLUGIN_NOT_FOUND`、`HANDLER_NOT_FOUND`、`UNSUPPORTED_PLATFORM`；對方的 handler 回傳錯誤資料時也轉成例外。
+  /// 對方是 [AqutterPlugin.internal] 時照樣可呼叫。**不要形成循環（A 呼叫 B、B 又呼叫 A）**，殼不防護。
+  Future<dynamic> callPlugin(String pluginId, String method, [Map<String, dynamic> payload = const {}]);
 }
 
 /// Aqutter plugin 的 Dart 端介面。
@@ -122,6 +167,14 @@ abstract class AqutterPlugin implements AqutterPluginEntry {
   /// 方法不支援目前平台時的行為與 [supportedPlatforms] 相同：仍註冊、不列入能力表、被呼叫時回
   /// `UNSUPPORTED_PLATFORM`。方法層的宣告只影響該方法；[attach] 在 plugin 層支援或任一方法支援時呼叫。
   Set<TargetPlatform>? supportedPlatformsFor(String method) => supportedPlatforms;
+
+  /// 是否為內部 plugin（預設 `false`）。
+  ///
+  /// `true` 時殼**不**對網頁註冊它的 handler、也不列入能力表：網頁呼叫得到 `HANDLER_NOT_FOUND`
+  /// （`callPlugin` 回 `undefined`），只有其他 plugin 能經 [AqutterPluginContext.callPlugin] 呼叫。
+  /// 用於「被別的 plugin 封裝、不想直接給網頁用」的 plugin；`attach`、`buildUnderlay`、`buildOverlay`、
+  /// `dispose` 照常。
+  bool get internal => false;
 
   /// 暴露給網頁的方法，鍵為方法名（不含 id 前綴）。
   Map<String, AqutterPluginHandler> get handlers => const {};
