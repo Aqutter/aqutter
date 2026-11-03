@@ -13,6 +13,7 @@ import 'package:aqutter/src/server/host_updater.dart';
 import 'package:aqutter/src/server/update_config.dart';
 import 'package:aqutter/src/server/update_config_store.dart';
 import 'package:aqutter/src/server/update_session.dart';
+import 'package:aqutter_core/aqutter_core.dart' show AqutterRpcHost;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -144,6 +145,24 @@ void main() {
     test('a distinct valid id is accepted', () {
       assemble([_IdOnlyPlugin('haptics')]);
     });
+
+    test('an internal plugin is not exposed to the web, yet a public plugin can call it through its context', () async {
+      final inner = _TestPlugin('inner-it', internal: true, handlers: {'ping': (payload) async => {'pong': payload['n']}});
+      final outer = _TestPlugin('outer-it', handlers: {'ping': (_) async => const {}});
+
+      assemble([outer, inner]);
+
+      final rpc = AqutterRpcHost.instance;
+      expect(rpc.hasHandler('outer-it.ping'), isTrue);
+      expect(rpc.hasHandler('inner-it.ping'), isFalse);
+      expect(outer.context, isNotNull, reason: 'attach runs for public plugins');
+      expect(inner.context, isNotNull, reason: 'attach also runs for internal plugins');
+      expect(await outer.context!.callPlugin('inner-it', 'ping', {'n': 5}), {'pong': 5});
+      await expectLater(
+        outer.context!.callPlugin('absent-it', 'ping'),
+        throwsA(isA<AqutterRpcException>().having((error) => error.code, 'code', 'PLUGIN_NOT_FOUND')),
+      );
+    });
   });
 
   group('notification plugin', () {
@@ -271,4 +290,22 @@ class _FakeSource implements DeepLinkSource {
 
   @override
   Stream<String> get links => controller.stream;
+}
+
+class _TestPlugin extends AqutterPlugin {
+  _TestPlugin(this.id, {this.internal = false, this.handlers = const {}});
+
+  @override
+  final String id;
+
+  @override
+  final bool internal;
+
+  @override
+  final Map<String, AqutterPluginHandler> handlers;
+
+  AqutterPluginContext? context;
+
+  @override
+  void attach(AqutterPluginContext context) => this.context = context;
 }
