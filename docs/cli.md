@@ -104,6 +104,7 @@
 | npm 依賴 | `package.json` 內以 github 指定的 `@aqutter/aqutter`、`@aqutter/aqutter-cli` ref |
 | lock | `pubspec.lock` 鎖定的 commit 是否落後遠端 ref（需連網；開發階段 tag 會隨 `main` 移動，lock 不會自動跟上） |
 | plugin 的原生設定 | 已登記 plugin 所選功能宣告的權限與 `Info.plist` 鍵是否都在 App 的原生檔裡；缺漏為警告，只讀不改 |
+| Windows 路徑長度 | 只在 Windows 檢查：`<appDir>` 的絕對路徑超過 100 字元為警告（不是錯誤）。建置產物的路徑會再加上約 160 個字元，可能超過 Windows 的 260 字元限制，`flutter build windows` 會在編譯很久之後才失敗，即使系統已開啟長路徑也可能發生；修法是把專案搬到較短的路徑 |
 
 | 旗標 | 說明 |
 |---|---|
