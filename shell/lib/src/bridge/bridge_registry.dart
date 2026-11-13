@@ -344,8 +344,10 @@ class BridgeRegistry {
   // ---- Platform ----
   void _registerPlatform() {
     _handle(BridgeHandler.platformInfo, (_) async => _platformInfo());
-    // 網頁就緒訊號。刻意不採 onLoadStop——後者只代表 document 載完，
-    // hydration 與首次繪製都還沒發生，此時移除過場仍會露出空白。
+    // 網頁就緒訊號。嚴格模式（AQUTTER_REQUIRE_APP_READY=true，或設了熱更新網址）刻意不採
+    // onLoadStop——後者只代表 document 載完，hydration 與首次繪製都還沒發生，此時移除過場
+    // 仍會露出空白。非嚴格模式（預設）由殼在 onLoadStop 後等兩個繪製幀自行宣告就緒，
+    // 網頁仍可呼叫本 handler，先到先贏。
     _handle(BridgeHandler.appReady, (_) async {
       onWebReady();
       return {'ok': true};

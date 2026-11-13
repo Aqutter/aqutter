@@ -1,7 +1,7 @@
 # 環境變數
 
 ## Summary
-設定以 `.env.example` 為正本，共 12 個變數、1 個模組；secret 類只寫遮罩與長度，範例值一律是安全值。
+設定以 `.env.example` 為正本，共 13 個變數、1 個模組；secret 類只寫遮罩與長度，範例值一律是安全值。
 
 ## 變數
 ### Aqutter 殼（Dart 端以原 key 名 String.fromEnvironment 讀取；一律 AQUTTER_ 前綴）
@@ -15,7 +15,8 @@
 | `AQUTTER_UPDATE_BUNDLE_AUTH` | 下載 bundle.zip 時是否也帶鑑權 header：true \| false。留空＝true | — | `true` |
 | `AQUTTER_UPDATE_REQUIRED` | 是否要求版本查詢必須成功才能進網頁：true \| false。留空＝false | — | `false` |
 | `AQUTTER_UPDATE_PUBLIC_KEYS` | 網頁包簽章的公鑰（Ed25519，標準 Base64 的 32 位元組原始公鑰，可用逗號分隔多把）。留空＝不驗簽章 | 設了就一律要求 version.json 帶 sha256 與 signature，缺少或驗證不過都拒絕更新並保留現行網頁包。 | — |
-| `AQUTTER_WEB_READY_TIMEOUT_SECONDS` | 網頁就緒的等待上限（秒）。留空＝300 | — | `300` |
+| `AQUTTER_REQUIRE_APP_READY` | 網頁是否必須呼叫 app_ready 才收起啟動過場：true \| false。留空＝自動 | — | — |
+| `AQUTTER_WEB_READY_TIMEOUT_SECONDS` | 網頁就緒的等待上限（秒）。留空＝300。只在嚴格模式生效（見 AQUTTER_REQUIRE_APP_READY） | — | `300` |
 | `AQUTTER_WEBVIEW_DEBUG` | WebView 是否開放遠端檢查（true / false）。留空＝false | — | `false` |
 | `AQUTTER_UPDATE_CONNECT_TIMEOUT_SECONDS` | 更新伺服器的連線逾時（秒）。留空＝30 | — | `30` |
 | `AQUTTER_UPDATE_RECEIVE_TIMEOUT_SECONDS` | 網頁包下載的接收逾時（秒）。留空＝600 | — | `600` |
@@ -32,4 +33,4 @@
 
 ---
 [🏠 Wiki](index.md)
-<!-- generated: wiki-env-page.py 0ac59bc16d5f2ba487ad32776170d52393625b28973b57ed2dbad4d0dc5fffbf -->
+<!-- generated: wiki-env-page.py 1ec8f68ff414a645e60d8ab137ed9063e0be4b97e9a460040fac8918b507d806 -->
