@@ -12,7 +12,8 @@
 |---|---|---|
 | `AQUTTER_DEV_URL` | 空 | 非空即 dev 模式：WebView 直接載入此 URL，跳過種子 / OTA / 本機 server。由 `aqutter dev` 依平台注入，不必寫進 env 檔 |
 | `AQUTTER_WEBVIEW_DEBUG` | `false` | 是否開放 WebView 遠端檢查（Android `chrome://inspect`、iOS 16.4+ / macOS 13.3+ Web Inspector、Windows DevTools）。非 `true` / `false` 啟動即報錯 |
-| `AQUTTER_WEB_READY_TIMEOUT_SECONDS` | `300` | 頁面載入完成後等待 `app_ready` 的上限，逾時視為網頁包壞掉並回滾 |
+| `AQUTTER_REQUIRE_APP_READY` | 空（自動） | 網頁是否必須呼叫 `app_ready` 才收起啟動過場。空：有設 `AQUTTER_UPDATE_BASE_URL` 才必須，沒設則頁面載入完成後殼自動收起；`true`：必須；`false`：一律自動收起。只接受 `true` / `false` / 空，其他值啟動即報錯 |
+| `AQUTTER_WEB_READY_TIMEOUT_SECONDS` | `300` | 嚴格模式下，頁面載入完成後等待 `app_ready` 的上限，逾時視為網頁包壞掉並回滾；非嚴格模式忽略 |
 | `AQUTTER_UPDATE_BASE_URL` | 空 | 熱更新遠端來源；空＝不啟用線上更新 |
 | `AQUTTER_UPDATE_VERSION_PATH` | `version.json` | 版本查詢端點路徑（相對 BASE_URL） |
 | `AQUTTER_UPDATE_METHOD` | `GET` | 版本查詢的 HTTP method：`GET` / `POST`；打錯即報錯 |

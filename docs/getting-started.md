@@ -65,7 +65,11 @@ pnpm exec aqutter build macos --env=.env/.env.prod
 
 ## 5. 在網頁內呼叫原生
 
-網頁載入完成後必須呼叫一次 `app_ready`，殼才會移除啟動過場（沒呼叫，畫面會一直停在「載入網頁」）：
+預設情況下，網頁載入完成後殼會自動移除啟動過場，**不必**呼叫 `app_ready`（殼等兩個繪製幀；單頁應用若 hydration 較慢，可能短暫看到尚未完成的畫面）。
+想等網頁真的準備好才收起過場，就在準備好時呼叫一次 `app_ready`：
+
+> 例外：有設定 `AQUTTER_UPDATE_BASE_URL`（使用熱更新）時，殼要求網頁呼叫 `app_ready`，沒呼叫就會停在「載入網頁」，逾時還會把網頁包視為壞掉並回滾。
+> 可用 `AQUTTER_REQUIRE_APP_READY` 改變這個行為，見 [環境變數](environment.md)。
 
 ```ts
 import { callFlutter } from '@aqutter/aqutter'

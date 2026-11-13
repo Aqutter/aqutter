@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_ready_mode.dart';
 import 'aqutter_config.dart';
 import 'plugin/aqutter_plugin.dart';
 import 'plugin/plugin_entry.dart';
@@ -48,6 +49,7 @@ const String kDevUrl = String.fromEnvironment('AQUTTER_DEV_URL');
 /// 開關：UAT 的 release 包可以開、prod 包明確關。Android 的 debug build 因 `debuggable`
 /// 旗標本就可 `chrome://inspect`，本開關的意義在 release build 與 Apple / Windows 平台。
 const String _envWebViewDebug = String.fromEnvironment('AQUTTER_WEBVIEW_DEBUG');
+const String _envRequireAppReady = String.fromEnvironment('AQUTTER_REQUIRE_APP_READY');
 
 /// 啟動 Aqutter 殼。App 的 `main()` 只需呼叫本函式。
 Future<void> runAqutter({
@@ -256,6 +258,12 @@ class _AqutterPageState extends State<AqutterPage> {
   /// 已經正常運作的頁面誤判為壞掉。
   bool _webReady = false;
 
+  /// 是否要求網頁呼叫 `app_ready`（嚴格模式，見 [requiresAppReady]）。
+  ///
+  /// 在 [_bootstrap] 解析一次，之後不變。WebView 只在 [_bootstrap] 走完後才掛載，
+  /// 所以讀取點（[_startReadyWindow]、[_onLoadStop]）看到的必然已賦值。
+  late final bool _appReadyRequired;
+
   /// 「頁面載入完成 → 收到 `app_ready`」的就緒判定窗。
   ///
   /// 刻意自 `onLoadStop` 起算，而**不是**自 WebView 掛上起算：載入本身要多久取決於
@@ -336,8 +344,14 @@ class _AqutterPageState extends State<AqutterPage> {
       }
       setState(() => _plugins = plugins);
       _bundleManager = BundleManager(signatureVerifier: BundleSignatureVerifier.fromEnvironment());
+      final updateDefaults = BundleUpdateConfig.fromEnvironment();
+      // 與設定一併在此解析：值無法辨識時拋錯，落到既有的錯誤畫面
+      _appReadyRequired = requiresAppReady(
+        flag: _envRequireAppReady,
+        updateBaseUrl: updateDefaults.baseUrl,
+      );
       _configStore = UpdateConfigStore(
-        defaults: BundleUpdateConfig.fromEnvironment(),
+        defaults: updateDefaults,
         preferences: preferences,
       );
       _session = UpdateSession(
@@ -540,7 +554,8 @@ class _AqutterPageState extends State<AqutterPage> {
   /// 逐一抓數百個未打包的模組，就緒本來就會晚得多——對它設上限只會把「慢」誤判為
   /// 「壞」。dev 若真的起不來，開發者手上就有 console 與 dev server 的輸出。
   void _startReadyWindow() {
-    if (_webReady || kDevUrl.isNotEmpty) {
+    // 非嚴格模式不要求 app_ready，自然沒有「逾時＝壞掉」可言（改由 [_autoReadyAfterFrames] 收過場）
+    if (_webReady || kDevUrl.isNotEmpty || !_appReadyRequired) {
       return;
     }
     _readyWindow?.cancel();
@@ -790,6 +805,34 @@ class _AqutterPageState extends State<AqutterPage> {
     _safeAreaInjector.inject(MediaQuery.paddingOf(context), force: true);
     // 載入結束才開始等 app_ready；在此之前的耗時屬於「載入」，不該被判定為失敗。
     _startReadyWindow();
+    if (!_appReadyRequired) {
+      unawaited(_autoReadyAfterFrames(controller));
+    }
+  }
+
+  /// 非嚴格模式：頁面載入完成後等兩個繪製幀，由殼自己宣告就緒（與收到 `app_ready` 等效）。
+  ///
+  /// 網頁仍可照常呼叫 `app_ready`，先到先贏，[_onWebReady] 可重入。腳本不支援、
+  /// 逾時（視窗在背景時 `requestAnimationFrame` 會暫停）或失敗都照樣收過場——
+  /// 這個模式的目的就是不讓使用者卡在載入畫面。
+  Future<void> _autoReadyAfterFrames(AqutterWebViewController controller) async {
+    final generation = _webViewGeneration;
+    if (_webReady) {
+      return;
+    }
+    try {
+      await controller
+          .callAsyncJavaScript(functionBody: kAfterTwoFramesScript)
+          .timeout(kAfterTwoFramesTimeout);
+    }
+    catch (error) {
+      debugPrint('[aqutter] waiting for two frames failed, dismissing anyway: $error');
+    }
+    // WebView 在等待期間被重掛（套用更新）時，這次的結果已經不屬於現在的頁面
+    if (!mounted || generation != _webViewGeneration || _webReady) {
+      return;
+    }
+    _onWebReady();
   }
 
   /// Android 實體返回鍵：不直接 pop，改派事件給前端由其決定 router.back / 最小化。

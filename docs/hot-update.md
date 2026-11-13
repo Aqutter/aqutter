@@ -198,6 +198,8 @@ AQUTTER_UPDATE_BUNDLE_AUTH=true
 
 `AQUTTER_UPDATE_BASE_URL` 留空＝停用線上更新，此時種子是唯一交付管道；App 照常啟動，版本查詢、殼版本閘與下載整段不會發生。其餘鍵**全部有預設值**。
 
+**啟用熱更新後，網頁必須在準備好時呼叫 `app_ready`**：殼靠它判斷新網頁包有沒有壞，載入完成後 `AQUTTER_WEB_READY_TIMEOUT_SECONDS`（預設 300 秒）內沒收到，就視為網頁包壞掉並回滾到前一版。沒用熱更新時則不必呼叫，殼會自動收起啟動過場；要改變這個預設可設 `AQUTTER_REQUIRE_APP_READY`（見 [環境變數](environment.md)）。
+
 版本查詢失敗預設**非致命**：只記錄並續用現有版本。要反過來「查詢不成功就不准進網頁」（離線就不該能用、或必須確保版本一致的 App），設 `AQUTTER_UPDATE_REQUIRED=true`——此時即使本機已有種子包也不放行，殼進「無法確認版本」阻擋頁並提供重試；冷啟與網頁端按「執行更新」兩條路徑同樣處理。它與 `AQUTTER_UPDATE_BASE_URL` 留空是矛盾配置，啟動即拋 `ArgumentError`。
 
 殼側鍵一律以 `AQUTTER_` 開頭；網頁專案自己的 env 鍵不得使用此前綴（避免與殼側鍵混淆）。
