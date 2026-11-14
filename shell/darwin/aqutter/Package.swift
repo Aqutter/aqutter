@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "aqutter",
     platforms: [
-        .iOS("13.0"),
+        .iOS("16.0"),
         .macOS("10.15")
     ],
     products: [
