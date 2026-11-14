@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-11-13T07:32:58Z",
+  "generatedAt": "2026-11-14T08:09:13Z",
   "channels": {
     "stable": "0.0.0"
   },
@@ -8,17 +8,17 @@
     "0.0.0": {
       "status": "supported",
       "flutter": {
-        "baseline": "3.47.8"
+        "baseline": "3.50.0"
       },
-      "dart": ">=3.13.7 <4.0.0",
+      "dart": ">=3.14.0 <4.0.0",
       "shell": {
         "url": "https://github.com/Aqutter/aqutter.git",
         "path": "shell",
-        "ref": "8207b10ff9bb3d0cf5ba11c2f326d783fc019a90"
+        "ref": "ef94f7376ce4d771494a3e090f3dbcfd5fac5272"
       },
       "core": {
         "url": "https://github.com/Aqutter/aqutter_core.git",
-        "ref": "8833f948c6e3a38cd2ad3cca4b849759d9a83104"
+        "ref": "aa44625f6d68daa4a1e2c1d6d4633a8b460b4669"
       },
       "client": {
         "spec": "github:Aqutter/aqutter-js#6a71990cd365542b388d5054c6a320511fda3353"
