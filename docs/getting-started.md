@@ -7,6 +7,7 @@
 | Node.js | ≥ 20 |
 | Flutter | 3.50.0（Dart 3.14.0）。這是框架建置與測試用的基準版本：App 的 `pubspec.yaml` 要求 3.50.0 以上（低於此版本 `flutter pub get` 會直接報錯），不設上限——較新的 Flutter 可以嘗試，但框架尚未驗證，`aqutter doctor` 會提示。用什麼方式安裝與切換 Flutter 版本由你決定（官方安裝、[FVM](https://fvm.app) 等都可以，框架不要求任何特定工具） |
 | 目標平台工具鏈 | iOS / macOS：Xcode；Android：Android SDK；Windows：Visual Studio |
+| 最低 iOS | 16.0。框架（`aqutter` 殼與 `aqutter_core`）的 iOS 部署目標為 16.0；App 的部署目標低於 16.0 時，CocoaPods 或 Swift Package Manager 解析會直接報錯 |
 
 ## 1. 安裝
 
