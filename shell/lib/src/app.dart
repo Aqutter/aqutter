@@ -766,6 +766,12 @@ class _AqutterPageState extends State<AqutterPage> {
   void _onWebViewCreated(AqutterWebViewController controller) {
     _safeAreaInjector.controller = controller;
     _webController = controller;
+    // 實驗：初始的 transparentBackground 在 Android 沒有讓底色透明（以 DevTools 覆寫底色後才透），先切回再切成透明強迫重套。
+    if (const bool.fromEnvironment('AQUTTER_WEBVIEW_TRANSPARENT')) {
+      unawaited(controller
+          .setSettings(settings: AqutterWebViewSettings(transparentBackground: false))
+          .then((_) => controller.setSettings(settings: AqutterWebViewSettings(transparentBackground: true))));
+    }
     _registry?.register();
     // 建立 WebView 到現在之間端點可能又變過：補套一次（重複套用無害）
     _onEndpointChanged();
