@@ -119,6 +119,7 @@
 - `shell/lib/src/app.dart:766` (`_onWebViewCreated`)、`:940` (`_buildWebView`)、`:903` (底層 `Stack`) — 訂閱 `passthroughSessions` 並切換 WebView 透明；WebView 重掛（`_webViewGeneration`）時套用目前值；dispose 時取消訂閱。
 - `shell/test/` — 補透明切換的 widget 測試（以假的 `passthroughSessions` 驅動）。具體檔名於實作時依現有測試結構決定。
 - `docs/nativeview.md` — 補「穿透模式」章節（對應文件：`docs/native-features.md` 不涵蓋鏡像，`docs/nativeview.md` 才是）。
+- `shell/lib/aqutter.dart:36-46` (`export 'package:aqutter_core/aqutter_core.dart' show …`) — [補列] 加入 `AqutterNativeMode`：plugin 只依賴殼，匯出清單逐項列舉，沒有它 plugin 無法使用 `AqutterNative(mode:)`。
 - `shell/lib/src/webview_transparency.dart` (new) — 依 `passthroughSessions` 切換 WebView 透明的控制器（純邏輯，方便測試）。
 - `shell/test/webview_transparency_test.dart` (new) — 控制器的單元測試。
 
@@ -157,6 +158,7 @@
 - **[實作]** 執行期改透明用 `setSettings` 時傳**整份**設定（與建立時同一個 `_webViewSettings`），不是只傳 `transparentBackground`：Android 端會把整份新設定套上去，只傳一個欄位會把 `keyboardAvoidance`、`supportZoom` 等重設成預設值。前置實驗的做法（只傳一個欄位）有這個副作用。
 - **[依賴]** 殼編譯需要 core 的 `passthroughSessions` 與 `passthroughAvailable`；殼的 `pubspec.yaml` 以 tag `0.0.0` 依賴 core，所以 core 合併並移動 tag 後殼才能用 CI 編譯。開發期以未提交的 `shell/pubspec_overrides.yaml` 指向本機 core。
 - **[驗證]** Android 實機（ASUS，API 33），殼**不帶任何透明旗標**，搭配本機 core 與 aqutter-js、未修改的 google-maps plugin：首頁正常不透明；進入地圖頁（協商成穿透）WebView 透明、地圖從洞透出；回首頁還原不透明、元素為 0；再進地圖頁仍正常。沒有出現 `failed to change the WebView transparency`。另以「滾動內容」版面驗證 core 的實作：卡片一開始在螢幕外，捲進來後地圖完整覆蓋、標記在卡片中心，滾動時地圖跟著卡片走。
+- **[Impact Files 補列]** 實作 aqutter-plugins 時發現殼的公開匯出沒有 `AqutterNativeMode`，補列 `shell/lib/aqutter.dart` 並於使用者核准後加入（只加一個符號）。
 - **[完成後]** commit + 開 PR（Rule 12 非互動鏈；完成前自動 fetch 後 rebase origin/main 並 push --force-with-lease --force-if-includes）。
 - **[執行模式]** 序列（依據：環境只有單一 agent，沒有獨立子 agent）；順序 aqutter_core → aqutter-js → aqutter → aqutter-plugins。
 - **[範圍]** 使用者指示「先定契約」：本次先把契約凍結、建立 issue 與分支並提交計畫，實作（`tasks.md` 的 Phase 1 起）等使用者確認後再開始。
