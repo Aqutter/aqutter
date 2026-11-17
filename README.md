@@ -35,7 +35,7 @@ pnpm exec aqutter dev macos
 - [CLI 指令與旗標](docs/cli.md)
 - [環境變數與 dart-define](docs/environment.md)
 - [Plugin 開發](docs/plugins.md)
-- [Native view 鏡像](docs/nativeview.md)
+- [Native view 鏡像與穿透](docs/nativeview.md)
 - [通道效能（網頁、Flutter、原生之間的資料通道）](docs/channel-performance.md)
 - [建置、flavor 與簽章](docs/build-and-signing.md)
 - [熱更新（OTA）](docs/hot-update.md)
