@@ -1,5 +1,5 @@
 window.WIKI_MANIFEST={
-"title":"Aqutter",
+"title":"aqutter",
 "repoUrl":"https://github.com/Aqutter/aqutter",
 "repoBranch":"main",
 "appflow":null,
@@ -16,5 +16,6 @@ window.WIKI_MANIFEST={
 "platform/permissions.md",
 "platform/plugin-registration.md",
 "platform/update-signature.md",
+"platform/webview-transparency.md",
 ]
 };

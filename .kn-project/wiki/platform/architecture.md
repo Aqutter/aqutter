@@ -33,7 +33,7 @@ Aqutter 把既有的網頁專案包成原生 App：網頁跑在 Flutter 殼的 W
 |---|---|
 | bridge 的 handler 與事件名稱 | shell 與 client（另一個 repo） |
 | 內建 plugin 的方法與事件（剪貼簿、分享、通知、連結） | shell 的 plugins 目錄與 client 的內建 plugin 契約（另一個 repo） |
-| 鏡像協定的幀格式與手勢訊息 | aqutter_core 與 client（兩個獨立 repo） |
+| 鏡像與穿透的協定（模式協商與 `layout` 訊息、幀格式、手勢訊息） | aqutter_core 與 client（兩個獨立 repo）；穿透時 WebView 透明由殼切換，見 [WebView 透明](webview-transparency.md) |
 | 統一傳輸的訊框格式（`/channel/aqutter.rpc`：呼叫、回應、事件、二進位、分段） | aqutter_core 與 client（兩個 repo，共用測試向量）；shell 只界接 |
 | 傳輸的連線資訊（網頁全域 `window.aqutterEndpoint`：埠與令牌） | shell 的注入腳本與 client 的讀取（另一個 repo）；端點由 aqutter_core 的伺服器提供，重啟後 shell 會更新它 |
 | env 鍵 | shell 的 Dart 端、cli 的 env 範本（另一個 repo）、環境變數頁 |

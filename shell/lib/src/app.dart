@@ -34,6 +34,7 @@ import 'server/update_config.dart';
 import 'server/update_config_store.dart';
 import 'server/update_session.dart';
 import 'ui/basic_widgets.dart';
+import 'webview_transparency.dart';
 import 'ui/host_update_screen.dart';
 import 'ui/startup_overlay.dart';
 import 'ui/update_required_screen.dart';
@@ -174,6 +175,17 @@ class _AqutterPageState extends State<AqutterPage> {
 
   /// 目前的 WebView controller；端點變更時用它更新頁面（見 [_onEndpointChanged]）。
   AqutterWebViewController? _webController;
+
+  /// 穿透模式需要 WebView 透明：跟著 `AqutterNativeHost.passthroughSessions` 切換，見 [WebViewTransparency]。
+  late final WebViewTransparency _transparency = WebViewTransparency(
+    sessions: AqutterNativeHost.instance.passthroughSessions,
+    apply: _setWebViewTransparent,
+    onError: _onTransparencyError,
+  );
+
+  /// 目前這一代 WebView 建立時的透明設定，以及記錄的是哪一代（[_webViewGeneration]）。
+  bool _transparentAtCreation = false;
+  int _transparencyGeneration = -1;
 
   /// 端點更新的串接：連續變更時依序套用，不讓兩次更新交錯。
   Future<void> _endpointUpdate = Future<void>.value();
@@ -519,6 +531,7 @@ class _AqutterPageState extends State<AqutterPage> {
       _stage = StartupStage.loadingWeb;
       _visitedStages.add(StartupStage.loadingWeb);
       _updateProgress = null;
+      _transparency.detach();
       _webViewGeneration++;
     });
   }
@@ -749,6 +762,7 @@ class _AqutterPageState extends State<AqutterPage> {
         _stage = StartupStage.loadingWeb;
         _visitedStages.add(StartupStage.loadingWeb);
         _updateProgress = null;
+        _transparency.detach();
         _webViewGeneration++;
       });
     }
@@ -766,9 +780,25 @@ class _AqutterPageState extends State<AqutterPage> {
   void _onWebViewCreated(AqutterWebViewController controller) {
     _safeAreaInjector.controller = controller;
     _webController = controller;
+    _transparency.attach(transparent: _transparentAtCreation);
     _registry?.register();
     // 建立 WebView 到現在之間端點可能又變過：補套一次（重複套用無害）
     _onEndpointChanged();
+  }
+
+  /// 改變目前 WebView 的透明設定（由 [WebViewTransparency] 呼叫）。沒有 WebView 時不做事。
+  Future<void> _setWebViewTransparent(bool transparent) async {
+    final controller = _webController;
+    if (controller == null) {
+      return;
+    }
+    await controller.setSettings(settings: _webViewSettings(transparentBackground: transparent));
+  }
+
+  /// 無法使 WebView 透明：之後的模式協商一律退回鏡像（`transparent-failed`），不再嘗試穿透。
+  void _onTransparencyError(Object error) {
+    debugPrint('[aqutter] failed to change the WebView transparency: $error');
+    AqutterNativeHost.instance.passthroughAvailable = false;
   }
 
   /// 本機傳輸的端點變了（伺服器重啟後埠與令牌都換新）：讓網頁拿到新值。
@@ -847,6 +877,7 @@ class _AqutterPageState extends State<AqutterPage> {
   void dispose() {
     SystemBars.appBrightness.removeListener(_onAppBrightnessChanged);
     AqutterNativeHost.instance.endpoint.removeListener(_onEndpointChanged);
+    _transparency.dispose();
     _readyWindow?.cancel();
     _devLoadRetryTimer?.cancel();
     _registry?.disposePlugins();
@@ -937,7 +968,57 @@ class _AqutterPageState extends State<AqutterPage> {
     );
   }
 
+  /// WebView 的設定。建立時（[AqutterWebView.initialSettings]）與執行期改透明（[_setWebViewTransparent]）用同一份：
+  /// `setSettings` 會把整份設定套到執行中的 WebView，只傳 `transparentBackground` 會把其他欄位重設成預設值。
+  AqutterWebViewSettings _webViewSettings({required bool transparentBackground}) {
+    return AqutterWebViewSettings(
+    javaScriptEnabled: true,
+    // 允許載入本機 http server（loopback）
+    mixedContentMode: AqutterMixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+    // iOS：關閉 scrollView 的自動 safe-area 內縮，否則會與網頁端的
+    // --safe-area-* 留白疊加成雙倍間距。
+    contentInsetAdjustmentBehavior: AqutterScrollViewContentInsetAdjustmentBehavior.NEVER,
+    // 關掉 fork 的原生鍵盤避讓（預設 true）。Android 端它會吃掉 IME 插邊並平移整個
+    // WebView，網頁因此永遠不知道鍵盤存在、window.visualViewport 也不再變化；iOS 端則
+    // 補鍵盤高度的 contentInset。兩者都與上方 AqutterSurface 讓 WebView 真正縮小的做法衝突
+    // （前者是頂底二擇一的平移，後者會疊成雙倍留白），故全平台一律關閉，改由 Chromium /
+    // WebKit 自己在縮小後的 viewport 內捲焦點欄位——此時它們是唯一的搬動者。
+    keyboardAvoidance: false,
+    // 禁止縮放：這是 app 殼而非閱讀型網站，捏合／雙擊把整個畫面放大會破壞版面。
+    // 套件預設兩者皆為 true，故必須明寫關閉。
+    // supportZoom 是唯一四平台皆支援的開關，各自對應：
+    //   Android → WebSettings.setSupportZoom
+    //   iOS / macOS → WKWebView
+    //   Windows → ICoreWebView2Settings.put_IsZoomControlEnabled
+    // builtInZoomControls 為 Android 專屬（手勢與螢幕上的縮放控制項）。
+    // iOS 的 min/maximumZoomScale 預設已是 1.0，無需另設。
+    supportZoom: false,
+    builtInZoomControls: false,
+    // iOS / macOS：允許 <video> 在頁面內播放。WebKit 預設為 false，會讓所有影片
+    // 一律交給原生全螢幕播放器接手——網頁的 playsinline 屬性在 WKWebView 下擋不住
+    // 這個行為，必須由宿主放行。Android 與 Windows 不受此設定影響，本來就 inline。
+    //
+    // 刻意不動 mediaPlaybackRequiresUserGesture（預設 true）：那條放寬的是「不需使用者
+    // 手勢即可播放」，影響範圍是整個 app 的所有影音，代價與這裡要解決的問題不對等。
+    allowsInlineMediaPlayback: true,
+    // 測試用：以 `--dart-define=AQUTTER_MEDIA_AUTOPLAY=true` 讓影音不需使用者手勢即可播放（自動化測試沒有人可以點）。
+    // 預設關閉，理由見上。
+    mediaPlaybackRequiresUserGesture: !const bool.fromEnvironment('AQUTTER_MEDIA_AUTOPLAY'),
+    // iOS 16.4+ / macOS 13.3+ 的 Safari Web Inspector 與 Windows WebView2 的 DevTools；
+    // Android 忽略此鍵，由 main() 的靜態開關處理（見 _applyWebViewDebugFlag）。
+    isInspectable: _webViewDebugEnabled(),
+      // 穿透模式（AqutterNative）把原生內容畫在 WebView 下面：有穿透中的工作階段時要透明，見 [WebViewTransparency]
+      transparentBackground: transparentBackground,
+    );
+  }
+
   Widget _buildWebView(Uri baseUrl) {
+    // 這一代 WebView 建立時就依目前的穿透需求決定初始透明；建立之後的變化由 [WebViewTransparency] 補差異
+    if (_transparencyGeneration != _webViewGeneration) {
+      _transparencyGeneration = _webViewGeneration;
+      _transparentAtCreation = _transparency.wanted;
+    }
+    final transparent = _transparentAtCreation;
     // 本機傳輸的端點：以 UserScript 在頁面載入時注入 `window.aqutterEndpoint`（早於頁面腳本）。
     // 伺服器重啟後的更新見 [_onEndpointChanged]；此刻沒有端點（重啟中）就先不注入，稍後會補上。
     final endpoint = AqutterNativeHost.instance.endpoint.value;
@@ -949,43 +1030,7 @@ class _AqutterPageState extends State<AqutterPage> {
       preventGestureDelay: true,
       initialUrlRequest: AqutterURLRequest(url: AqutterWebUri.uri(baseUrl)),
       initialUserScripts: endpoint == null ? null : UnmodifiableListView([buildEndpointUserScript(endpoint)]),
-      initialSettings: AqutterWebViewSettings(
-        javaScriptEnabled: true,
-        // 允許載入本機 http server（loopback）
-        mixedContentMode: AqutterMixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
-        // iOS：關閉 scrollView 的自動 safe-area 內縮，否則會與網頁端的
-        // --safe-area-* 留白疊加成雙倍間距。
-        contentInsetAdjustmentBehavior: AqutterScrollViewContentInsetAdjustmentBehavior.NEVER,
-        // 關掉 fork 的原生鍵盤避讓（預設 true）。Android 端它會吃掉 IME 插邊並平移整個
-        // WebView，網頁因此永遠不知道鍵盤存在、window.visualViewport 也不再變化；iOS 端則
-        // 補鍵盤高度的 contentInset。兩者都與上方 AqutterSurface 讓 WebView 真正縮小的做法衝突
-        // （前者是頂底二擇一的平移，後者會疊成雙倍留白），故全平台一律關閉，改由 Chromium /
-        // WebKit 自己在縮小後的 viewport 內捲焦點欄位——此時它們是唯一的搬動者。
-        keyboardAvoidance: false,
-        // 禁止縮放：這是 app 殼而非閱讀型網站，捏合／雙擊把整個畫面放大會破壞版面。
-        // 套件預設兩者皆為 true，故必須明寫關閉。
-        // supportZoom 是唯一四平台皆支援的開關，各自對應：
-        //   Android → WebSettings.setSupportZoom
-        //   iOS / macOS → WKWebView
-        //   Windows → ICoreWebView2Settings.put_IsZoomControlEnabled
-        // builtInZoomControls 為 Android 專屬（手勢與螢幕上的縮放控制項）。
-        // iOS 的 min/maximumZoomScale 預設已是 1.0，無需另設。
-        supportZoom: false,
-        builtInZoomControls: false,
-        // iOS / macOS：允許 <video> 在頁面內播放。WebKit 預設為 false，會讓所有影片
-        // 一律交給原生全螢幕播放器接手——網頁的 playsinline 屬性在 WKWebView 下擋不住
-        // 這個行為，必須由宿主放行。Android 與 Windows 不受此設定影響，本來就 inline。
-        //
-        // 刻意不動 mediaPlaybackRequiresUserGesture（預設 true）：那條放寬的是「不需使用者
-        // 手勢即可播放」，影響範圍是整個 app 的所有影音，代價與這裡要解決的問題不對等。
-        allowsInlineMediaPlayback: true,
-        // 測試用：以 `--dart-define=AQUTTER_MEDIA_AUTOPLAY=true` 讓影音不需使用者手勢即可播放（自動化測試沒有人可以點）。
-        // 預設關閉，理由見上。
-        mediaPlaybackRequiresUserGesture: !const bool.fromEnvironment('AQUTTER_MEDIA_AUTOPLAY'),
-        // iOS 16.4+ / macOS 13.3+ 的 Safari Web Inspector 與 Windows WebView2 的 DevTools；
-        // Android 忽略此鍵，由 main() 的靜態開關處理（見 _applyWebViewDebugFlag）。
-        isInspectable: _webViewDebugEnabled(),
-      ),
+      initialSettings: _webViewSettings(transparentBackground: transparent),
       onWebViewCreated: _onWebViewCreated,
       // 網頁的 getUserMedia（相機、麥克風）：Android WebView 沒人回答就一律拒絕，故由殼決定。
       // 只放行殼自己供應的頁面，見 [decideMediaPermission]。

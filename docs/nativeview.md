@@ -81,6 +81,27 @@ AqutterNative(
 
 PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains: 'GMSMapView'`）。以 Google Maps 為例：把 `GoogleMap` 當 `child`，在 `onMessage` 用 `GoogleMapController` 套用 `pan` / `pinch`。完整實作見 [aqutter-plugin-google-maps](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/google-maps)（Android、iOS；含 API key 設定）；純 Flutter 畫面的範例見 [aqutter-plugin-mirror-demo](https://github.com/Aqutter/aqutter-plugins/tree/main/packages/mirror-demo)。iOS 的 PlatformView 不接受注入的 Flutter 指標事件，地圖類請用語意手勢（`input="gestures"`）換成相機操作。
 
+## 穿透模式（`mode`）
+
+鏡像要擷取、傳輸、解碼；**穿透**則讓原生內容直接畫在 WebView 下面，網頁的 `<aqutter-native>` 只佔版面。兩種模式共用同一個標籤、手勢與事件，用 `mode` 屬性切換：
+
+```html
+<aqutter-native session="map" mode="auto"></aqutter-native>   <!-- 預設 -->
+```
+
+| `mode` | 說明 |
+|---|---|
+| `auto`（預設） | 平台支援（目前只有 Android）、App 端的 `AqutterNative.mode` 允許、且頁面可穿透時用穿透，否則鏡像 |
+| `mirror` | 一律鏡像（原本的行為） |
+| `passthrough` | 要求穿透；平台或 App 不支援時退回鏡像。**不偵測頁面條件**，頁面作者自負責任 |
+
+- 事件 `aqutter-mode`（`detail.mode`、`detail.reason?`）在每次連線模式確定後觸發一次；`element.effectiveMode` 讀目前的模式。`reason` 有 `unsupported-platform`、`unsupported-widget`、`page-not-ready`、`transparent-failed`、`no-reply`。
+- **頁面條件**：穿透時元素是透明的，元素後方的祖先不可以有不透明背景（`background-color` 的 alpha ≥ 0.99，或 `background-image`），否則會蓋住原生內容。`auto` 會偵測祖先並在不通過時退回鏡像（`page-not-ready`）；偵測不涵蓋兄弟元素、偽元素、`box-shadow` 遮罩等，這類頁面請明確寫 `mode="mirror"`。
+- **殼會自動處理 WebView 透明**：有穿透中的工作階段時 WebView 透明，沒有時還原，不是全域常開，所以沒有穿透的畫面（含啟動）不會露出底層。殼無法使 WebView 透明時，之後的協商一律退回鏡像（`transparent-failed`）。
+- **圓角與遮罩**：地圖在網頁底下，網頁用不透明的邊把洞挖出形狀（例如卡片四周 `box-shadow: 0 0 0 200vmax <底色>` 加 `border-radius`，或全屏不透明層加 `mask-image`）；半透明可以，`backdrop-filter` 模糊對原生內容沒有效果。
+- **捲動**：元素隨頁面捲動時，原生內容會跟著元素走（網頁每個畫面回報一次矩形）。手指從元素內開始滑動是操作原生內容、不會捲動頁面（host 的 `touch-action: none`）。
+- 協定、決策規則與 Dart 端見 [aqutter_core 的 doc/nativeview.md](https://github.com/Aqutter/aqutter_core/blob/main/doc/nativeview.md) 的「穿透模式」。
+
 ## 效能
 
 網頁端會自動：只畫最新一幀、每幀回 `ack`（原生端據此流量控制）、元素大小改變時回報 `resize`（原生端只擷取需要的像素）、元素不可見時回報 `visibility`（原生端暫停擷取）、RGBA 不複製像素（`ImageData` 直接包住收到的像素緩衝區）。「可見」指元素在視窗內（`display: none` 或被捲出畫面都算看不到）且分頁沒有被隱藏；重新可見時原生端立刻補一幀。原生端沒重繪就不送幀。機制與協定欄位見 [aqutter_core 的 doc/nativeview.md](https://github.com/Aqutter/aqutter_core/blob/main/doc/nativeview.md)。`aqutter-frame` 事件的 `detail` 帶 `bytes`、`latencyMs`、`drawMs`，可用來觀察實際頻寬、延遲與繪製耗時；原生端的各階段耗時與實測數字見上述文件的「量測」一節。

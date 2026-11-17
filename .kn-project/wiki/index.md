@@ -9,6 +9,7 @@
 - [權限入口](platform/permissions.md)
 - [plugin 註冊](platform/plugin-registration.md)
 - [更新簽章](platform/update-signature.md)
+- [WebView 透明](platform/webview-transparency.md)
 
 ## 維運
 
