@@ -982,6 +982,9 @@ class _AqutterPageState extends State<AqutterPage> {
         // 測試用：以 `--dart-define=AQUTTER_MEDIA_AUTOPLAY=true` 讓影音不需使用者手勢即可播放（自動化測試沒有人可以點）。
         // 預設關閉，理由見上。
         mediaPlaybackRequiresUserGesture: !const bool.fromEnvironment('AQUTTER_MEDIA_AUTOPLAY'),
+        // 實驗（2611171140-map-passthrough-spike）：`--dart-define=AQUTTER_WEBVIEW_TRANSPARENT=true` 讓 WebView 背景透明，
+        // 墊在下面的原生內容（例如地圖 plugin 的不鏡像模式）才看得到。預設關閉，行為不變；尚未列入 aqutter-cli 範本與 docs/environment.md。
+        transparentBackground: const bool.fromEnvironment('AQUTTER_WEBVIEW_TRANSPARENT'),
         // iOS 16.4+ / macOS 13.3+ 的 Safari Web Inspector 與 Windows WebView2 的 DevTools；
         // Android 忽略此鍵，由 main() 的靜態開關處理（見 _applyWebViewDebugFlag）。
         isInspectable: _webViewDebugEnabled(),
