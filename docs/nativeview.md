@@ -91,7 +91,7 @@ PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains:
 
 | `mode` | 說明 |
 |---|---|
-| `auto`（預設） | 平台支援（Android、iOS、Windows；iOS 實機與 Windows 的其他顯示縮放未驗證）、App 端的 `AqutterNative.mode` 允許、且頁面可穿透時用穿透，否則鏡像 |
+| `auto`（預設） | 平台支援（Android、iOS、Windows；Windows 的其他顯示縮放未驗證）、App 端的 `AqutterNative.mode` 允許、且頁面可穿透時用穿透，否則鏡像 |
 | `mirror` | 一律鏡像（原本的行為） |
 | `passthrough` | 要求穿透；平台或 App 不支援時退回鏡像。不偵測頁面條件（頁面背景由框架自動讓出，見下） |
 
@@ -100,6 +100,8 @@ PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains:
 - **殼會自動處理 WebView 透明**：有穿透中的工作階段時 WebView 透明，沒有時還原，不是全域常開，所以沒有穿透的畫面（含啟動）不會露出底層。殼無法使 WebView 透明時，之後的協商一律退回鏡像（`transparent-failed`）。
 - **圓角與遮罩**：洞的圓角取自 `<aqutter-native>` 元素本身的 `border-radius`（google-maps 的元素預設繼承容器圓角，替容器加圓角即可）；要更複雜的形狀，在地圖上方疊不透明元素。半透明可以，`backdrop-filter` 模糊對原生內容沒有效果。
 - **捲動**：元素隨頁面捲動時，原生內容會跟著元素走（網頁每個畫面回報一次矩形）。手指從元素內開始滑動是操作原生內容、不會捲動頁面（host 的 `touch-action: none`）。
+- **iOS 的觸控直接進原生**：iOS 穿透時，手指落在元素內、且該點網頁沒有要接管的內容，觸控直接交給原生 view（地圖用原生手勢，不再經「網頁手勢 → WebSocket → Dart」轉送，iPad 實機上拖曳不再抖）；落在網頁內容上（疊在地圖上的按鈕、面板）則照常進網頁。一個觸控序列從頭到尾歸同一邊。網頁端（aqutter-js）以 `document.elementFromPoint` 取樣，把元素內網頁要接管觸控的區域隨 `layout` 回報（`webRegions`，只在 iOS）；沒有 `pointer-events: none` 的裝飾層（例如漸層遮罩）算網頁區域，它底下的地圖不能直接拖。舊版網頁端不帶 `webRegions` 時行為不變，Android、macOS、Windows 與鏡像也不變。
+- **寫原生 UI 的 plugin 要知道的事**：(1) 原生 view 要在 `AqutterNative` 的 child 內用 `AqutterNativeTouch.of(context)`（`ValueListenable<bool>`，由殼轉出）判斷觸控是否直接進原生，為 `true` 時讓原生 view 以 `EagerGestureRecognizer` 在 Flutter 手勢競技場宣告手勢（google-maps 是 `GoogleMap.gestureRecognizers`）。不宣告時的行為尚未驗證。(2) 原生內容被手指直接移動時，網頁看不到，plugin 要自己回報狀態（google-maps 在 `cameraIdle` 回報相機）。(3) `onMessage` 仍會收到 `pan`、`pinch`，但只有走網頁路徑的觸控（落在網頁區域，或網頁端是舊版）才會送來，處理要保留。(4) Flutter 端疊在原生區域之上的覆蓋層（`buildOverlay`）在原生觸控區域內收不到觸控。
 - 協定、決策規則與 Dart 端見 [aqutter_core 的 doc/nativeview.md](https://github.com/Aqutter/aqutter_core/blob/main/doc/nativeview.md) 的「穿透模式」。
 
 ## 效能
