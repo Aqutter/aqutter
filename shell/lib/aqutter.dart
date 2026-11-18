@@ -35,6 +35,7 @@ export 'src/plugin/plugin_entry.dart'
 export 'package:aqutter_core/aqutter_core.dart'
     show
         AqutterNative,
+        AqutterNativeTouch,
         AqutterNativeMode,
         AqutterNativeQuality,
         AqutterNativeFormat,
