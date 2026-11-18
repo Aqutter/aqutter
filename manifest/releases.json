@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-11-18T08:17:00Z",
+  "generatedAt": "2026-11-18T16:45:00Z",
   "channels": {
     "stable": "0.0.0"
   },
@@ -14,14 +14,14 @@
       "shell": {
         "url": "https://github.com/Aqutter/aqutter.git",
         "path": "shell",
-        "ref": "75016d9e4a15f21e7c3847d330ed678b14bc2ae8"
+        "ref": "e39621f6692c8b56e1102618ddebd6f5379dbfba"
       },
       "core": {
         "url": "https://github.com/Aqutter/aqutter_core.git",
-        "ref": "84d917459d01ba7bd7424c131540db23e890851f"
+        "ref": "671bef98208069983843c2f9517b8e3098b9b4cc"
       },
       "client": {
-        "spec": "github:Aqutter/aqutter-js#3f250d6d9c09c48a9c0cfd7e783b8c2a884734fe"
+        "spec": "github:Aqutter/aqutter-js#a4ad50629db4ae1eaa42f6c5862ae827d2919477"
       },
       "cli": {
         "min": "0.0.0"
