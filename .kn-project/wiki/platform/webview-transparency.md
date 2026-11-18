@@ -47,7 +47,7 @@
 | 設定的套用 | 執行期改透明時傳整份設定，與建立時同一份，避免其他欄位被重設成預設值 |
 | WebView 重掛 | 重掛前先停止套用舊的控制器，新的掛上後以建立時的狀態為基準 |
 | 套用失敗 | 通知核心之後的協商一律退回鏡像，原因為無法透明 |
-| 頁面條件 | 元素後方的祖先不可有不透明背景，見 [Native view 文件](../../../docs/nativeview.md) |
+| 頁面背景 | 穿透時框架自動讓出：祖先背景暫時透明、標 `data-aqutter-bg` 的層自動挖洞；`keep-background` 可關閉，見 [Native view 文件](../../../docs/nativeview.md) |
 
 來源：1. [webview_transparency.dart](../../../shell/lib/src/webview_transparency.dart)　2. [nativeview.md](../../../docs/nativeview.md)
 
