@@ -93,12 +93,12 @@ PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains:
 |---|---|
 | `auto`（預設） | 平台支援（目前只有 Android）、App 端的 `AqutterNative.mode` 允許、且頁面可穿透時用穿透，否則鏡像 |
 | `mirror` | 一律鏡像（原本的行為） |
-| `passthrough` | 要求穿透；平台或 App 不支援時退回鏡像。**不偵測頁面條件**，頁面作者自負責任 |
+| `passthrough` | 要求穿透；平台或 App 不支援時退回鏡像。不偵測頁面條件（頁面背景由框架自動讓出，見下） |
 
 - 事件 `aqutter-mode`（`detail.mode`、`detail.reason?`）在每次連線模式確定後觸發一次；`element.effectiveMode` 讀目前的模式。`reason` 有 `unsupported-platform`、`unsupported-widget`、`page-not-ready`、`transparent-failed`、`no-reply`。
-- **頁面條件**：穿透時元素是透明的，元素後方的祖先不可以有不透明背景（`background-color` 的 alpha ≥ 0.99，或 `background-image`），否則會蓋住原生內容。`auto` 會偵測祖先並在不通過時退回鏡像（`page-not-ready`）；偵測不涵蓋兄弟元素、偽元素、`box-shadow` 遮罩等，這類頁面請明確寫 `mode="mirror"`。
+- **頁面背景自動讓開**：穿透時元素往上到 `<html>` 的不透明背景（`background-color`、`background-image`）會暫時改成透明，退回鏡像、斷線或元素移除時還原，所以 `auto` 不再因祖先背景退回鏡像。鋪滿畫面的底層背景層（例如 `fixed inset-0` 的底色或漸層）在元素上標 `data-aqutter-bg`，框架會在元素位置用 CSS `mask` 自動挖洞並跟著捲動。`<aqutter-native>` 加 `keep-background` 屬性可關閉，`auto` 也回到偵測祖先背景（`page-not-ready`）。自動處理不涵蓋沒標記的兄弟元素、偽元素、`box-shadow` 遮罩，這類頁面請標記底層背景層，或明確寫 `mode="mirror"`。標記的層不可以是元素的祖先。
 - **殼會自動處理 WebView 透明**：有穿透中的工作階段時 WebView 透明，沒有時還原，不是全域常開，所以沒有穿透的畫面（含啟動）不會露出底層。殼無法使 WebView 透明時，之後的協商一律退回鏡像（`transparent-failed`）。
-- **圓角與遮罩**：地圖在網頁底下，網頁用不透明的邊把洞挖出形狀（例如卡片四周 `box-shadow: 0 0 0 200vmax <底色>` 加 `border-radius`，或全屏不透明層加 `mask-image`）；半透明可以，`backdrop-filter` 模糊對原生內容沒有效果。
+- **圓角與遮罩**：洞的圓角取自 `<aqutter-native>` 元素本身的 `border-radius`（google-maps 的元素預設繼承容器圓角，替容器加圓角即可）；要更複雜的形狀，在地圖上方疊不透明元素。半透明可以，`backdrop-filter` 模糊對原生內容沒有效果。
 - **捲動**：元素隨頁面捲動時，原生內容會跟著元素走（網頁每個畫面回報一次矩形）。手指從元素內開始滑動是操作原生內容、不會捲動頁面（host 的 `touch-action: none`）。
 - 協定、決策規則與 Dart 端見 [aqutter_core 的 doc/nativeview.md](https://github.com/Aqutter/aqutter_core/blob/main/doc/nativeview.md) 的「穿透模式」。
 
