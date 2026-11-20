@@ -91,7 +91,7 @@ PlatformView 在 iOS 需 `nativeCapture: true`（可加 `nativeViewTypeContains:
 
 | `mode` | 說明 |
 |---|---|
-| `auto`（預設） | 平台支援（Android、iOS、Windows；Windows 的其他顯示縮放未驗證）、App 端的 `AqutterNative.mode` 允許、且頁面可穿透時用穿透，否則鏡像 |
+| `auto`（預設） | 平台支援（Android、iOS、macOS、Windows；Windows 的其他顯示縮放與 macOS 的 release 建置未驗證）、App 端的 `AqutterNative.mode` 允許、且頁面可穿透時用穿透，否則鏡像 |
 | `mirror` | 一律鏡像（原本的行為） |
 | `passthrough` | 要求穿透；平台或 App 不支援時退回鏡像。不偵測頁面條件（頁面背景由框架自動讓出，見下） |
 
